@@ -1,0 +1,556 @@
+From f85b936dfbfd7f8be3775214e09fb5949073d668 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 12:31:34 -0400
+Subject: [PATCH] WorldServer is now 20tps to fix redstone
+
+
+diff --git a/src/main/java/net/minecraft/server/BlockRedstoneWire.java b/src/main/java/net/minecraft/server/BlockRedstoneWire.java
+index 532188e28..df8ea04f3 100644
+--- a/src/main/java/net/minecraft/server/BlockRedstoneWire.java
++++ b/src/main/java/net/minecraft/server/BlockRedstoneWire.java
+@@ -2,13 +2,9 @@ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Sets;
+-import java.util.ArrayList;
+-import java.util.EnumSet;
+-import java.util.Iterator;
+-import java.util.Random;
+-import java.util.Set;
++import org.bukkit.event.block.BlockRedstoneEvent;
+ 
+-import org.bukkit.event.block.BlockRedstoneEvent; // CraftBukkit
++import java.util.*;
+ 
+ public class BlockRedstoneWire extends Block {
+ 
+@@ -60,19 +56,16 @@ public class BlockRedstoneWire extends Block {
+     }
+ 
+     public boolean canPlace(World world, BlockPosition blockposition) {
+-        return World.a((IBlockAccess) world, blockposition.down()) || world.getType(blockposition.down()).getBlock() == Blocks.GLOWSTONE;
++        return World.a(world, blockposition.down()) || world.getType(blockposition.down()).getBlock() == Blocks.GLOWSTONE;
+     }
+ 
+     private IBlockData e(World world, BlockPosition blockposition, IBlockData iblockdata) {
+         iblockdata = this.a(world, blockposition, blockposition, iblockdata);
+-        ArrayList arraylist = Lists.newArrayList(this.R);
++        ArrayList<BlockPosition> arraylist = Lists.newArrayList(this.R);
+ 
+         this.R.clear();
+-        Iterator iterator = arraylist.iterator();
+-
+-        while (iterator.hasNext()) {
+-            BlockPosition blockposition1 = (BlockPosition) iterator.next();
+ 
++        for (BlockPosition blockposition1 : arraylist) {
+             world.applyPhysics(blockposition1, this);
+         }
+ 
+@@ -81,7 +74,7 @@ public class BlockRedstoneWire extends Block {
+ 
+     private IBlockData a(World world, BlockPosition blockposition, BlockPosition blockposition1, IBlockData iblockdata) {
+         IBlockData iblockdata1 = iblockdata;
+-        int i = ((Integer) iblockdata.get(BlockRedstoneWire.POWER)).intValue();
++        int i = iblockdata.get(BlockRedstoneWire.POWER);
+         byte b0 = 0;
+         int j = this.getPower(world, blockposition1, b0);
+ 
+@@ -94,10 +87,8 @@ public class BlockRedstoneWire extends Block {
+         }
+ 
+         int l = 0;
+-        Iterator iterator = EnumDirection.EnumDirectionLimit.HORIZONTAL.iterator();
+ 
+-        while (iterator.hasNext()) {
+-            EnumDirection enumdirection = (EnumDirection) iterator.next();
++        for (EnumDirection enumdirection : EnumDirection.EnumDirectionLimit.HORIZONTAL) {
+             BlockPosition blockposition2 = blockposition.shift(enumdirection);
+             boolean flag = blockposition2.getX() != blockposition1.getX() || blockposition2.getZ() != blockposition1.getZ();
+ 
+@@ -136,7 +127,7 @@ public class BlockRedstoneWire extends Block {
+         // CraftBukkit end
+ 
+         if (i != j) {
+-            iblockdata = iblockdata.set(BlockRedstoneWire.POWER, Integer.valueOf(j));
++            iblockdata = iblockdata.set(BlockRedstoneWire.POWER, j);
+             if (world.getType(blockposition) == iblockdata1) {
+                 world.setTypeAndData(blockposition, iblockdata, 2);
+             }
+@@ -233,9 +224,7 @@ public class BlockRedstoneWire extends Block {
+             EnumDirection[] aenumdirection = EnumDirection.values();
+             int i = aenumdirection.length;
+ 
+-            for (int j = 0; j < i; ++j) {
+-                EnumDirection enumdirection = aenumdirection[j];
+-
++            for (EnumDirection enumdirection : aenumdirection) {
+                 world.applyPhysics(blockposition.shift(enumdirection), this);
+             }
+ 
+@@ -269,7 +258,7 @@ public class BlockRedstoneWire extends Block {
+         if (world.getType(blockposition).getBlock() != this) {
+             return i;
+         } else {
+-            int j = ((Integer) world.getType(blockposition).get(BlockRedstoneWire.POWER)).intValue();
++            int j = world.getType(blockposition).get(BlockRedstoneWire.POWER);
+ 
+             return j > i ? j : i;
+         }
+@@ -299,7 +288,7 @@ public class BlockRedstoneWire extends Block {
+         if (!this.Q) {
+             return 0;
+         } else {
+-            int i = ((Integer) iblockdata.get(BlockRedstoneWire.POWER)).intValue();
++            int i = iblockdata.get(BlockRedstoneWire.POWER).intValue();
+ 
+             if (i == 0) {
+                 return 0;
+@@ -335,7 +324,7 @@ public class BlockRedstoneWire extends Block {
+         boolean flag = block.isOccluding();
+         boolean flag1 = iblockaccess.getType(blockposition.up()).getBlock().isOccluding();
+ 
+-        return !flag1 && flag && e(iblockaccess, blockposition1.up()) ? true : (a(iblockdata, enumdirection) ? true : (block == Blocks.POWERED_REPEATER && iblockdata.get(BlockDiodeAbstract.FACING) == enumdirection ? true : !flag && e(iblockaccess, blockposition1.down())));
++        return !flag1 && flag && e(iblockaccess, blockposition1.up()) || (a(iblockdata, enumdirection) || (block == Blocks.POWERED_REPEATER && iblockdata.get(BlockDiodeAbstract.FACING) == enumdirection || !flag && e(iblockaccess, blockposition1.down())));
+     }
+ 
+     protected static boolean e(IBlockAccess iblockaccess, BlockPosition blockposition) {
+@@ -343,7 +332,7 @@ public class BlockRedstoneWire extends Block {
+     }
+ 
+     protected static boolean d(IBlockData iblockdata) {
+-        return a(iblockdata, (EnumDirection) null);
++        return a(iblockdata, null);
+     }
+ 
+     protected static boolean a(IBlockData iblockdata, EnumDirection enumdirection) {
+@@ -352,7 +341,7 @@ public class BlockRedstoneWire extends Block {
+         if (block == Blocks.REDSTONE_WIRE) {
+             return true;
+         } else if (Blocks.UNPOWERED_REPEATER.e(block)) {
+-            EnumDirection enumdirection1 = (EnumDirection) iblockdata.get(BlockRepeater.FACING);
++            EnumDirection enumdirection1 = iblockdata.get(BlockRepeater.FACING);
+ 
+             return enumdirection1 == enumdirection || enumdirection1.opposite() == enumdirection;
+         } else {
+@@ -369,20 +358,20 @@ public class BlockRedstoneWire extends Block {
+     }
+ 
+     public int toLegacyData(IBlockData iblockdata) {
+-        return ((Integer) iblockdata.get(BlockRedstoneWire.POWER)).intValue();
++        return iblockdata.get(BlockRedstoneWire.POWER).intValue();
+     }
+ 
+     protected BlockStateList getStateList() {
+-        return new BlockStateList(this, new IBlockState[] { BlockRedstoneWire.NORTH, BlockRedstoneWire.EAST, BlockRedstoneWire.SOUTH, BlockRedstoneWire.WEST, BlockRedstoneWire.POWER});
++        return new BlockStateList(this, BlockRedstoneWire.NORTH, BlockRedstoneWire.EAST, BlockRedstoneWire.SOUTH, BlockRedstoneWire.WEST, BlockRedstoneWire.POWER);
+     }
+ 
+-    static enum EnumRedstoneWireConnection implements INamable {
++    enum EnumRedstoneWireConnection implements INamable {
+ 
+         UP("up"), SIDE("side"), NONE("none");
+ 
+         private final String d;
+ 
+-        private EnumRedstoneWireConnection(String s) {
++        EnumRedstoneWireConnection(String s) {
+             this.d = s;
+         }
+ 
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index da76f8b7d..90e3739c0 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -820,24 +820,24 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+             this.methodProfiler.a("tick");
+ 
+             CrashReport crashreport;
+-
+-            try {
+-                worldserver.timings.doTick.startTiming(); // Spigot
+-                worldserver.doTick();
+-                worldserver.timings.doTick.stopTiming(); // Spigot
+-            } catch (Throwable throwable) {
+-                // Spigot Start
++            if (offTick) {
+                 try {
+-                    crashreport = CrashReport.a(throwable, "Exception ticking world");
+-                } catch (Throwable t) {
+-                    throw new RuntimeException("Error generating crash report", t);
++                    worldserver.timings.doTick.startTiming(); // Spigot
++                    worldserver.doTick();
++                    worldserver.timings.doTick.stopTiming(); // Spigot
++                } catch (Throwable throwable) {
++                    // Spigot Start
++                    try {
++                        crashreport = CrashReport.a(throwable, "Exception ticking world");
++                    } catch (Throwable t) {
++                        throw new RuntimeException("Error generating crash report", t);
++                    }
++                    // Spigot End
++                    worldserver.a(crashreport);
++                    throw new ReportedException(crashreport);
+                 }
+-                // Spigot End
+-                worldserver.a(crashreport);
+-                throw new ReportedException(crashreport);
+-            }
+ 
+-            if (offTick) {
++
+                 try {
+                     worldserver.timings.tickEntities.startTiming(); // Spigot
+                     worldserver.tickEntities();
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index c7282e846..6735f4ed4 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -1350,7 +1350,6 @@ public abstract class World implements IBlockAccess {
+         this.methodProfiler.a("entities");
+         this.methodProfiler.a("global");
+ 
+-        int i;
+         CrashReport crashreport;
+         CrashReportSystemDetails crashreportsystemdetails;
+         Iterator<Entity> iterator = this.k.iterator();
+@@ -2150,9 +2149,9 @@ public abstract class World implements IBlockAccess {
+                 this.p = MathHelper.a(this.p, 0.0F, 1.0F);
+ 
+                 // CraftBukkit start
+-                for (int idx = 0; idx < this.players.size(); ++idx) {
+-                    if (((EntityPlayer) this.players.get(idx)).world == this) {
+-                        ((EntityPlayer) this.players.get(idx)).tickWeather();
++                for (EntityHuman player : this.players) {
++                    if (((EntityPlayer) player).world == this) {
++                        ((EntityPlayer) player).tickWeather();
+                     }
+                 }
+                 // CraftBukkit end
+@@ -2277,24 +2276,23 @@ public abstract class World implements IBlockAccess {
+ 
+         if (f > 0.15F) {
+             return false;
+-        } else {
+-            if (blockposition.getY() >= 0 && blockposition.getY() < 256 && this.b(EnumSkyBlock.BLOCK, blockposition) < 10) {
+-                IBlockData iblockdata = this.getType(blockposition);
+-                Block block = iblockdata.getBlock();
++        }
++        if (blockposition.getY() >= 0 && blockposition.getY() < 256 && this.b(EnumSkyBlock.BLOCK, blockposition) < 10) {
++            IBlockData iblockdata = this.getType(blockposition);
++            Block block = iblockdata.getBlock();
+ 
+-                if ((block == Blocks.WATER || block == Blocks.FLOWING_WATER) && iblockdata.get(BlockFluids.LEVEL).intValue() == 0) {
+-                    if (!flag) {
+-                        return true;
+-                    }
++            if ((block == Blocks.WATER || block == Blocks.FLOWING_WATER) && iblockdata.get(BlockFluids.LEVEL) == 0) {
++                if (!flag) {
++                    return true;
++                }
+ 
+-                    boolean flag1 = this.F(blockposition.west()) && this.F(blockposition.east()) && this.F(blockposition.north()) && this.F(blockposition.south());
++                boolean flag1 = this.F(blockposition.west()) && this.F(blockposition.east()) && this.F(blockposition.north()) && this.F(blockposition.south());
+ 
+-                    return !flag1;
+-                }
++                return !flag1;
+             }
+-
+-            return false;
+         }
++
++        return false;
+     }
+ 
+     private boolean F(BlockPosition blockposition) {
+@@ -2309,15 +2307,13 @@ public abstract class World implements IBlockAccess {
+             return false;
+         } else if (!flag) {
+             return true;
+-        } else {
+-            if (blockposition.getY() >= 0 && blockposition.getY() < 256 && this.b(EnumSkyBlock.BLOCK, blockposition) < 10) {
+-                Block block = this.getType(blockposition).getBlock();
+-
+-                return block.getMaterial() == Material.AIR && Blocks.SNOW_LAYER.canPlace(this, blockposition);
+-            }
+-
+-            return false;
+         }
++        if (blockposition.getY() >= 0 && blockposition.getY() < 256 && this.b(EnumSkyBlock.BLOCK, blockposition) < 10) {
++            Block block = this.getType(blockposition).getBlock();
++            return block.getMaterial() == Material.AIR && Blocks.SNOW_LAYER.canPlace(this, blockposition);
++        }
++
++        return false;
+     }
+ 
+     public boolean x(BlockPosition blockposition) {
+diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
+index 2f7fbb20b..b7112822c 100644
+--- a/src/main/java/net/minecraft/server/WorldServer.java
++++ b/src/main/java/net/minecraft/server/WorldServer.java
+@@ -39,7 +39,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+     protected final VillageSiege siegeManager = new VillageSiege(this);
+     private WorldServer.BlockActionDataList[] S = new WorldServer.BlockActionDataList[]{new WorldServer.BlockActionDataList(null), new WorldServer.BlockActionDataList(null)};
+     private int T;
+-    private static final List<StructurePieceTreasure> U = Lists.newArrayList(new StructurePieceTreasure[]{new StructurePieceTreasure(Items.STICK, 0, 1, 3, 10), new StructurePieceTreasure(Item.getItemOf(Blocks.PLANKS), 0, 1, 3, 10), new StructurePieceTreasure(Item.getItemOf(Blocks.LOG), 0, 1, 3, 10), new StructurePieceTreasure(Items.STONE_AXE, 0, 1, 1, 3), new StructurePieceTreasure(Items.WOODEN_AXE, 0, 1, 1, 5), new StructurePieceTreasure(Items.STONE_PICKAXE, 0, 1, 1, 3), new StructurePieceTreasure(Items.WOODEN_PICKAXE, 0, 1, 1, 5), new StructurePieceTreasure(Items.APPLE, 0, 2, 3, 5), new StructurePieceTreasure(Items.BREAD, 0, 2, 3, 3), new StructurePieceTreasure(Item.getItemOf(Blocks.LOG2), 0, 1, 3, 10)});
++    private static final List<StructurePieceTreasure> U = Lists.newArrayList(new StructurePieceTreasure(Items.STICK, 0, 1, 3, 10), new StructurePieceTreasure(Item.getItemOf(Blocks.PLANKS), 0, 1, 3, 10), new StructurePieceTreasure(Item.getItemOf(Blocks.LOG), 0, 1, 3, 10), new StructurePieceTreasure(Items.STONE_AXE, 0, 1, 1, 3), new StructurePieceTreasure(Items.WOODEN_AXE, 0, 1, 1, 5), new StructurePieceTreasure(Items.STONE_PICKAXE, 0, 1, 1, 3), new StructurePieceTreasure(Items.WOODEN_PICKAXE, 0, 1, 1, 5), new StructurePieceTreasure(Items.APPLE, 0, 2, 3, 5), new StructurePieceTreasure(Items.BREAD, 0, 2, 3, 3), new StructurePieceTreasure(Item.getItemOf(Blocks.LOG2), 0, 1, 3, 10));
+     private List<NextTickListEntry> V = Lists.newArrayList();
+ 
+     // CraftBukkit start
+@@ -73,7 +73,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+             this.worldMaps.a(s, this.villages);
+         } else {
+             this.villages = persistentvillage;
+-            this.villages.a((World) this);
++            this.villages.a(this);
+         }
+ 
+         if (getServer().getScoreboardManager() == null) { // CraftBukkit
+@@ -237,9 +237,13 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+ 
+         timings.doChunkUnload.stopTiming(); // Spigot
+         this.methodProfiler.c("tickPending");
++
++
+         timings.scheduledBlocks.startTiming(); // Spigot
+         this.a(false);
+         timings.scheduledBlocks.stopTiming(); // Spigot
++
++
+         this.methodProfiler.c("tickBlocks");
+         timings.chunkTicks.startTiming(); // Spigot
+         this.h();
+@@ -275,7 +279,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+     public boolean a(EnumCreatureType enumcreaturetype, BiomeBase.BiomeMeta biomebase_biomemeta, BlockPosition blockposition) {
+         List list = this.N().getMobsFor(enumcreaturetype, blockposition);
+ 
+-        return list != null && !list.isEmpty() ? list.contains(biomebase_biomemeta) : false;
++        return (list != null && !list.isEmpty()) && list.contains(biomebase_biomemeta);
+     }
+ 
+     public void everyoneSleeping() {
+@@ -485,7 +489,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+ 
+                                 if (block.isTicking()) {
+                                     ++i;
+-                                    block.a((World) this, new BlockPosition(j2 + k, l2 + chunksection.getYPosition(), k2 + l), iblockdata, this.random);
++                                    block.a(this, new BlockPosition(j2 + k, l2 + chunksection.getYPosition(), k2 + l), iblockdata, this.random);
+                                 }
+                             }
+                         }
+@@ -539,7 +543,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+                     IBlockData iblockdata = this.getType(nextticklistentry.a);
+ 
+                     if (iblockdata.getBlock().getMaterial() != Material.AIR && iblockdata.getBlock() == nextticklistentry.a()) {
+-                        iblockdata.getBlock().b((World) this, nextticklistentry.a, iblockdata, this.random);
++                        iblockdata.getBlock().b(this, nextticklistentry.a, iblockdata, this.random);
+                     }
+                 }
+ 
+@@ -598,13 +602,10 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+     public boolean a(boolean flag) {
+         if (this.worldData.getType() == WorldType.DEBUG_ALL_BLOCK_STATES) {
+             return false;
+-        } else {
+-            int i = this.M.size();
++        }
++        int i = this.M.size();
+ 
+-            if (false) { // CraftBukkit
+-                throw new IllegalStateException("TickNextTick list out of synch");
+-            } else {
+-                // PaperSpigot start - No, stop doing this, it affects things like redstone
++        // PaperSpigot start - No, stop doing this, it affects things like redstone
+                 /*
+                 if (i > 1000) {
+                     // CraftBukkit start - If the server has too much to process over time, try to alleviate that
+@@ -615,83 +616,81 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+                     }
+                     // CraftBukkit end
+                 */
+-                if (i > paperSpigotConfig.tickNextTickCap) {
+-                    i = paperSpigotConfig.tickNextTickCap;
+-                }
+-                // PaperSpigot end
++        if (i > paperSpigotConfig.tickNextTickCap) {
++            i = paperSpigotConfig.tickNextTickCap;
++        }
++        // PaperSpigot end
+ 
+-                this.methodProfiler.a("cleaning");
++        this.methodProfiler.a("cleaning");
+ 
+-                timings.scheduledBlocksCleanup.startTiming(); // Spigot
+-                NextTickListEntry nextticklistentry;
++        timings.scheduledBlocksCleanup.startTiming(); // Spigot
++        NextTickListEntry nextticklistentry;
+ 
+-                for (int j = 0; j < i; ++j) {
+-                    nextticklistentry = (NextTickListEntry) this.M.first();
+-                    if (!flag && nextticklistentry.b > this.worldData.getTime()) {
+-                        break;
+-                    }
++        for (int j = 0; j < i; ++j) {
++            nextticklistentry = this.M.first();
++            if (!flag && nextticklistentry.b > this.worldData.getTime()) {
++                break;
++            }
++
++            // CraftBukkit - use M, PAIL: Rename nextTickList
++            this.M.remove(nextticklistentry);
++            this.V.add(nextticklistentry);
++        }
++        timings.scheduledBlocksCleanup.stopTiming(); // Spigot
+ 
+-                    // CraftBukkit - use M, PAIL: Rename nextTickList
+-                    this.M.remove(nextticklistentry);
+-                    this.V.add(nextticklistentry);
++        // PaperSpigot start - Allow redstone ticks to bypass the tickNextTickListCap
++        if (paperSpigotConfig.tickNextTickListCapIgnoresRedstone) {
++            Iterator<NextTickListEntry> iterator = this.M.iterator();
++            while (iterator.hasNext()) {
++                NextTickListEntry next = iterator.next();
++                if (!flag && next.b > this.worldData.getTime()) {
++                    break;
+                 }
+-                timings.scheduledBlocksCleanup.stopTiming(); // Spigot
+-
+-                // PaperSpigot start - Allow redstone ticks to bypass the tickNextTickListCap
+-                if (paperSpigotConfig.tickNextTickListCapIgnoresRedstone) {
+-                    Iterator<NextTickListEntry> iterator = this.M.iterator();
+-                    while (iterator.hasNext()) {
+-                        NextTickListEntry next = iterator.next();
+-                        if (!flag && next.b > this.worldData.getTime()) {
+-                            break;
+-                        }
+ 
+-                        if (next.a().isPowerSource() || next.a() instanceof IContainer) {
+-                            iterator.remove();
+-                            this.V.add(next);
+-                        }
+-                    }
++                if (next.a().isPowerSource() || next.a() instanceof IContainer) {
++                    iterator.remove();
++                    this.V.add(next);
+                 }
+-                // PaperSpigot end
++            }
++        }
++        // PaperSpigot end
+ 
+-                this.methodProfiler.b();
+-                this.methodProfiler.a("ticking");
+-                timings.scheduledBlocksTicking.startTiming(); // Spigot
+-                Iterator iterator = this.V.iterator();
++        this.methodProfiler.b();
++        this.methodProfiler.a("ticking");
++        timings.scheduledBlocksTicking.startTiming(); // Spigot
++        Iterator iterator = this.V.iterator();
+ 
+-                while (iterator.hasNext()) {
+-                    nextticklistentry = (NextTickListEntry) iterator.next();
+-                    iterator.remove();
+-                    byte b0 = 0;
+-
+-                    if (this.areChunksLoadedBetween(nextticklistentry.a.a(-b0, -b0, -b0), nextticklistentry.a.a(b0, b0, b0))) {
+-                        IBlockData iblockdata = this.getType(nextticklistentry.a);
+-                        co.aikar.timings.Timing timing = iblockdata.getBlock().getTiming(); // Spigot
+-                        timing.startTiming(); // Spigot
+-
+-                        if (iblockdata.getBlock().getMaterial() != Material.AIR && Block.a(iblockdata.getBlock(), nextticklistentry.a())) {
+-                            try {
+-                                iblockdata.getBlock().b((World) this, nextticklistentry.a, iblockdata, this.random);
+-                            } catch (Throwable throwable) {
+-                                CrashReport crashreport = CrashReport.a(throwable, "Exception while ticking a block");
+-                                CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Block being ticked");
+-
+-                                CrashReportSystemDetails.a(crashreportsystemdetails, nextticklistentry.a, iblockdata);
+-                                throw new ReportedException(crashreport);
+-                            }
+-                        }
+-                        timing.stopTiming(); // Spigot
+-                    } else {
+-                        this.a(nextticklistentry.a, nextticklistentry.a(), 0);
++        while (iterator.hasNext()) {
++            nextticklistentry = (NextTickListEntry) iterator.next();
++            iterator.remove();
++            byte b0 = 0;
++
++            if (this.areChunksLoadedBetween(nextticklistentry.a.a(-b0, -b0, -b0), nextticklistentry.a.a(b0, b0, b0))) {
++                IBlockData iblockdata = this.getType(nextticklistentry.a);
++                co.aikar.timings.Timing timing = iblockdata.getBlock().getTiming(); // Spigot
++                timing.startTiming(); // Spigot
++
++                if (iblockdata.getBlock().getMaterial() != Material.AIR && Block.a(iblockdata.getBlock(), nextticklistentry.a())) {
++                    try {
++                        iblockdata.getBlock().b(this, nextticklistentry.a, iblockdata, this.random);
++                    } catch (Throwable throwable) {
++                        CrashReport crashreport = CrashReport.a(throwable, "Exception while ticking a block");
++                        CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Block being ticked");
++
++                        CrashReportSystemDetails.a(crashreportsystemdetails, nextticklistentry.a, iblockdata);
++                        throw new ReportedException(crashreport);
+                     }
+                 }
+-                timings.scheduledBlocksTicking.stopTiming(); // Spigot
+-
+-                this.methodProfiler.b();
+-                this.V.clear();
+-                return !this.M.isEmpty();
++                timing.stopTiming(); // Spigot
++            } else {
++                this.a(nextticklistentry.a, nextticklistentry.a(), 0);
+             }
+         }
++        timings.scheduledBlocksTicking.stopTiming(); // Spigot
++
++        this.methodProfiler.b();
++        this.V.clear();
++        return !this.M.isEmpty();
+     }
+ 
+     public List<NextTickListEntry> a(Chunk chunk, boolean flag) {
+@@ -833,7 +832,6 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+                 try {
+                     this.a(crashreport);
+                 } catch (Throwable throwable1) {
+-                    ;
+                 }
+ 
+                 throw new ReportedException(crashreport);
+@@ -876,10 +874,10 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+             // CraftBukkit start
+             if (this.generator != null) {
+                 Random rand = new Random(this.getSeed());
+-                org.bukkit.Location spawn = this.generator.getFixedSpawnLocation(((WorldServer) this).getWorld(), rand);
++                org.bukkit.Location spawn = this.generator.getFixedSpawnLocation(this.getWorld(), rand);
+ 
+                 if (spawn != null) {
+-                    if (spawn.getWorld() != ((WorldServer) this).getWorld()) {
++                    if (spawn.getWorld() != this.getWorld()) {
+                         throw new IllegalStateException("Cannot set spawn point for " + this.worldData.getName() + " to be in another world (" + spawn.getWorld().getName() + ")");
+                     } else {
+                         this.worldData.setSpawn(new BlockPosition(spawn.getBlockX(), spawn.getBlockY(), spawn.getBlockZ()));
+@@ -1063,7 +1061,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+             EntityHuman entityhuman = (EntityHuman) iterator.next();
+ 
+             if (entityhuman.e(d0, d1, d2) < 4096.0D) {
+-                ((EntityPlayer) entityhuman).playerConnection.sendPacket(new PacketPlayOutExplosion(d0, d1, d2, f, explosion.getBlocks(), (Vec3D) explosion.b().get(entityhuman)));
++                ((EntityPlayer) entityhuman).playerConnection.sendPacket(new PacketPlayOutExplosion(d0, d1, d2, f, explosion.getBlocks(), explosion.b().get(entityhuman)));
+             }
+         }
+ 
+@@ -1204,7 +1202,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+     }
+ 
+     public Entity getEntity(UUID uuid) {
+-        return (Entity) this.entitiesByUUID.get(uuid);
++        return this.entitiesByUUID.get(uuid);
+     }
+ 
+     public ListenableFuture<Object> postToMainThread(Runnable runnable) {
+-- 
+2.21.0.windows.1
+

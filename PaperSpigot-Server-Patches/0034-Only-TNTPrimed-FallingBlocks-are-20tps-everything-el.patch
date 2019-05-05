@@ -1,0 +1,133 @@
+From cd289b29e4fa02307e7a199d218e4bc23c46001d Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 14:20:57 -0400
+Subject: [PATCH] Only TNTPrimed & FallingBlocks are 20tps everything else is
+ 40tps.
+
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index cd57fa148..dd110b199 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -312,23 +312,22 @@ public abstract class Entity implements ICommandListener {
+             int i = this.L();
+ 
+             if (this.ak) {
+-                if (true || minecraftserver.getAllowNether()) { // CraftBukkit
+-                    if (this.vehicle == null && this.al++ >= i) {
+-                        this.al = i;
+-                        this.portalCooldown = this.aq();
+-                        byte b0;
+-
+-                        if (this.world.worldProvider.getDimension() == -1) {
+-                            b0 = 0;
+-                        } else {
+-                            b0 = -1;
+-                        }
+-
+-                        this.c(b0);
++                // CraftBukkit
++                if (this.vehicle == null && this.al++ >= i) {
++                    this.al = i;
++                    this.portalCooldown = this.aq();
++                    byte b0;
++
++                    if (this.world.worldProvider.getDimension() == -1) {
++                        b0 = 0;
++                    } else {
++                        b0 = -1;
+                     }
+ 
+-                    this.ak = false;
++                    this.c(b0);
+                 }
++
++                this.ak = false;
+             } else {
+                 if (this.al > 0) {
+                     this.al -= 4;
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 5d86e4fb5..e9b6ed0d1 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -516,7 +516,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+     public final RollingAverage tps60 = new RollingAverage(60);
+     public final RollingAverage tps120 = new RollingAverage(120);
+     public final RollingAverage tps300 = new RollingAverage(300);
+-    private boolean offTick = true;
++    public static boolean offTick = true;
+     public double[] recentTps = new double[7]; // PaperSpigot - Fine have your darn compat with bad plugins
+ 
+     public static class RollingAverage {
+@@ -848,23 +848,22 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+                     worldserver.a(crashreport);
+                     throw new ReportedException(crashreport);
+                 }
++            }
+ 
+-
++            try {
++                worldserver.timings.tickEntities.startTiming(); // Spigot
++                worldserver.tickEntities();
++                worldserver.timings.tickEntities.stopTiming(); // Spigot
++            } catch (Throwable throwable1) {
++                // Spigot Start
+                 try {
+-                    worldserver.timings.tickEntities.startTiming(); // Spigot
+-                    worldserver.tickEntities();
+-                    worldserver.timings.tickEntities.stopTiming(); // Spigot
+-                } catch (Throwable throwable1) {
+-                    // Spigot Start
+-                    try {
+-                        crashreport = CrashReport.a(throwable1, "Exception ticking world entities");
+-                    } catch (Throwable t) {
+-                        throw new RuntimeException("Error generating crash report", t);
+-                    }
+-                    // Spigot End
+-                    worldserver.a(crashreport);
+-                    throw new ReportedException(crashreport);
++                    crashreport = CrashReport.a(throwable1, "Exception ticking world entities");
++                } catch (Throwable t) {
++                    throw new RuntimeException("Error generating crash report", t);
+                 }
++                // Spigot End
++                worldserver.a(crashreport);
++                throw new ReportedException(crashreport);
+             }
+ 
+             /*
+diff --git a/src/main/java/net/minecraft/server/TileEntityBrewingStand.java b/src/main/java/net/minecraft/server/TileEntityBrewingStand.java
+index 07d5a1967..88877d9d4 100644
+--- a/src/main/java/net/minecraft/server/TileEntityBrewingStand.java
++++ b/src/main/java/net/minecraft/server/TileEntityBrewingStand.java
+@@ -98,7 +98,7 @@ public class TileEntityBrewingStand extends TileEntityContainer implements IUpda
+                 }
+ 
+                 for (int i = 0; i < BlockBrewingStand.HAS_BOTTLE.length; ++i) {
+-                    iblockdata = iblockdata.set(BlockBrewingStand.HAS_BOTTLE[i], Boolean.valueOf(aboolean[i]));
++                    iblockdata = iblockdata.set(BlockBrewingStand.HAS_BOTTLE[i], aboolean[i]);
+                 }
+ 
+                 this.world.setTypeAndData(this.position, iblockdata, 2);
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 23b6d3a5b..8656e5aa8 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -1362,7 +1362,13 @@ public abstract class World implements IBlockAccess {
+ 
+             try {
+                 ++entity.ticksLived;
+-                entity.t_();
++                if (entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock) {
++                    if (MinecraftServer.offTick) {
++                        entity.t_();
++                    }
++                } else {
++                    entity.t_();
++                }
+             } catch (Throwable throwable) {
+                 crashreport = CrashReport.a(throwable, "Ticking entity");
+                 crashreportsystemdetails = crashreport.a("Entity being ticked");
+-- 
+2.21.0.windows.1
+

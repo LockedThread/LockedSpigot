@@ -1,0 +1,82 @@
+From ba58a3b20aa6bd9e683601c3831ca6a0125b9dd2 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 11:52:05 -0400
+Subject: [PATCH] Better /tps command
+
+
+diff --git a/src/main/java/org/spigotmc/TicksPerSecondCommand.java b/src/main/java/org/spigotmc/TicksPerSecondCommand.java
+index 21fd7efc5..607f83835 100644
+--- a/src/main/java/org/spigotmc/TicksPerSecondCommand.java
++++ b/src/main/java/org/spigotmc/TicksPerSecondCommand.java
+@@ -1,43 +1,46 @@
+ package org.spigotmc;
+ 
++import net.minecraft.server.MinecraftServer;
+ import org.bukkit.ChatColor;
+ import org.bukkit.command.Command;
+ import org.bukkit.command.CommandSender;
+ 
+-public class TicksPerSecondCommand extends Command
+-{
++public class TicksPerSecondCommand extends Command {
+ 
+-    public TicksPerSecondCommand(String name)
+-    {
+-        super( name );
++    public TicksPerSecondCommand(String name) {
++        super(name);
+         this.description = "Gets the current ticks per second for the server";
+         this.usageMessage = "/tps";
+-        this.setPermission( "bukkit.command.tps" );
++        this.setPermission("bukkit.command.tps");
+     }
+ 
+     @Override
+-    public boolean execute(CommandSender sender, String currentAlias, String[] args)
+-    {
+-        if ( !testPermission( sender ) )
+-        {
++    public boolean execute(CommandSender sender, String currentAlias, String[] args) {
++        if (!testPermission(sender)) {
+             return true;
+         }
+ 
+-        // PaperSpigot start - Further improve tick handling
+-        double[] tps = org.bukkit.Bukkit.spigot().getTPS();
+-        String[] tpsAvg = new String[tps.length];
+-
+-         for ( int i = 0; i < tps.length; i++) {
+-             tpsAvg[i] = format( tps[i] );
+-        }
+-        sender.sendMessage( ChatColor.GOLD + "TPS from last 1m, 5m, 15m: " + org.apache.commons.lang.StringUtils.join(tpsAvg, ", "));
++        sender.sendMessage(ChatColor.YELLOW + "The tps shown is based on a 40tps scale whilst entities and and the bukkit scheduler are based on 20.");
++        sender.sendMessage(ChatColor.DARK_GRAY + ChatColor.STRIKETHROUGH.toString() + "--------------------------");
++        sender.sendMessage(ChatColor.YELLOW + "1m - " + format(MinecraftServer.getServer().tps1.getAverage()));
++        sender.sendMessage(ChatColor.YELLOW + "5m - " + format(MinecraftServer.getServer().tps5.getAverage()));
++        sender.sendMessage(ChatColor.YELLOW + "15m - " + format(MinecraftServer.getServer().tps15.getAverage()));
++        sender.sendMessage(ChatColor.DARK_GRAY + ChatColor.STRIKETHROUGH.toString() + "--------------------------");
+ 
+         return true;
+     }
+ 
+-    private static String format(double tps) // PaperSpigot - made static
+-    {
+-        return ( ( tps > 18.0 ) ? ChatColor.GREEN : ( tps > 16.0 ) ? ChatColor.YELLOW : ChatColor.RED ).toString()
+-                + ( ( tps > 20.0 ) ? "*" : "" ) + Math.min( Math.round( tps * 100.0 ) / 100.0, 20.0 );
++    private String format(double tps) {
++        if (tps >= 40.0) {
++            return ChatColor.GREEN + "*" + tps;
++        } else if (tps >= 37.0) {
++            return ChatColor.GREEN.toString() + tps;
++        } else if (tps >= 35.0) {
++            return ChatColor.YELLOW.toString() + tps;
++        } else if (tps >= 20) {
++            return ChatColor.RED.toString() + tps;
++        } else {
++            return ChatColor.RED + ChatColor.STRIKETHROUGH.toString() + tps;
++        }
+     }
+ }
+-- 
+2.21.0.windows.1
+

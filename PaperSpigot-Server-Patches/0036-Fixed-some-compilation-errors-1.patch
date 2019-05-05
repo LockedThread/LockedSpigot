@@ -1,0 +1,127 @@
+From 98661d0f22bd47df89fd76f19ae75b60e5b50a30 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 16:51:33 -0400
+Subject: [PATCH] Fixed some compilation errors - 1
+
+
+diff --git a/src/main/java/net/minecraft/server/JsonList.java b/src/main/java/net/minecraft/server/JsonList.java
+index ec0b03087..a1704fe0f 100644
+--- a/src/main/java/net/minecraft/server/JsonList.java
++++ b/src/main/java/net/minecraft/server/JsonList.java
+@@ -126,7 +126,6 @@ public class JsonList<K, V extends JsonListEntry<K>> {
+ 
+             this.d.remove(object);
+         }
+-
+     }
+ 
+     protected JsonListEntry<K> a(JsonObject jsonobject) {
+diff --git a/src/main/java/net/minecraft/server/NameReferencingFileConverter.java b/src/main/java/net/minecraft/server/NameReferencingFileConverter.java
+index 20a720def..2b864f789 100644
+--- a/src/main/java/net/minecraft/server/NameReferencingFileConverter.java
++++ b/src/main/java/net/minecraft/server/NameReferencingFileConverter.java
+@@ -17,7 +17,6 @@ import java.util.ArrayList;
+ import java.util.Collection;
+ import java.util.Date;
+ import java.util.HashMap;
+-import java.util.Iterator;
+ import java.util.List;
+ import java.util.Locale;
+ import java.util.Map;
+@@ -34,7 +33,7 @@ public class NameReferencingFileConverter {
+     public static final File d = new File("white-list.txt");
+ 
+     static List<String> a(File file, Map<String, String[]> map) throws IOException {
+-        List list = Files.readLines(file, Charsets.UTF_8);
++        List<String> list = Files.readLines(file, Charsets.UTF_8);
+ 
+         for (Object o : list) {
+             String s = (String) o;
+@@ -51,23 +50,14 @@ public class NameReferencingFileConverter {
+     }
+ 
+     private static void a(MinecraftServer minecraftserver, Collection<String> collection, ProfileLookupCallback profilelookupcallback) {
+-        String[] astring = Iterators.toArray(Iterators.filter(collection.iterator(), new Predicate() {
+-            public boolean a(String s) {
+-                return !UtilColor.b(s);
+-            }
+-
+-            public boolean apply(Object object) {
+-                return this.a((String) object);
+-            }
+-        }), String.class);
++        String[] astring = Iterators.toArray(Iterators.filter(collection.iterator(), s -> !UtilColor.b(s)), String.class);
+ 
+         if (minecraftserver.getOnlineMode() || org.spigotmc.SpigotConfig.bungee) { // Spigot: bungee = online mode, for now.
+             minecraftserver.getGameProfileRepository().findProfilesByNames(astring, Agent.MINECRAFT, profilelookupcallback);
+         } else {
+             int i = astring.length;
+ 
+-            for (int j = 0; j < i; ++j) {
+-                String s = astring[j];
++            for (String s : astring) {
+                 UUID uuid = EntityHuman.a(new GameProfile(null, s));
+                 GameProfile gameprofile = new GameProfile(uuid, s);
+ 
+@@ -179,7 +169,7 @@ public class NameReferencingFileConverter {
+             }
+ 
+             try {
+-                List list = Files.readLines(NameReferencingFileConverter.c, Charsets.UTF_8);
++                List<String> list = Files.readLines(NameReferencingFileConverter.c, Charsets.UTF_8);
+                 ProfileLookupCallback profilelookupcallback = new ProfileLookupCallback() {
+                     public void onProfileLookupSucceeded(GameProfile gameprofile) {
+                         minecraftserver.getUserCache().a(gameprofile);
+@@ -220,7 +210,7 @@ public class NameReferencingFileConverter {
+             }
+ 
+             try {
+-                List list = Files.readLines(NameReferencingFileConverter.d, Charsets.UTF_8);
++                List<String> list = Files.readLines(NameReferencingFileConverter.d, Charsets.UTF_8);
+                 ProfileLookupCallback profilelookupcallback = new ProfileLookupCallback() {
+                     public void onProfileLookupSucceeded(GameProfile gameprofile) {
+                         minecraftserver.getUserCache().a(gameprofile);
+diff --git a/src/main/java/net/minecraft/server/PathfinderGoalSelector.java b/src/main/java/net/minecraft/server/PathfinderGoalSelector.java
+index f0018af75..f4f5b12ca 100644
+--- a/src/main/java/net/minecraft/server/PathfinderGoalSelector.java
++++ b/src/main/java/net/minecraft/server/PathfinderGoalSelector.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.server;
+ 
++import com.google.common.collect.Lists;
+ import java.util.Iterator;
+ import java.util.List;
+ import org.apache.logging.log4j.LogManager;
+@@ -10,8 +11,8 @@ import org.bukkit.craftbukkit.util.UnsafeList; // CraftBukkit
+ public class PathfinderGoalSelector {
+ 
+     private static final Logger a = LogManager.getLogger();
+-    private List<PathfinderGoalSelector.PathfinderGoalSelectorItem> b = new UnsafeList<>();
+-    private List<PathfinderGoalSelector.PathfinderGoalSelectorItem> c = new UnsafeList<>();
++    private List<PathfinderGoalSelector.PathfinderGoalSelectorItem> b = new UnsafeList<PathfinderGoalSelector.PathfinderGoalSelectorItem>();
++    private List<PathfinderGoalSelector.PathfinderGoalSelectorItem> c = new UnsafeList<PathfinderGoalSelector.PathfinderGoalSelectorItem>();
+     private final MethodProfiler d;
+     private int e;
+     private int f = 3;
+@@ -94,13 +95,16 @@ public class PathfinderGoalSelector {
+     }
+ 
+     private boolean a(PathfinderGoalSelector.PathfinderGoalSelectorItem pathfindergoalselector_pathfindergoalselectoritem) {
++        boolean flag = pathfindergoalselector_pathfindergoalselectoritem.a.b();
+ 
+-        return pathfindergoalselector_pathfindergoalselectoritem.a.b();
++        return flag;
+     }
+ 
+     private boolean b(PathfinderGoalSelector.PathfinderGoalSelectorItem pathfindergoalselector_pathfindergoalselectoritem) {
++        Iterator iterator = this.b.iterator();
++        while (iterator.hasNext()) {
++            PathfinderGoalSelector.PathfinderGoalSelectorItem pathfindergoalselector_pathfindergoalselectoritem1 = (PathfinderGoalSelector.PathfinderGoalSelectorItem) iterator.next();
+ 
+-        for (PathfinderGoalSelectorItem pathfindergoalselector_pathfindergoalselectoritem1 : this.b) {
+             if (pathfindergoalselector_pathfindergoalselectoritem1 != pathfindergoalselector_pathfindergoalselectoritem) {
+                 if (pathfindergoalselector_pathfindergoalselectoritem.b >= pathfindergoalselector_pathfindergoalselectoritem1.b) {
+                     if (!this.a(pathfindergoalselector_pathfindergoalselectoritem, pathfindergoalselector_pathfindergoalselectoritem1) && this.c.contains(pathfindergoalselector_pathfindergoalselectoritem1)) {
+-- 
+2.21.0.windows.1
+

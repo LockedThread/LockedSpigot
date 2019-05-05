@@ -1,0 +1,2038 @@
+From e8fc24c07cc8828c7adce81c95663d7add076ea0 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 20:43:03 -0400
+Subject: [PATCH] Fully implemented single random instance for non paperspigot
+ edited entities
+
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 81e338b9e..ca4d8e7b0 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -106,7 +106,7 @@ public abstract class Entity implements ICommandListener {
+     private double ar;
+     private double as;
+     public boolean ad;
+-    private static Random random;
++    protected static Random random;
+ 
+     // PaperSpigot start - EAR: Fix bug with teleporting entities
+     public boolean isAddedToChunk() {
+diff --git a/src/main/java/net/minecraft/server/EntityBat.java b/src/main/java/net/minecraft/server/EntityBat.java
+new file mode 100644
+index 000000000..fbf5eb155
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityBat.java
+@@ -0,0 +1,187 @@
++//
++// Source code recreated from a .class file by IntelliJ IDEA
++// (powered by Fernflower decompiler)
++//
++
++package net.minecraft.server;
++
++import java.util.Calendar;
++
++public class EntityBat extends EntityAmbient {
++    private BlockPosition a;
++
++    public EntityBat(World var1) {
++        super(var1);
++        this.setSize(0.5F, 0.9F);
++        this.setAsleep(true);
++    }
++
++    protected void h() {
++        super.h();
++        this.datawatcher.a(16, (byte) 0);
++    }
++
++    protected float bB() {
++        return 0.1F;
++    }
++
++    protected float bC() {
++        return super.bC() * 0.95F;
++    }
++
++    protected String z() {
++        return this.isAsleep() && this.getRandom().nextInt(4) != 0 ? null : "mob.bat.idle";
++    }
++
++    protected String bo() {
++        return "mob.bat.hurt";
++    }
++
++    protected String bp() {
++        return "mob.bat.death";
++    }
++
++    public boolean ae() {
++        return false;
++    }
++
++    protected void s(Entity var1) {
++    }
++
++    protected void bL() {
++    }
++
++    protected void initAttributes() {
++        super.initAttributes();
++        this.getAttributeInstance(GenericAttributes.maxHealth).setValue(6.0D);
++    }
++
++    public boolean isAsleep() {
++        return (this.datawatcher.getByte(16) & 1) != 0;
++    }
++
++    public void setAsleep(boolean var1) {
++        byte var2 = this.datawatcher.getByte(16);
++        if (var1) {
++            this.datawatcher.watch(16, (byte) (var2 | 1));
++        } else {
++            this.datawatcher.watch(16, (byte) (var2 & -2));
++        }
++
++    }
++
++    public void t_() {
++        super.t_();
++        if (this.isAsleep()) {
++            this.motX = this.motY = this.motZ = 0.0D;
++            this.locY = (double) MathHelper.floor(this.locY) + 1.0D - (double) this.length;
++        } else {
++            this.motY *= 0.6000000238418579D;
++        }
++
++    }
++
++    protected void E() {
++        super.E();
++        BlockPosition var1 = new BlockPosition(this);
++        BlockPosition var2 = var1.up();
++        if (this.isAsleep()) {
++            if (!this.world.getType(var2).getBlock().isOccluding()) {
++                this.setAsleep(false);
++                this.world.a(null, 1015, var1, 0);
++            } else {
++                if (this.getRandom().nextInt(200) == 0) {
++                    this.aK = (float) this.getRandom().nextInt(360);
++                }
++
++                if (this.world.findNearbyPlayer(this, 4.0D) != null) {
++                    this.setAsleep(false);
++                    this.world.a(null, 1015, var1, 0);
++                }
++            }
++        } else {
++            if (this.a != null && (!this.world.isEmpty(this.a) || this.a.getY() < 1)) {
++                this.a = null;
++            }
++
++            if (this.a == null || this.getRandom().nextInt(30) == 0 || this.a.c((double) ((int) this.locX), (double) ((int) this.locY), (double) ((int) this.locZ)) < 4.0D) {
++                this.a = new BlockPosition((int) this.locX + this.getRandom().nextInt(7) - this.getRandom().nextInt(7), (int) this.locY + this.getRandom().nextInt(6) - 2, (int) this.locZ + this.getRandom().nextInt(7) - this.getRandom().nextInt(7));
++            }
++
++            double var3 = (double) this.a.getX() + 0.5D - this.locX;
++            double var5 = (double) this.a.getY() + 0.1D - this.locY;
++            double var7 = (double) this.a.getZ() + 0.5D - this.locZ;
++            this.motX += (Math.signum(var3) * 0.5D - this.motX) * 0.10000000149011612D;
++            this.motY += (Math.signum(var5) * 0.699999988079071D - this.motY) * 0.10000000149011612D;
++            this.motZ += (Math.signum(var7) * 0.5D - this.motZ) * 0.10000000149011612D;
++            float var9 = (float) (MathHelper.b(this.motZ, this.motX) * 180.0D / 3.1415927410125732D) - 90.0F;
++            float var10 = MathHelper.g(var9 - this.yaw);
++            this.ba = 0.5F;
++            this.yaw += var10;
++            if (this.getRandom().nextInt(100) == 0 && this.world.getType(var2).getBlock().isOccluding()) {
++                this.setAsleep(true);
++            }
++        }
++
++    }
++
++    protected boolean s_() {
++        return false;
++    }
++
++    public void e(float var1, float var2) {
++    }
++
++    protected void a(double var1, boolean var3, Block var4, BlockPosition var5) {
++    }
++
++    public boolean aI() {
++        return true;
++    }
++
++    public boolean damageEntity(DamageSource var1, float var2) {
++        if (this.isInvulnerable(var1)) {
++            return false;
++        }
++        if (!this.world.isClientSide && this.isAsleep()) {
++            this.setAsleep(false);
++        }
++
++        return super.damageEntity(var1, var2);
++    }
++
++    public void a(NBTTagCompound var1) {
++        super.a(var1);
++        this.datawatcher.watch(16, var1.getByte("BatFlags"));
++    }
++
++    public void b(NBTTagCompound var1) {
++        super.b(var1);
++        var1.setByte("BatFlags", this.datawatcher.getByte(16));
++    }
++
++    public boolean bR() {
++        BlockPosition var1 = new BlockPosition(this.locX, this.getBoundingBox().b, this.locZ);
++        if (var1.getY() >= this.world.F()) {
++            return false;
++        } else {
++            int var2 = this.world.getLightLevel(var1);
++            byte var3 = 4;
++            if (this.a(this.world.Y())) {
++                var3 = 7;
++            } else if (this.getRandom().nextBoolean()) {
++                return false;
++            }
++
++            return var2 <= this.getRandom().nextInt(var3) && super.bR();
++        }
++    }
++
++    private boolean a(Calendar var1) {
++        return var1.get(Calendar.MONTH) + 1 == 10 && var1.get(Calendar.DATE) >= 20 || var1.get(Calendar.MONTH) + 1 == 11 && var1.get(Calendar.DATE) <= 3;
++    }
++
++    public float getHeadHeight() {
++        return this.length / 2.0F;
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/EntityBlaze.java b/src/main/java/net/minecraft/server/EntityBlaze.java
+new file mode 100644
+index 000000000..4f3168058
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityBlaze.java
+@@ -0,0 +1,204 @@
++//
++// Source code recreated from a .class file by IntelliJ IDEA
++// (powered by Fernflower decompiler)
++//
++
++package net.minecraft.server;
++
++public class EntityBlaze extends EntityMonster {
++    private float a = 0.5F;
++    private int b;
++
++    public EntityBlaze(World var1) {
++        super(var1);
++        this.fireProof = true;
++        this.b_ = 10;
++        this.goalSelector.a(4, new EntityBlaze.PathfinderGoalBlazeFireball(this));
++        this.goalSelector.a(5, new PathfinderGoalMoveTowardsRestriction(this, 1.0D));
++        this.goalSelector.a(7, new PathfinderGoalRandomStroll(this, 1.0D));
++        this.goalSelector.a(8, new PathfinderGoalLookAtPlayer(this, EntityHuman.class, 8.0F));
++        this.goalSelector.a(8, new PathfinderGoalRandomLookaround(this));
++        this.targetSelector.a(1, new PathfinderGoalHurtByTarget(this, true));
++        this.targetSelector.a(2, new PathfinderGoalNearestAttackableTarget(this, EntityHuman.class, true));
++    }
++
++    protected void initAttributes() {
++        super.initAttributes();
++        this.getAttributeInstance(GenericAttributes.ATTACK_DAMAGE).setValue(6.0D);
++        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.23000000417232513D);
++        this.getAttributeInstance(GenericAttributes.FOLLOW_RANGE).setValue(48.0D);
++    }
++
++    protected void h() {
++        super.h();
++        this.datawatcher.a(16, new Byte((byte) 0));
++    }
++
++    protected String z() {
++        return "mob.blaze.breathe";
++    }
++
++    protected String bo() {
++        return "mob.blaze.hit";
++    }
++
++    protected String bp() {
++        return "mob.blaze.death";
++    }
++
++    public float c(float var1) {
++        return 1.0F;
++    }
++
++    public void m() {
++        if (!this.onGround && this.motY < 0.0D) {
++            this.motY *= 0.6D;
++        }
++
++        if (this.world.isClientSide) {
++            if (this.getRandom().nextInt(24) == 0 && !this.R()) {
++                this.world.a(this.locX + 0.5D, this.locY + 0.5D, this.locZ + 0.5D, "fire.fire", 1.0F + this.getRandom().nextFloat(), this.getRandom().nextFloat() * 0.7F + 0.3F, false);
++            }
++
++            for (int var1 = 0; var1 < 2; ++var1) {
++                this.world.addParticle(EnumParticle.SMOKE_LARGE, this.locX + (this.getRandom().nextDouble() - 0.5D) * (double) this.width, this.locY + this.getRandom().nextDouble() * (double) this.length, this.locZ + (this.getRandom().nextDouble() - 0.5D) * (double) this.width, 0.0D, 0.0D, 0.0D);
++            }
++        }
++
++        super.m();
++    }
++
++    protected void E() {
++        if (this.U()) {
++            this.damageEntity(DamageSource.DROWN, 1.0F);
++        }
++
++        --this.b;
++        if (this.b <= 0) {
++            this.b = 100;
++            this.a = 0.5F + (float) this.getRandom().nextGaussian() * 3.0F;
++        }
++
++        EntityLiving var1 = this.getGoalTarget();
++        if (var1 != null && var1.locY + (double) var1.getHeadHeight() > this.locY + (double) this.getHeadHeight() + (double) this.a) {
++            this.motY += (0.30000001192092896D - this.motY) * 0.30000001192092896D;
++            this.ai = true;
++        }
++
++        super.E();
++    }
++
++    public void e(float var1, float var2) {
++    }
++
++    protected Item getLoot() {
++        return Items.BLAZE_ROD;
++    }
++
++    public boolean isBurning() {
++        return this.n();
++    }
++
++    protected void dropDeathLoot(boolean var1, int var2) {
++        if (var1) {
++            int var3 = this.getRandom().nextInt(2 + var2);
++
++            for (int var4 = 0; var4 < var3; ++var4) {
++                this.a(Items.BLAZE_ROD, 1);
++            }
++        }
++
++    }
++
++    public boolean n() {
++        return (this.datawatcher.getByte(16) & 1) != 0;
++    }
++
++    public void a(boolean var1) {
++        byte var2 = this.datawatcher.getByte(16);
++        if (var1) {
++            var2 = (byte) (var2 | 1);
++        } else {
++            var2 &= -2;
++        }
++
++        this.datawatcher.watch(16, var2);
++    }
++
++    protected boolean n_() {
++        return true;
++    }
++
++    static class PathfinderGoalBlazeFireball extends PathfinderGoal {
++        private EntityBlaze a;
++        private int b;
++        private int c;
++
++        public PathfinderGoalBlazeFireball(EntityBlaze var1) {
++            this.a = var1;
++            this.a(3);
++        }
++
++        public boolean a() {
++            EntityLiving var1 = this.a.getGoalTarget();
++            return var1 != null && var1.isAlive();
++        }
++
++        public void c() {
++            this.b = 0;
++        }
++
++        public void d() {
++            this.a.a(false);
++        }
++
++        public void e() {
++            --this.c;
++            EntityLiving var1 = this.a.getGoalTarget();
++            double var2 = this.a.h(var1);
++            if (var2 < 4.0D) {
++                if (this.c <= 0) {
++                    this.c = 20;
++                    this.a.r(var1);
++                }
++
++                this.a.getControllerMove().a(var1.locX, var1.locY, var1.locZ, 1.0D);
++            } else if (var2 < 256.0D) {
++                double var4 = var1.locX - this.a.locX;
++                double var6 = var1.getBoundingBox().b + (double) (var1.length / 2.0F) - (this.a.locY + (double) (this.a.length / 2.0F));
++                double var8 = var1.locZ - this.a.locZ;
++                if (this.c <= 0) {
++                    ++this.b;
++                    if (this.b == 1) {
++                        this.c = 60;
++                        this.a.a(true);
++                    } else if (this.b <= 4) {
++                        this.c = 6;
++                    } else {
++                        this.c = 100;
++                        this.b = 0;
++                        this.a.a(false);
++                    }
++
++                    if (this.b > 1) {
++                        float var10 = MathHelper.c(MathHelper.sqrt(var2)) * 0.5F;
++                        this.a.world.a(null, 1009, new BlockPosition((int) this.a.locX, (int) this.a.locY, (int) this.a.locZ), 0);
++
++                        for (int var11 = 0; var11 < 1; ++var11) {
++                            EntitySmallFireball var12 = new EntitySmallFireball(this.a.world, this.a, var4 + this.a.bc().nextGaussian() * (double) var10, var6, var8 + this.a.bc().nextGaussian() * (double) var10);
++                            var12.locY = this.a.locY + (double) (this.a.length / 2.0F) + 0.5D;
++                            this.a.world.addEntity(var12);
++                        }
++                    }
++                }
++
++                this.a.getControllerLook().a(var1, 10.0F, 10.0F);
++            } else {
++                this.a.getNavigation().n();
++                this.a.getControllerMove().a(var1.locX, var1.locY, var1.locZ, 1.0D);
++            }
++
++            super.e();
++        }
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/EntityEnderSignal.java b/src/main/java/net/minecraft/server/EntityEnderSignal.java
+new file mode 100644
+index 000000000..42815bcc4
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityEnderSignal.java
+@@ -0,0 +1,136 @@
++//
++// Source code recreated from a .class file by IntelliJ IDEA
++// (powered by Fernflower decompiler)
++//
++
++package net.minecraft.server;
++
++public class EntityEnderSignal extends Entity {
++    private double a;
++    private double b;
++    private double c;
++    private int d;
++    private boolean e;
++
++    public EntityEnderSignal(World var1) {
++        super(var1);
++        this.setSize(0.25F, 0.25F);
++    }
++
++    public EntityEnderSignal(World var1, double var2, double var4, double var6) {
++        super(var1);
++        this.d = 0;
++        this.setSize(0.25F, 0.25F);
++        this.setPosition(var2, var4, var6);
++    }
++
++    protected void h() {
++    }
++
++    public void a(BlockPosition var1) {
++        double var2 = (double) var1.getX();
++        int var4 = var1.getY();
++        double var5 = (double) var1.getZ();
++        double var7 = var2 - this.locX;
++        double var9 = var5 - this.locZ;
++        float var11 = MathHelper.sqrt(var7 * var7 + var9 * var9);
++        if (var11 > 12.0F) {
++            this.a = this.locX + var7 / (double) var11 * 12.0D;
++            this.c = this.locZ + var9 / (double) var11 * 12.0D;
++            this.b = this.locY + 8.0D;
++        } else {
++            this.a = var2;
++            this.b = (double) var4;
++            this.c = var5;
++        }
++
++        this.d = 0;
++        this.e = this.getRandom().nextInt(5) > 0;
++    }
++
++    public void t_() {
++        this.P = this.locX;
++        this.Q = this.locY;
++        this.R = this.locZ;
++        super.t_();
++        this.locX += this.motX;
++        this.locY += this.motY;
++        this.locZ += this.motZ;
++        float var1 = MathHelper.sqrt(this.motX * this.motX + this.motZ * this.motZ);
++        this.yaw = (float) (MathHelper.b(this.motX, this.motZ) * 180.0D / 3.1415927410125732D);
++
++        for (this.pitch = (float) (MathHelper.b(this.motY, (double) var1) * 180.0D / 3.1415927410125732D); this.pitch - this.lastPitch < -180.0F; this.lastPitch -= 360.0F) {
++        }
++
++        while (this.pitch - this.lastPitch >= 180.0F) {
++            this.lastPitch += 360.0F;
++        }
++
++        while (this.yaw - this.lastYaw < -180.0F) {
++            this.lastYaw -= 360.0F;
++        }
++
++        while (this.yaw - this.lastYaw >= 180.0F) {
++            this.lastYaw += 360.0F;
++        }
++
++        this.pitch = this.lastPitch + (this.pitch - this.lastPitch) * 0.2F;
++        this.yaw = this.lastYaw + (this.yaw - this.lastYaw) * 0.2F;
++        if (!this.world.isClientSide) {
++            double var2 = this.a - this.locX;
++            double var4 = this.c - this.locZ;
++            float var6 = (float) Math.sqrt(var2 * var2 + var4 * var4);
++            float var7 = (float) MathHelper.b(var4, var2);
++            double var8 = (double) var1 + (double) (var6 - var1) * 0.0025D;
++            if (var6 < 1.0F) {
++                var8 *= 0.8D;
++                this.motY *= 0.8D;
++            }
++
++            this.motX = Math.cos((double) var7) * var8;
++            this.motZ = Math.sin((double) var7) * var8;
++            if (this.locY < this.b) {
++                this.motY += (1.0D - this.motY) * 0.014999999664723873D;
++            } else {
++                this.motY += (-1.0D - this.motY) * 0.014999999664723873D;
++            }
++        }
++
++        float var10 = 0.25F;
++        if (this.V()) {
++            for (int var3 = 0; var3 < 4; ++var3) {
++                this.world.addParticle(EnumParticle.WATER_BUBBLE, this.locX - this.motX * (double) var10, this.locY - this.motY * (double) var10, this.locZ - this.motZ * (double) var10, this.motX, this.motY, this.motZ, new int[0]);
++            }
++        } else {
++            this.world.addParticle(EnumParticle.PORTAL, this.locX - this.motX * (double) var10 + this.getRandom().nextDouble() * 0.6D - 0.3D, this.locY - this.motY * (double) var10 - 0.5D, this.locZ - this.motZ * (double) var10 + this.getRandom().nextDouble() * 0.6D - 0.3D, this.motX, this.motY, this.motZ, new int[0]);
++        }
++
++        if (!this.world.isClientSide) {
++            this.setPosition(this.locX, this.locY, this.locZ);
++            ++this.d;
++            if (this.d > 80 && !this.world.isClientSide) {
++                this.die();
++                if (this.e) {
++                    this.world.addEntity(new EntityItem(this.world, this.locX, this.locY, this.locZ, new ItemStack(Items.ENDER_EYE)));
++                } else {
++                    this.world.triggerEffect(2003, new BlockPosition(this), 0);
++                }
++            }
++        }
++
++    }
++
++    public void b(NBTTagCompound var1) {
++    }
++
++    public void a(NBTTagCompound var1) {
++    }
++
++    public float c(float var1) {
++        return 1.0F;
++    }
++
++    public boolean aD() {
++        return false;
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/EntityEndermite.java b/src/main/java/net/minecraft/server/EntityEndermite.java
+new file mode 100644
+index 000000000..22c6f26f9
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityEndermite.java
+@@ -0,0 +1,124 @@
++package net.minecraft.server;
++
++public class EntityEndermite extends EntityMonster {
++    private int a;
++    private boolean b;
++
++    public EntityEndermite(World world) {
++        super(world);
++        this.a = 0;
++        this.b = false;
++        this.b_ = 3;
++        this.setSize(0.4f, 0.3f);
++        this.goalSelector.a(1, new PathfinderGoalFloat(this));
++        this.goalSelector.a(2, new PathfinderGoalMeleeAttack(this, EntityHuman.class, 1.0, false));
++        this.goalSelector.a(3, new PathfinderGoalRandomStroll(this, 1.0));
++        this.goalSelector.a(7, new PathfinderGoalLookAtPlayer(this, EntityHuman.class, 8.0f));
++        this.goalSelector.a(8, new PathfinderGoalRandomLookaround(this));
++        this.targetSelector.a(1, new PathfinderGoalHurtByTarget(this, true, new Class[0]));
++        this.targetSelector.a(2, new PathfinderGoalNearestAttackableTarget<>(this, EntityHuman.class, true));
++    }
++
++    @Override
++    public float getHeadHeight() {
++        return 0.1f;
++    }
++
++    @Override
++    protected void initAttributes() {
++        super.initAttributes();
++        this.getAttributeInstance(GenericAttributes.maxHealth).setValue(8.0);
++        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.25);
++        this.getAttributeInstance(GenericAttributes.ATTACK_DAMAGE).setValue(2.0);
++    }
++
++    @Override
++    protected boolean s_() {
++        return false;
++    }
++
++    @Override
++    protected String z() {
++        return "mob.silverfish.say";
++    }
++
++    @Override
++    protected String bo() {
++        return "mob.silverfish.hit";
++    }
++
++    @Override
++    protected String bp() {
++        return "mob.silverfish.kill";
++    }
++
++    @Override
++    protected void a(final BlockPosition blockPosition, final Block block) {
++        this.makeSound("mob.silverfish.step", 0.15f, 1.0f);
++    }
++
++    @Override
++    protected Item getLoot() {
++        return null;
++    }
++
++    @Override
++    public void a(final NBTTagCompound nbttagcompound) {
++        super.a(nbttagcompound);
++        this.a = nbttagcompound.getInt("Lifetime");
++        this.b = nbttagcompound.getBoolean("PlayerSpawned");
++    }
++
++    @Override
++    public void b(final NBTTagCompound nbttagcompound) {
++        super.b(nbttagcompound);
++        nbttagcompound.setInt("Lifetime", this.a);
++        nbttagcompound.setBoolean("PlayerSpawned", this.b);
++    }
++
++    @Override
++    public void t_() {
++        this.aI = this.yaw;
++        super.t_();
++    }
++
++    public boolean n() {
++        return this.b;
++    }
++
++    public void a(final boolean b) {
++        this.b = b;
++    }
++
++    @Override
++    public void m() {
++        super.m();
++        if (this.world.isClientSide) {
++            for (int i = 0; i < 2; ++i) {
++                this.world.addParticle(EnumParticle.PORTAL, this.locX + (this.getRandom().nextDouble() - 0.5) * this.width, this.locY + this.getRandom().nextDouble() * this.length, this.locZ + (this.getRandom().nextDouble() - 0.5) * this.width, (this.getRandom().nextDouble() - 0.5) * 2.0, -this.getRandom().nextDouble(), (this.getRandom().nextDouble() - 0.5) * 2.0, new int[0]);
++            }
++        } else {
++            if (!this.isPersistent()) {
++                ++this.a;
++            }
++            if (this.a >= 2400) {
++                this.die();
++            }
++        }
++    }
++
++    @Override
++    protected boolean n_() {
++        return true;
++    }
++
++    @Override
++    public boolean bR() {
++        return super.bR() && this.world.findNearbyPlayer(this, 5.0) == null;
++    }
++
++    @Override
++    public EnumMonsterType getMonsterType() {
++        return EnumMonsterType.ARTHROPOD;
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/EntityGuardian.java b/src/main/java/net/minecraft/server/EntityGuardian.java
+new file mode 100644
+index 000000000..99f343788
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityGuardian.java
+@@ -0,0 +1,508 @@
++package net.minecraft.server;
++
++import com.google.common.base.Predicate;
++
++import javax.annotation.Nullable;
++
++public class EntityGuardian extends EntityMonster {
++    public PathfinderGoalRandomStroll goalRandomStroll;
++    private float a;
++    private float b;
++    private float c;
++    private float bm;
++    private float bn;
++    private EntityLiving bo;
++    private int bp;
++    private boolean bq;
++
++    public EntityGuardian(final World world) {
++        super(world);
++        this.b_ = 10;
++        this.setSize(0.85f, 0.85f);
++        this.goalSelector.a(4, new PathfinderGoalGuardianAttack(this));
++        final PathfinderGoalMoveTowardsRestriction pathfinderGoalMoveTowardsRestriction;
++        this.goalSelector.a(5, pathfinderGoalMoveTowardsRestriction = new PathfinderGoalMoveTowardsRestriction(this, 1.0));
++        this.goalSelector.a(7, this.goalRandomStroll = new PathfinderGoalRandomStroll(this, 1.0, 80));
++        this.goalSelector.a(8, new PathfinderGoalLookAtPlayer(this, EntityHuman.class, 8.0f));
++        this.goalSelector.a(8, new PathfinderGoalLookAtPlayer(this, EntityGuardian.class, 12.0f, 0.01f));
++        this.goalSelector.a(9, new PathfinderGoalRandomLookaround(this));
++        this.goalRandomStroll.a(3);
++        pathfinderGoalMoveTowardsRestriction.a(3);
++        this.targetSelector.a(1, new PathfinderGoalNearestAttackableTarget<>(this, EntityLiving.class, 10, true, false, new EntitySelectorGuardianTargetHumanSquid(this)));
++        this.moveController = new ControllerMoveGuardian(this);
++        final float nextFloat = this.getRandom().nextFloat();
++        this.a = nextFloat;
++        this.b = nextFloat;
++    }
++
++    public void initAttributes() {
++        super.initAttributes();
++        this.getAttributeInstance(GenericAttributes.ATTACK_DAMAGE).setValue(6.0);
++        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.5);
++        this.getAttributeInstance(GenericAttributes.FOLLOW_RANGE).setValue(16.0);
++        this.getAttributeInstance(GenericAttributes.maxHealth).setValue(30.0);
++    }
++
++    @Override
++    public void a(final NBTTagCompound nbttagcompound) {
++        super.a(nbttagcompound);
++        this.setElder(nbttagcompound.getBoolean("Elder"));
++    }
++
++    @Override
++    public void b(final NBTTagCompound nbttagcompound) {
++        super.b(nbttagcompound);
++        nbttagcompound.setBoolean("Elder", this.isElder());
++    }
++
++    @Override
++    protected NavigationAbstract b(final World world) {
++        return new NavigationGuardian(this, world);
++    }
++
++    @Override
++    protected void h() {
++        super.h();
++        this.datawatcher.a(16, 0);
++        this.datawatcher.a(17, 0);
++    }
++
++    private boolean a(final int n) {
++        return (this.datawatcher.getInt(16) & n) != 0x0;
++    }
++
++    private void a(final int n, final boolean b) {
++        final int int1 = this.datawatcher.getInt(16);
++        if (b) {
++            this.datawatcher.watch(16, int1 | n);
++        } else {
++            this.datawatcher.watch(16, int1 & ~n);
++        }
++    }
++
++    public boolean n() {
++        return this.a(2);
++    }
++
++    private void l(final boolean b) {
++        this.a(2, b);
++    }
++
++    public int cm() {
++        if (this.isElder()) {
++            return 60;
++        }
++        return 80;
++    }
++
++    public boolean isElder() {
++        return this.a(4);
++    }
++
++    public void setElder(final boolean b) {
++        this.a(4, b);
++        if (b) {
++            this.setSize(1.9975f, 1.9975f);
++            this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.30000001192092896);
++            this.getAttributeInstance(GenericAttributes.ATTACK_DAMAGE).setValue(8.0);
++            this.getAttributeInstance(GenericAttributes.maxHealth).setValue(80.0);
++            this.bX();
++            this.goalRandomStroll.setTimeBetweenMovement(400);
++        }
++    }
++
++    private void b(final int n) {
++        this.datawatcher.watch(17, n);
++    }
++
++    public boolean cp() {
++        return this.datawatcher.getInt(17) != 0;
++    }
++
++    public EntityLiving cq() {
++        if (!this.cp()) {
++            return null;
++        }
++        if (!this.world.isClientSide) {
++            return this.getGoalTarget();
++        }
++        if (this.bo != null) {
++            return this.bo;
++        }
++        final Entity a = this.world.a(this.datawatcher.getInt(17));
++        if (a instanceof EntityLiving) {
++            return this.bo = (EntityLiving) a;
++        }
++        return null;
++    }
++
++    @Override
++    public void i(final int i) {
++        super.i(i);
++        if (i == 16) {
++            if (this.isElder() && this.width < 1.0f) {
++                this.setSize(1.9975f, 1.9975f);
++            }
++        } else if (i == 17) {
++            this.bp = 0;
++            this.bo = null;
++        }
++    }
++
++    @Override
++    public int w() {
++        return 160;
++    }
++
++    @Override
++    protected String z() {
++        if (!this.V()) {
++            return "mob.guardian.land.idle";
++        }
++        if (this.isElder()) {
++            return "mob.guardian.elder.idle";
++        }
++        return "mob.guardian.idle";
++    }
++
++    @Override
++    protected String bo() {
++        if (!this.V()) {
++            return "mob.guardian.land.hit";
++        }
++        if (this.isElder()) {
++            return "mob.guardian.elder.hit";
++        }
++        return "mob.guardian.hit";
++    }
++
++    @Override
++    protected String bp() {
++        if (!this.V()) {
++            return "mob.guardian.land.death";
++        }
++        if (this.isElder()) {
++            return "mob.guardian.elder.death";
++        }
++        return "mob.guardian.death";
++    }
++
++    @Override
++    protected boolean s_() {
++        return false;
++    }
++
++    @Override
++    public float getHeadHeight() {
++        return this.length * 0.5f;
++    }
++
++    @Override
++    public float a(final BlockPosition blockposition) {
++        if (this.world.getType(blockposition).getBlock().getMaterial() == Material.WATER) {
++            return 10.0f + this.world.o(blockposition) - 0.5f;
++        }
++        return super.a(blockposition);
++    }
++
++    @Override
++    public void m() {
++        if (this.world.isClientSide) {
++            this.b = this.a;
++            if (!this.V()) {
++                this.c = 2.0f;
++                if (this.motY > 0.0 && this.bq && !this.R()) {
++                    this.world.a(this.locX, this.locY, this.locZ, "mob.guardian.flop", 1.0f, 1.0f, false);
++                }
++                this.bq = (this.motY < 0.0 && this.world.d(new BlockPosition(this).down(), false));
++            } else if (this.n()) {
++                if (this.c < 0.5f) {
++                    this.c = 4.0f;
++                } else {
++                    this.c += (0.5f - this.c) * 0.1f;
++                }
++            } else {
++                this.c += (0.125f - this.c) * 0.2f;
++            }
++            this.a += this.c;
++            this.bn = this.bm;
++            if (!this.V()) {
++                this.bm = this.getRandom().nextFloat();
++            } else if (this.n()) {
++                this.bm += (0.0f - this.bm) * 0.25f;
++            } else {
++                this.bm += (1.0f - this.bm) * 0.06f;
++            }
++            if (this.n() && this.V()) {
++                final Vec3D d = this.d(0.0f);
++                for (int i = 0; i < 2; ++i) {
++                    this.world.addParticle(EnumParticle.WATER_BUBBLE, this.locX + (this.getRandom().nextDouble() - 0.5) * this.width - d.a * 1.5, this.locY + this.getRandom().nextDouble() * this.length - d.b * 1.5, this.locZ + (this.getRandom().nextDouble() - 0.5) * this.width - d.c * 1.5, 0.0, 0.0, 0.0, new int[0]);
++                }
++            }
++            if (this.cp()) {
++                if (this.bp < this.cm()) {
++                    ++this.bp;
++                }
++                final EntityLiving cq = this.cq();
++                if (cq != null) {
++                    this.getControllerLook().a(cq, 90.0f, 90.0f);
++                    this.getControllerLook().a();
++                    final double n = this.q(0.0f);
++                    final double n2 = cq.locX - this.locX;
++                    final double n3 = cq.locY + cq.length * 0.5f - (this.locY + this.getHeadHeight());
++                    final double n4 = cq.locZ - this.locZ;
++                    final double sqrt = Math.sqrt(n2 * n2 + n3 * n3 + n4 * n4);
++                    final double n5 = n2 / sqrt;
++                    final double n6 = n3 / sqrt;
++                    final double n7 = n4 / sqrt;
++                    double nextDouble = this.getRandom().nextDouble();
++                    while (nextDouble < sqrt) {
++                        nextDouble += 1.8 - n + this.getRandom().nextDouble() * (1.7 - n);
++                        this.world.addParticle(EnumParticle.WATER_BUBBLE, this.locX + n5 * nextDouble, this.locY + n6 * nextDouble + this.getHeadHeight(), this.locZ + n7 * nextDouble, 0.0, 0.0, 0.0, new int[0]);
++                    }
++                }
++            }
++        }
++        if (this.inWater) {
++            this.setAirTicks(300);
++        } else if (this.onGround) {
++            this.motY += 0.5;
++            this.motX += (this.getRandom().nextFloat() * 2.0f - 1.0f) * 0.4f;
++            this.motZ += (this.getRandom().nextFloat() * 2.0f - 1.0f) * 0.4f;
++            this.yaw = this.getRandom().nextFloat() * 360.0f;
++            this.onGround = false;
++            this.ai = true;
++        }
++        if (this.cp()) {
++            this.yaw = this.aK;
++        }
++        super.m();
++    }
++
++    public float q(final float n) {
++        return (this.bp + n) / this.cm();
++    }
++
++    @Override
++    protected void E() {
++        super.E();
++        if (this.isElder()) {
++            if ((this.ticksLived + this.getId()) % 1200 == 0) {
++                final MobEffectList slower_DIG = MobEffectList.SLOWER_DIG;
++                for (final EntityPlayer entityPlayer : this.world.b(EntityPlayer.class, entityPlayer -> EntityGuardian.this.h(entityPlayer) < 2500.0 && entityPlayer.playerInteractManager.c())) {
++                    if (!entityPlayer.hasEffect(slower_DIG) || entityPlayer.getEffect(slower_DIG).getAmplifier() < 2 || entityPlayer.getEffect(slower_DIG).getDuration() < 1200) {
++                        entityPlayer.playerConnection.sendPacket(new PacketPlayOutGameStateChange(10, 0.0f));
++                        entityPlayer.addEffect(new MobEffect(slower_DIG.id, 6000, 2));
++                    }
++                }
++            }
++            if (!this.ck()) {
++                this.a(new BlockPosition(this), 16);
++            }
++        }
++    }
++
++    @Override
++    protected void dropDeathLoot(final boolean b, final int n) {
++        final int i = this.getRandom().nextInt(3) + this.getRandom().nextInt(n + 1);
++        if (i > 0) {
++            this.a(new ItemStack(Items.PRISMARINE_SHARD, i, 0), 1.0f);
++        }
++        if (this.getRandom().nextInt(3 + n) > 1) {
++            this.a(new ItemStack(Items.FISH, 1, ItemFish.EnumFish.COD.a()), 1.0f);
++        } else if (this.getRandom().nextInt(3 + n) > 1) {
++            this.a(new ItemStack(Items.PRISMARINE_CRYSTALS, 1, 0), 1.0f);
++        }
++        if (b && this.isElder()) {
++            this.a(new ItemStack(Blocks.SPONGE, 1, 1), 1.0f);
++        }
++    }
++
++    @Override
++    protected void getRareDrop() {
++        this.a(WeightedRandom.a(this.getRandom(), EntityFishingHook.j()).a(this.getRandom()), 1.0f);
++    }
++
++    @Override
++    protected boolean n_() {
++        return true;
++    }
++
++    @Override
++    public boolean canSpawn() {
++        return this.world.a(this.getBoundingBox(), this) && this.world.getCubes(this, this.getBoundingBox()).isEmpty();
++    }
++
++    @Override
++    public boolean bR() {
++        return (this.getRandom().nextInt(20) == 0 || !this.world.j(new BlockPosition(this))) && super.bR();
++    }
++
++    @Override
++    public boolean damageEntity(final DamageSource damagesource, final float f) {
++        if (!this.n() && !damagesource.isMagic() && damagesource.i() instanceof EntityLiving) {
++            final EntityLiving entityLiving = (EntityLiving) damagesource.i();
++            if (!damagesource.isExplosion()) {
++                entityLiving.damageEntity(DamageSource.a(this), 2.0f);
++                entityLiving.makeSound("damage.thorns", 0.5f, 1.0f);
++            }
++        }
++        this.goalRandomStroll.f();
++        return super.damageEntity(damagesource, f);
++    }
++
++    @Override
++    public int bQ() {
++        return 180;
++    }
++
++    @Override
++    public void g(final float f, final float f2) {
++        if (this.bM()) {
++            if (this.V()) {
++                this.a(f, f2, 0.1f);
++                this.move(this.motX, this.motY, this.motZ);
++                this.motX *= 0.8999999761581421;
++                this.motY *= 0.8999999761581421;
++                this.motZ *= 0.8999999761581421;
++                if (!this.n() && this.getGoalTarget() == null) {
++                    this.motY -= 0.005;
++                }
++            } else {
++                super.g(f, f2);
++            }
++        } else {
++            super.g(f, f2);
++        }
++    }
++
++    static class EntitySelectorGuardianTargetHumanSquid implements Predicate<EntityLiving> {
++        private EntityGuardian a;
++
++        public EntitySelectorGuardianTargetHumanSquid(final EntityGuardian a) {
++            this.a = a;
++        }
++
++        @Override
++        public boolean apply(@Nullable EntityLiving entityLiving) {
++            return (entityLiving instanceof EntityHuman || entityLiving instanceof EntitySquid) && entityLiving.h(this.a) > 9.0;
++        }
++    }
++
++    static class PathfinderGoalGuardianAttack extends PathfinderGoal {
++        private EntityGuardian a;
++        private int b;
++
++        public PathfinderGoalGuardianAttack(final EntityGuardian a) {
++            this.a = a;
++            this.a(3);
++        }
++
++        @Override
++        public boolean a() {
++            final EntityLiving goalTarget = this.a.getGoalTarget();
++            return goalTarget != null && goalTarget.isAlive();
++        }
++
++        @Override
++        public boolean b() {
++            return super.b() && (this.a.isElder() || this.a.h(this.a.getGoalTarget()) > 9.0);
++        }
++
++        @Override
++        public void c() {
++            this.b = -10;
++            this.a.getNavigation().n();
++            this.a.getControllerLook().a(this.a.getGoalTarget(), 90.0f, 90.0f);
++            this.a.ai = true;
++        }
++
++        @Override
++        public void d() {
++            this.a.b(0);
++            this.a.setGoalTarget(null);
++            this.a.goalRandomStroll.f();
++        }
++
++        @Override
++        public void e() {
++            final EntityLiving goalTarget = this.a.getGoalTarget();
++            this.a.getNavigation().n();
++            this.a.getControllerLook().a(goalTarget, 90.0f, 90.0f);
++            if (!this.a.hasLineOfSight(goalTarget)) {
++                this.a.setGoalTarget(null);
++                return;
++            }
++            ++this.b;
++            if (this.b == 0) {
++                this.a.b(this.a.getGoalTarget().getId());
++                this.a.world.broadcastEntityEffect(this.a, (byte) 21);
++            } else if (this.b >= this.a.cm()) {
++                float f = 1.0f;
++                if (this.a.world.getDifficulty() == EnumDifficulty.HARD) {
++                    f += 2.0f;
++                }
++                if (this.a.isElder()) {
++                    f += 2.0f;
++                }
++                goalTarget.damageEntity(DamageSource.b(this.a, this.a), f);
++                goalTarget.damageEntity(DamageSource.mobAttack(this.a), (float) this.a.getAttributeInstance(GenericAttributes.ATTACK_DAMAGE).getValue());
++                this.a.setGoalTarget(null);
++            } else if (this.b < 60 || this.b % 20 == 0) {
++            }
++            super.e();
++        }
++    }
++
++    static class ControllerMoveGuardian extends ControllerMove {
++        private EntityGuardian g;
++
++        public ControllerMoveGuardian(final EntityGuardian g) {
++            super(g);
++            this.g = g;
++        }
++
++        @Override
++        public void c() {
++            if (!this.f || this.g.getNavigation().m()) {
++                this.g.k(0.0f);
++                this.g.l(false);
++                return;
++            }
++            final double n = this.b - this.g.locX;
++            final double n2 = this.c - this.g.locY;
++            final double n3 = this.d - this.g.locZ;
++            final double n4 = MathHelper.sqrt(n * n + n2 * n2 + n3 * n3);
++            final double n5 = n2 / n4;
++            this.g.yaw = this.a(this.g.yaw, (float) (MathHelper.b(n3, n) * 180.0 / 3.1415927410125732) - 90.0f, 30.0f);
++            this.g.aI = this.g.yaw;
++            this.g.k(this.g.bI() + ((float) (this.e * this.g.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).getValue()) - this.g.bI()) * 0.125f);
++            final double n6 = Math.sin((this.g.ticksLived + this.g.getId()) * 0.5) * 0.05;
++            final double cos = Math.cos(this.g.yaw * 3.1415927f / 180.0f);
++            final double sin = Math.sin(this.g.yaw * 3.1415927f / 180.0f);
++            final EntityGuardian g = this.g;
++            g.motX += n6 * cos;
++            final EntityGuardian g2 = this.g;
++            g2.motZ += n6 * sin;
++            final double n7 = Math.sin((this.g.ticksLived + this.g.getId()) * 0.75) * 0.05;
++            final EntityGuardian g3 = this.g;
++            g3.motY += n7 * (sin + cos) * 0.25;
++            final EntityGuardian g4 = this.g;
++            g4.motY += this.g.bI() * n5 * 0.1;
++            final ControllerLook controllerLook = this.g.getControllerLook();
++            final double n8 = this.g.locX + n / n4 * 2.0;
++            final double n9 = this.g.getHeadHeight() + this.g.locY + n5 / n4 * 1.0;
++            final double n10 = this.g.locZ + n3 / n4 * 2.0;
++            double e = controllerLook.e();
++            double f = controllerLook.f();
++            double g5 = controllerLook.g();
++            if (!controllerLook.b()) {
++                e = n8;
++                f = n9;
++                g5 = n10;
++            }
++            this.g.getControllerLook().a(e + (n8 - e) * 0.125, f + (n9 - f) * 0.125, g5 + (n10 - g5) * 0.125, 10.0f, 40.0f);
++            this.g.l(true);
++        }
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/EntityMagmaCube.java b/src/main/java/net/minecraft/server/EntityMagmaCube.java
+new file mode 100644
+index 000000000..2a7f8802b
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityMagmaCube.java
+@@ -0,0 +1,117 @@
++package net.minecraft.server;
++
++public class EntityMagmaCube extends EntitySlime {
++    public EntityMagmaCube(final World world) {
++        super(world);
++        this.fireProof = true;
++    }
++
++    @Override
++    protected void initAttributes() {
++        super.initAttributes();
++        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.20000000298023224);
++    }
++
++    @Override
++    public boolean bR() {
++        return this.world.getDifficulty() != EnumDifficulty.PEACEFUL;
++    }
++
++    @Override
++    public boolean canSpawn() {
++        return this.world.a(this.getBoundingBox(), this) && this.world.getCubes(this, this.getBoundingBox()).isEmpty() && !this.world.containsLiquid(this.getBoundingBox());
++    }
++
++    @Override
++    public int br() {
++        return this.getSize() * 3;
++    }
++
++    @Override
++    public float c(final float n) {
++        return 1.0f;
++    }
++
++    @Override
++    protected EnumParticle n() {
++        return EnumParticle.FLAME;
++    }
++
++    @Override
++    protected EntitySlime cf() {
++        return new EntityMagmaCube(this.world);
++    }
++
++    @Override
++    protected Item getLoot() {
++        return Items.MAGMA_CREAM;
++    }
++
++    @Override
++    protected void dropDeathLoot(final boolean b, final int n) {
++        final Item loot = this.getLoot();
++        if (loot != null && this.getSize() > 1) {
++            int n2 = this.getRandom().nextInt(4) - 2;
++            if (n > 0) {
++                n2 += this.getRandom().nextInt(n + 1);
++            }
++            for (int i = 0; i < n2; ++i) {
++                this.a(loot, 1);
++            }
++        }
++    }
++
++    @Override
++    public boolean isBurning() {
++        return false;
++    }
++
++    @Override
++    protected int cg() {
++        return super.cg() * 4;
++    }
++
++    @Override
++    protected void ch() {
++        this.a *= 0.9f;
++    }
++
++    @Override
++    protected void bF() {
++        this.motY = 0.42f + this.getSize() * 0.1f;
++        this.ai = true;
++    }
++
++    @Override
++    protected void bH() {
++        this.motY = 0.22f + this.getSize() * 0.05f;
++        this.ai = true;
++    }
++
++    @Override
++    public void e(final float n, final float n2) {
++    }
++
++    @Override
++    protected boolean ci() {
++        return true;
++    }
++
++    @Override
++    protected int cj() {
++        return super.cj() + 2;
++    }
++
++    @Override
++    protected String ck() {
++        if (this.getSize() > 1) {
++            return "mob.magmacube.big";
++        }
++        return "mob.magmacube.small";
++    }
++
++    @Override
++    protected boolean cl() {
++        return true;
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/EntityMinecartTNT.java b/src/main/java/net/minecraft/server/EntityMinecartTNT.java
+new file mode 100644
+index 000000000..403c49247
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityMinecartTNT.java
+@@ -0,0 +1,134 @@
++package net.minecraft.server;
++
++public class EntityMinecartTNT extends EntityMinecartAbstract {
++    private int a;
++
++    public EntityMinecartTNT(final World world) {
++        super(world);
++        this.a = -1;
++    }
++
++    public EntityMinecartTNT(final World world, final double d0, final double d2, final double d3) {
++        super(world, d0, d2, d3);
++        this.a = -1;
++    }
++
++    @Override
++    public EnumMinecartType s() {
++        return EnumMinecartType.TNT;
++    }
++
++    @Override
++    public IBlockData u() {
++        return Blocks.TNT.getBlockData();
++    }
++
++    @Override
++    public void t_() {
++        super.t_();
++        if (this.a > 0) {
++            --this.a;
++            this.world.addParticle(EnumParticle.SMOKE_NORMAL, this.locX, this.locY + 0.5, this.locZ, 0.0, 0.0, 0.0, new int[0]);
++        } else if (this.a == 0) {
++            this.b(this.motX * this.motX + this.motZ * this.motZ);
++        }
++        if (this.positionChanged) {
++            final double n = this.motX * this.motX + this.motZ * this.motZ;
++            if (n >= 0.009999999776482582) {
++                this.b(n);
++            }
++        }
++    }
++
++    @Override
++    public boolean damageEntity(final DamageSource damagesource, final float f) {
++        final Entity i = damagesource.i();
++        if (i instanceof EntityArrow) {
++            final EntityArrow entityArrow = (EntityArrow) i;
++            if (entityArrow.isBurning()) {
++                this.b(entityArrow.motX * entityArrow.motX + entityArrow.motY * entityArrow.motY + entityArrow.motZ * entityArrow.motZ);
++            }
++        }
++        return super.damageEntity(damagesource, f);
++    }
++
++    @Override
++    public void a(final DamageSource damagesource) {
++        super.a(damagesource);
++        final double n = this.motX * this.motX + this.motZ * this.motZ;
++        if (!damagesource.isExplosion() && this.world.getGameRules().getBoolean("doEntityDrops")) {
++            this.a(new ItemStack(Blocks.TNT, 1), 0.0f);
++        }
++        if (damagesource.o() || damagesource.isExplosion() || n >= 0.009999999776482582) {
++            this.b(n);
++        }
++    }
++
++    protected void b(final double n) {
++        if (!this.world.isClientSide) {
++            double sqrt = Math.sqrt(n);
++            if (sqrt > 5.0) {
++                sqrt = 5.0;
++            }
++            this.world.explode(this, this.locX, this.locY, this.locZ, (float) (4.0 + this.getRandom().nextDouble() * 1.5 * sqrt), true);
++            this.die();
++        }
++    }
++
++    @Override
++    public void e(final float f, final float f2) {
++        if (f >= 3.0f) {
++            final float n = f / 10.0f;
++            this.b(n * n);
++        }
++        super.e(f, f2);
++    }
++
++    @Override
++    public void a(final int n, final int n2, final int n3, final boolean b) {
++        if (b && this.a < 0) {
++            this.j();
++        }
++    }
++
++    public void j() {
++        this.a = 80;
++        if (!this.world.isClientSide) {
++            this.world.broadcastEntityEffect(this, (byte) 10);
++            if (!this.R()) {
++                this.world.makeSound(this, "game.tnt.primed", 1.0f, 1.0f);
++            }
++        }
++    }
++
++    public boolean y() {
++        return this.a > -1;
++    }
++
++    @Override
++    public float a(final Explosion explosion, final World world, final BlockPosition blockposition, final IBlockData blockData) {
++        if (this.y() && (BlockMinecartTrackAbstract.d(blockData) || BlockMinecartTrackAbstract.e(world, blockposition.up()))) {
++            return 0.0f;
++        }
++        return super.a(explosion, world, blockposition, blockData);
++    }
++
++    @Override
++    public boolean a(final Explosion explosion, final World world, final BlockPosition blockposition, final IBlockData blockData, final float f) {
++        return (!this.y() || (!BlockMinecartTrackAbstract.d(blockData) && !BlockMinecartTrackAbstract.e(world, blockposition.up()))) && super.a(explosion, world, blockposition, blockData, f);
++    }
++
++    @Override
++    protected void a(final NBTTagCompound nbttagcompound) {
++        super.a(nbttagcompound);
++        if (nbttagcompound.hasKeyOfType("TNTFuse", 99)) {
++            this.a = nbttagcompound.getInt("TNTFuse");
++        }
++    }
++
++    @Override
++    protected void b(final NBTTagCompound nbttagcompound) {
++        super.b(nbttagcompound);
++        nbttagcompound.setInt("TNTFuse", this.a);
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/EntityPigZombie.java b/src/main/java/net/minecraft/server/EntityPigZombie.java
+new file mode 100644
+index 000000000..49db0ed55
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityPigZombie.java
+@@ -0,0 +1,205 @@
++package net.minecraft.server;
++
++import java.util.UUID;
++
++public class EntityPigZombie extends EntityZombie {
++    private static final UUID b;
++    private static final AttributeModifier c;
++
++    static {
++        b = UUID.fromString("49455A49-7EC5-45BA-B886-3B90B23A1718");
++        c = new AttributeModifier(EntityPigZombie.b, "Attacking speed boost", 0.05, 0).a(false);
++    }
++
++    public int angerLevel;
++    private int soundDelay;
++    private UUID hurtBy;
++
++    public EntityPigZombie(final World world) {
++        super(world);
++        this.fireProof = true;
++    }
++
++    @Override
++    public void b(final EntityLiving entityliving) {
++        super.b(entityliving);
++        if (entityliving != null) {
++            this.hurtBy = entityliving.getUniqueID();
++        }
++    }
++
++    @Override
++    protected void n() {
++        this.targetSelector.a(1, new PathfinderGoalAngerOther(this));
++        this.targetSelector.a(2, new PathfinderGoalAnger(this));
++    }
++
++    @Override
++    protected void initAttributes() {
++        super.initAttributes();
++        this.getAttributeInstance(EntityPigZombie.a).setValue(0.0);
++        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.23000000417232513);
++        this.getAttributeInstance(GenericAttributes.ATTACK_DAMAGE).setValue(5.0);
++    }
++
++    @Override
++    public void t_() {
++        super.t_();
++    }
++
++    @Override
++    protected void E() {
++        final AttributeInstance attributeInstance = this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED);
++        if (this.cm()) {
++            if (!this.isBaby() && !attributeInstance.a(EntityPigZombie.c)) {
++                attributeInstance.b(EntityPigZombie.c);
++            }
++            --this.angerLevel;
++        } else if (attributeInstance.a(EntityPigZombie.c)) {
++            attributeInstance.c(EntityPigZombie.c);
++        }
++        if (this.soundDelay > 0 && --this.soundDelay == 0) {
++            this.makeSound("mob.zombiepig.zpigangry", this.bB() * 2.0f, ((this.getRandom().nextFloat() - this.getRandom().nextFloat()) * 0.2f + 1.0f) * 1.8f);
++        }
++        if (this.angerLevel > 0 && this.hurtBy != null && this.getLastDamager() == null) {
++            final EntityHuman b = this.world.b(this.hurtBy);
++            this.b(b);
++            this.killer = b;
++            this.lastDamageByPlayerTime = this.be();
++        }
++        super.E();
++    }
++
++    @Override
++    public boolean bR() {
++        return this.world.getDifficulty() != EnumDifficulty.PEACEFUL;
++    }
++
++    @Override
++    public boolean canSpawn() {
++        return this.world.a(this.getBoundingBox(), this) && this.world.getCubes(this, this.getBoundingBox()).isEmpty() && !this.world.containsLiquid(this.getBoundingBox());
++    }
++
++    @Override
++    public void b(final NBTTagCompound nbttagcompound) {
++        super.b(nbttagcompound);
++        nbttagcompound.setShort("Anger", (short) this.angerLevel);
++        if (this.hurtBy != null) {
++            nbttagcompound.setString("HurtBy", this.hurtBy.toString());
++        } else {
++            nbttagcompound.setString("HurtBy", "");
++        }
++    }
++
++    @Override
++    public void a(final NBTTagCompound nbttagcompound) {
++        super.a(nbttagcompound);
++        this.angerLevel = nbttagcompound.getShort("Anger");
++        final String string = nbttagcompound.getString("HurtBy");
++        if (string.length() > 0) {
++            this.hurtBy = UUID.fromString(string);
++            final EntityHuman b = this.world.b(this.hurtBy);
++            this.b(b);
++            if (b != null) {
++                this.killer = b;
++                this.lastDamageByPlayerTime = this.be();
++            }
++        }
++    }
++
++    @Override
++    public boolean damageEntity(final DamageSource damageSource, final float f) {
++        if (this.isInvulnerable(damageSource)) {
++            return false;
++        }
++        final Entity entity = damageSource.getEntity();
++        if (entity instanceof EntityHuman) {
++            this.b(entity);
++        }
++        return super.damageEntity(damageSource, f);
++    }
++
++    private void b(final Entity entity) {
++        this.angerLevel = 400 + this.getRandom().nextInt(400);
++        this.soundDelay = this.getRandom().nextInt(40);
++        if (entity instanceof EntityLiving) {
++            this.b((EntityLiving) entity);
++        }
++    }
++
++    public boolean cm() {
++        return this.angerLevel > 0;
++    }
++
++    @Override
++    protected String z() {
++        return "mob.zombiepig.zpig";
++    }
++
++    @Override
++    protected String bo() {
++        return "mob.zombiepig.zpighurt";
++    }
++
++    @Override
++    protected String bp() {
++        return "mob.zombiepig.zpigdeath";
++    }
++
++    @Override
++    protected void dropDeathLoot(final boolean b, final int n) {
++        for (int nextInt = this.getRandom().nextInt(2 + n), i = 0; i < nextInt; ++i) {
++            this.a(Items.ROTTEN_FLESH, 1);
++        }
++        for (int nextInt2 = this.getRandom().nextInt(2 + n), j = 0; j < nextInt2; ++j) {
++            this.a(Items.GOLD_NUGGET, 1);
++        }
++    }
++
++    @Override
++    public boolean a(final EntityHuman entityHuman) {
++        return false;
++    }
++
++    @Override
++    protected void getRareDrop() {
++        this.a(Items.GOLD_INGOT, 1);
++    }
++
++    @Override
++    protected void a(final DifficultyDamageScaler difficultyDamageScaler) {
++        this.setEquipment(0, new ItemStack(Items.GOLDEN_SWORD));
++    }
++
++    @Override
++    public GroupDataEntity prepare(final DifficultyDamageScaler difficultydamagescaler, final GroupDataEntity groupdataentity) {
++        super.prepare(difficultydamagescaler, groupdataentity);
++        this.setVillager(false);
++        return groupdataentity;
++    }
++
++    static class PathfinderGoalAngerOther extends PathfinderGoalHurtByTarget {
++        public PathfinderGoalAngerOther(final EntityPigZombie entitycreature) {
++            super(entitycreature, true);
++        }
++
++        @Override
++        protected void a(final EntityCreature entitycreature, final EntityLiving entityliving) {
++            super.a(entitycreature, entityliving);
++            if (entitycreature instanceof EntityPigZombie) {
++                entitycreature.b(entityliving);
++            }
++        }
++    }
++
++    static class PathfinderGoalAnger extends PathfinderGoalNearestAttackableTarget<EntityHuman> {
++        public PathfinderGoalAnger(final EntityPigZombie entitycreature) {
++            super(entitycreature, EntityHuman.class, true);
++        }
++
++        @Override
++        public boolean a() {
++            return ((EntityPigZombie) this.e).cm() && super.a();
++        }
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/EntitySilverfish.java b/src/main/java/net/minecraft/server/EntitySilverfish.java
+index f8b729641..b501fc47c 100644
+--- a/src/main/java/net/minecraft/server/EntitySilverfish.java
++++ b/src/main/java/net/minecraft/server/EntitySilverfish.java
+@@ -14,7 +14,7 @@ public class EntitySilverfish extends EntityMonster {
+         this.goalSelector.a(4, new PathfinderGoalMeleeAttack(this, EntityHuman.class, 1.0D, false));
+         this.goalSelector.a(5, new EntitySilverfish.PathfinderGoalSilverfishHideInBlock(this));
+         this.targetSelector.a(1, new PathfinderGoalHurtByTarget(this, true));
+-        this.targetSelector.a(2, new PathfinderGoalNearestAttackableTarget(this, EntityHuman.class, true));
++        this.targetSelector.a(2, new PathfinderGoalNearestAttackableTarget<>(this, EntityHuman.class, true));
+     }
+ 
+     public double am() {
+@@ -132,7 +132,7 @@ public class EntitySilverfish extends EntityMonster {
+         }
+ 
+         public boolean b() {
+-            return this.c ? false : super.b();
++            return !this.c && super.b();
+         }
+ 
+         public void c() {
+diff --git a/src/main/java/net/minecraft/server/EntityTameableAnimal.java b/src/main/java/net/minecraft/server/EntityTameableAnimal.java
+new file mode 100644
+index 000000000..57cba0fd9
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityTameableAnimal.java
+@@ -0,0 +1,155 @@
++package net.minecraft.server;
++
++import java.util.UUID;
++
++public abstract class EntityTameableAnimal extends EntityAnimal implements EntityOwnable {
++    protected PathfinderGoalSit bm;
++
++    public EntityTameableAnimal(final World world) {
++        super(world);
++        this.bm = new PathfinderGoalSit(this);
++        this.cm();
++    }
++
++    @Override
++    protected void h() {
++        super.h();
++        this.datawatcher.a(16, 0);
++        this.datawatcher.a(17, "");
++    }
++
++    @Override
++    public void b(final NBTTagCompound nbttagcompound) {
++        super.b(nbttagcompound);
++        if (this.getOwnerUUID() == null) {
++            nbttagcompound.setString("OwnerUUID", "");
++        } else {
++            nbttagcompound.setString("OwnerUUID", this.getOwnerUUID());
++        }
++        nbttagcompound.setBoolean("Sitting", this.isSitting());
++    }
++
++    @Override
++    public void a(final NBTTagCompound nbttagcompound) {
++        super.a(nbttagcompound);
++        String ownerUUID;
++        if (nbttagcompound.hasKeyOfType("OwnerUUID", 8)) {
++            ownerUUID = nbttagcompound.getString("OwnerUUID");
++        } else {
++            ownerUUID = NameReferencingFileConverter.a(nbttagcompound.getString("Owner"));
++        }
++        if (ownerUUID.length() > 0) {
++            this.setOwnerUUID(ownerUUID);
++            this.setTamed(true);
++        }
++        this.bm.setSitting(nbttagcompound.getBoolean("Sitting"));
++        this.setSitting(nbttagcompound.getBoolean("Sitting"));
++    }
++
++    protected void l(final boolean b) {
++        EnumParticle enumparticle = EnumParticle.HEART;
++        if (!b) {
++            enumparticle = EnumParticle.SMOKE_NORMAL;
++        }
++        for (int i = 0; i < 7; ++i) {
++            this.world.addParticle(enumparticle, this.locX + this.getRandom().nextFloat() * this.width * 2.0f - this.width, this.locY + 0.5 + this.getRandom().nextFloat() * this.length, this.locZ + this.getRandom().nextFloat() * this.width * 2.0f - this.width, this.getRandom().nextGaussian() * 0.02, this.getRandom().nextGaussian() * 0.02, this.getRandom().nextGaussian() * 0.02);
++        }
++    }
++
++    public boolean isTamed() {
++        return (this.datawatcher.getByte(16) & 0x4) != 0x0;
++    }
++
++    public void setTamed(final boolean b) {
++        final byte byte1 = this.datawatcher.getByte(16);
++        if (b) {
++            this.datawatcher.watch(16, (byte) (byte1 | 0x4));
++        } else {
++            this.datawatcher.watch(16, (byte) (byte1 & 0xFFFFFFFB));
++        }
++        this.cm();
++    }
++
++    protected void cm() {
++    }
++
++    public boolean isSitting() {
++        return (this.datawatcher.getByte(16) & 0x1) != 0x0;
++    }
++
++    public void setSitting(final boolean b) {
++        final byte byte1 = this.datawatcher.getByte(16);
++        if (b) {
++            this.datawatcher.watch(16, (byte) (byte1 | 0x1));
++        } else {
++            this.datawatcher.watch(16, (byte) (byte1 & 0xFFFFFFFE));
++        }
++    }
++
++    @Override
++    public String getOwnerUUID() {
++        return this.datawatcher.getString(17);
++    }
++
++    public void setOwnerUUID(final String t0) {
++        this.datawatcher.watch(17, t0);
++    }
++
++    @Override
++    public EntityLiving getOwner() {
++        try {
++            final UUID fromString = UUID.fromString(this.getOwnerUUID());
++            if (fromString == null) {
++                return null;
++            }
++            return this.world.b(fromString);
++        } catch (IllegalArgumentException ex) {
++            return null;
++        }
++    }
++
++    public boolean e(final EntityLiving entityLiving) {
++        return entityLiving == this.getOwner();
++    }
++
++    public PathfinderGoalSit getGoalSit() {
++        return this.bm;
++    }
++
++    public boolean a(final EntityLiving entityLiving, final EntityLiving entityLiving2) {
++        return true;
++    }
++
++    @Override
++    public ScoreboardTeamBase getScoreboardTeam() {
++        if (this.isTamed()) {
++            final EntityLiving owner = this.getOwner();
++            if (owner != null) {
++                return owner.getScoreboardTeam();
++            }
++        }
++        return super.getScoreboardTeam();
++    }
++
++    @Override
++    public boolean c(final EntityLiving entityLiving) {
++        if (this.isTamed()) {
++            final EntityLiving owner = this.getOwner();
++            if (entityLiving == owner) {
++                return true;
++            }
++            if (owner != null) {
++                return owner.c(entityLiving);
++            }
++        }
++        return super.c(entityLiving);
++    }
++
++    @Override
++    public void die(final DamageSource damagesource) {
++        if (!this.world.isClientSide && this.world.getGameRules().getBoolean("showDeathMessages") && this.hasCustomName() && this.getOwner() instanceof EntityPlayer) {
++            this.getOwner().sendMessage(this.bs().b());
++        }
++        super.die(damagesource);
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/EntityWitch.java b/src/main/java/net/minecraft/server/EntityWitch.java
+new file mode 100644
+index 000000000..49b3b14e2
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/EntityWitch.java
+@@ -0,0 +1,163 @@
++package net.minecraft.server;
++
++import java.util.Iterator;
++import java.util.List;
++import java.util.UUID;
++
++public class EntityWitch extends EntityMonster implements IRangedEntity {
++    private static final UUID a = UUID.fromString("5CD17E52-A79A-43D3-A529-90FDE04B181E");
++    private static final AttributeModifier b = new AttributeModifier(EntityWitch.a, "Drinking speed penalty", -0.25, 0).a(false);
++    private static final Item[] c = new Item[]{Items.GLOWSTONE_DUST, Items.SUGAR, Items.REDSTONE, Items.SPIDER_EYE, Items.GLASS_BOTTLE, Items.GUNPOWDER, Items.STICK, Items.STICK};
++    private int bm;
++
++    public EntityWitch(final World world) {
++        super(world);
++        this.setSize(0.6f, 1.95f);
++        this.goalSelector.a(1, new PathfinderGoalFloat(this));
++        this.goalSelector.a(2, new PathfinderGoalArrowAttack(this, 1.0, 60, 10.0f));
++        this.goalSelector.a(2, new PathfinderGoalRandomStroll(this, 1.0));
++        this.goalSelector.a(3, new PathfinderGoalLookAtPlayer(this, EntityHuman.class, 8.0f));
++        this.goalSelector.a(3, new PathfinderGoalRandomLookaround(this));
++        this.targetSelector.a(1, new PathfinderGoalHurtByTarget(this, false));
++        this.targetSelector.a(2, new PathfinderGoalNearestAttackableTarget<>(this, EntityHuman.class, true));
++    }
++
++    @Override
++    protected void h() {
++        super.h();
++        this.getDataWatcher().a(21, 0);
++    }
++
++    @Override
++    protected String z() {
++        return null;
++    }
++
++    @Override
++    protected String bo() {
++        return null;
++    }
++
++    @Override
++    protected String bp() {
++        return null;
++    }
++
++    public void a(final boolean b) {
++        this.getDataWatcher().watch(21, (byte) (b ? 1 : 0));
++    }
++
++    public boolean n() {
++        return this.getDataWatcher().getByte(21) == 1;
++    }
++
++    @Override
++    protected void initAttributes() {
++        super.initAttributes();
++        this.getAttributeInstance(GenericAttributes.maxHealth).setValue(26.0);
++        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.25);
++    }
++
++    @Override
++    public void m() {
++        if (!this.world.isClientSide) {
++            if (this.n()) {
++                if (this.bm-- <= 0) {
++                    this.a(false);
++                    final ItemStack ba = this.bA();
++                    this.setEquipment(0, null);
++                    if (ba != null && ba.getItem() == Items.POTION) {
++                        final List<MobEffect> h = Items.POTION.h(ba);
++                        if (h != null) {
++                            final Iterator<MobEffect> iterator = h.iterator();
++                            while (iterator.hasNext()) {
++                                this.addEffect(new MobEffect(iterator.next()));
++                            }
++                        }
++                    }
++                    this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).c(EntityWitch.b);
++                }
++            } else {
++                int j = -1;
++                if (this.getRandom().nextFloat() < 0.15f && this.a(Material.WATER) && !this.hasEffect(MobEffectList.WATER_BREATHING)) {
++                    j = 8237;
++                } else if (this.getRandom().nextFloat() < 0.15f && this.isBurning() && !this.hasEffect(MobEffectList.FIRE_RESISTANCE)) {
++                    j = 16307;
++                } else if (this.getRandom().nextFloat() < 0.05f && this.getHealth() < this.getMaxHealth()) {
++                    j = 16341;
++                } else if (this.getRandom().nextFloat() < 0.25f && this.getGoalTarget() != null && !this.hasEffect(MobEffectList.FASTER_MOVEMENT) && this.getGoalTarget().h(this) > 121.0) {
++                    j = 16274;
++                } else if (this.getRandom().nextFloat() < 0.25f && this.getGoalTarget() != null && !this.hasEffect(MobEffectList.FASTER_MOVEMENT) && this.getGoalTarget().h(this) > 121.0) {
++                    j = 16274;
++                }
++                if (j > -1) {
++                    this.setEquipment(0, new ItemStack(Items.POTION, 1, j));
++                    this.bm = this.bA().l();
++                    this.a(true);
++                    final AttributeInstance attributeInstance = this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED);
++                    attributeInstance.c(EntityWitch.b);
++                    attributeInstance.b(EntityWitch.b);
++                }
++            }
++            if (this.getRandom().nextFloat() < 7.5E-4f) {
++                this.world.broadcastEntityEffect(this, (byte) 15);
++            }
++        }
++        super.m();
++    }
++
++    @Override
++    protected float applyMagicModifier(final DamageSource damagesource, float applyMagicModifier) {
++        applyMagicModifier = super.applyMagicModifier(damagesource, applyMagicModifier);
++        if (damagesource.getEntity() == this) {
++            applyMagicModifier = 0.0f;
++        }
++        if (damagesource.isMagic()) {
++            applyMagicModifier *= (float) 0.15;
++        }
++        return applyMagicModifier;
++    }
++
++    @Override
++    protected void dropDeathLoot(final boolean b, final int n) {
++        for (int n2 = this.getRandom().nextInt(3) + 1, i = 0; i < n2; ++i) {
++            int nextInt = this.getRandom().nextInt(3);
++            final Item item = EntityWitch.c[this.getRandom().nextInt(EntityWitch.c.length)];
++            if (n > 0) {
++                nextInt += this.getRandom().nextInt(n + 1);
++            }
++            for (int j = 0; j < nextInt; ++j) {
++                this.a(item, 1);
++            }
++        }
++    }
++
++    @Override
++    public void a(final EntityLiving entityLiving, final float n) {
++        if (this.n()) {
++            return;
++        }
++        final EntityPotion entity = new EntityPotion(this.world, this, 32732);
++        final double n2 = entityLiving.locY + entityLiving.getHeadHeight() - 1.100000023841858;
++        final EntityPotion entityPotion = entity;
++        entityPotion.pitch += 20.0f;
++        final double d0 = entityLiving.locX + entityLiving.motX - this.locX;
++        final double n3 = n2 - this.locY;
++        final double d2 = entityLiving.locZ + entityLiving.motZ - this.locZ;
++        final float sqrt = MathHelper.sqrt(d0 * d0 + d2 * d2);
++        if (sqrt >= 8.0f && !entityLiving.hasEffect(MobEffectList.SLOWER_MOVEMENT)) {
++            entity.setPotionValue(32698);
++        } else if (entityLiving.getHealth() >= 8.0f && !entityLiving.hasEffect(MobEffectList.POISON)) {
++            entity.setPotionValue(32660);
++        } else if (sqrt <= 3.0f && !entityLiving.hasEffect(MobEffectList.WEAKNESS) && this.getRandom().nextFloat() < 0.25f) {
++            entity.setPotionValue(32696);
++        }
++        entity.shoot(d0, n3 + sqrt * 0.2f, d2, 0.75f, 8.0f);
++        this.world.addEntity(entity);
++    }
++
++    @Override
++    public float getHeadHeight() {
++        return 1.62f;
++    }
++}
+-- 
+2.21.0.windows.1
+

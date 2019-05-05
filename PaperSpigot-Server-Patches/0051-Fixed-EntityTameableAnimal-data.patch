@@ -1,0 +1,22 @@
+From 7197d4887666ba2e0615934b8171931e802263de Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 02:20:51 -0400
+Subject: [PATCH] Fixed EntityTameableAnimal data
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityTameableAnimal.java b/src/main/java/net/minecraft/server/EntityTameableAnimal.java
+index 57cba0fd9..9390757ad 100644
+--- a/src/main/java/net/minecraft/server/EntityTameableAnimal.java
++++ b/src/main/java/net/minecraft/server/EntityTameableAnimal.java
+@@ -14,7 +14,7 @@ public abstract class EntityTameableAnimal extends EntityAnimal implements Entit
+     @Override
+     protected void h() {
+         super.h();
+-        this.datawatcher.a(16, 0);
++        this.datawatcher.a(16, (byte) 0);
+         this.datawatcher.a(17, "");
+     }
+ 
+-- 
+2.21.0.windows.1
+

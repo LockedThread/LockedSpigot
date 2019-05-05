@@ -1,0 +1,51 @@
+From 5cbc85b44afc325aa9ed78feeb8109b696fc2e67 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 17:23:52 -0400
+Subject: [PATCH] moved LockedSpigotConfig initialization to after dedicated
+ server shit
+
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 8eeeede3f..1d7e6c7c8 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -10,6 +10,7 @@ import com.mojang.authlib.GameProfile;
+ import com.mojang.authlib.GameProfileRepository;
+ import com.mojang.authlib.minecraft.MinecraftSessionService;
+ import com.mojang.authlib.yggdrasil.YggdrasilAuthenticationService;
++import dev.lockedthread.LockedSpigotConfig;
+ import io.netty.buffer.ByteBuf;
+ import io.netty.buffer.ByteBufOutputStream;
+ import io.netty.buffer.Unpooled;
+@@ -1034,6 +1035,8 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+         } catch (Exception exception) {
+             MinecraftServer.LOGGER.fatal("Failed to start the minecraft server", exception);
+         }
++        LockedSpigotConfig.init((File) options.valueOf("lockedspigot-settings")); // TacoSpigot - load config before we load libraries to allow access while loading
++
+ 
+     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/Main.java b/src/main/java/org/bukkit/craftbukkit/Main.java
+index 90d84cb88..a7776005a 100644
+--- a/src/main/java/org/bukkit/craftbukkit/Main.java
++++ b/src/main/java/org/bukkit/craftbukkit/Main.java
+@@ -1,6 +1,5 @@
+ package org.bukkit.craftbukkit;
+ 
+-import dev.lockedthread.LockedSpigotConfig;
+ import joptsimple.OptionParser;
+ import joptsimple.OptionSet;
+ import net.minecraft.server.MinecraftServer;
+@@ -224,7 +223,7 @@ public class Main {
+                 // Spigot End
+                 net.techcable.tacospigot.TacoSpigotConfig.init((File) options.valueOf("taco-settings")); // LockedSpigot
+ 
+-                LockedSpigotConfig.init((File) options.valueOf("lockedspigot-settings")); // TacoSpigot - load config before we load libraries to allow access while loading
++                //LockedSpigotConfig.init((File) options.valueOf("lockedspigot-settings")); // TacoSpigot - load config before we load libraries to allow access while loading
+ 
+                 System.out.println("Loading libraries, please wait...");
+                 MinecraftServer.main(options);
+-- 
+2.21.0.windows.1
+

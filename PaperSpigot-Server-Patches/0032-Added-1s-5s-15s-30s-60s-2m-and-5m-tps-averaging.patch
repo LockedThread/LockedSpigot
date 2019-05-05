@@ -1,0 +1,91 @@
+From c93b0b4c734f02545a414ac0ff7ab5eb67aaf03f Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 13:12:32 -0400
+Subject: [PATCH] Added 1s, 5s, 15s, 30s, 60s, 2m, and 5m tps averaging.
+
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 90e3739c0..5d86e4fb5 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -509,11 +509,15 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+     private static final long TICK_TIME = SEC_IN_NANO / TPS;
+     private static final long MAX_CATCHUP_BUFFER = TICK_TIME * TPS * 60L;
+     private static final int SAMPLE_INTERVAL = 40;
+-    public final RollingAverage tps1 = new RollingAverage(60);
+-    public final RollingAverage tps5 = new RollingAverage(60 * 5);
+-    public final RollingAverage tps15 = new RollingAverage(60 * 15);
++    public final RollingAverage tps1 = new RollingAverage(1);
++    public final RollingAverage tps5 = new RollingAverage(5);
++    public final RollingAverage tps15 = new RollingAverage(15);
++    public final RollingAverage tps30 = new RollingAverage(30);
++    public final RollingAverage tps60 = new RollingAverage(60);
++    public final RollingAverage tps120 = new RollingAverage(120);
++    public final RollingAverage tps300 = new RollingAverage(300);
+     private boolean offTick = true;
+-    public double[] recentTps = new double[3]; // PaperSpigot - Fine have your darn compat with bad plugins
++    public double[] recentTps = new double[7]; // PaperSpigot - Fine have your darn compat with bad plugins
+ 
+     public static class RollingAverage {
+         private final int size;
+@@ -599,10 +603,18 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+                         tps1.add(currentTps, diff);
+                         tps5.add(currentTps, diff);
+                         tps15.add(currentTps, diff);
++                        tps30.add(currentTps, diff);
++                        tps60.add(currentTps, diff);
++                        tps120.add(currentTps, diff);
++                        tps300.add(currentTps, diff);
+                         // Backwards compat with bad plugins
+                         recentTps[0] = tps1.getAverage();
+                         recentTps[1] = tps5.getAverage();
+                         recentTps[2] = tps15.getAverage();
++                        recentTps[3] = tps30.getAverage();
++                        recentTps[4] = tps60.getAverage();
++                        recentTps[5] = tps120.getAverage();
++                        recentTps[6] = tps300.getAverage();
+                         tickSection = curTime;
+                         // PaperSpigot end
+                     }
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index 69905fc45..cc31ab879 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -1733,7 +1733,12 @@ public final class CraftServer implements Server {
+             return new double[]{
+                     MinecraftServer.getServer().tps1.getAverage(),
+                     MinecraftServer.getServer().tps5.getAverage(),
+-                    MinecraftServer.getServer().tps15.getAverage()
++                    MinecraftServer.getServer().tps15.getAverage(),
++                    MinecraftServer.getServer().tps30.getAverage(),
++                    MinecraftServer.getServer().tps60.getAverage(),
++                    MinecraftServer.getServer().tps120.getAverage(),
++                    MinecraftServer.getServer().tps300.getAverage()
++
+             };
+         }
+         // PaperSpigot end
+diff --git a/src/main/java/org/spigotmc/TicksPerSecondCommand.java b/src/main/java/org/spigotmc/TicksPerSecondCommand.java
+index 607f83835..091262c95 100644
+--- a/src/main/java/org/spigotmc/TicksPerSecondCommand.java
++++ b/src/main/java/org/spigotmc/TicksPerSecondCommand.java
+@@ -22,9 +22,13 @@ public class TicksPerSecondCommand extends Command {
+ 
+         sender.sendMessage(ChatColor.YELLOW + "The tps shown is based on a 40tps scale whilst entities and and the bukkit scheduler are based on 20.");
+         sender.sendMessage(ChatColor.DARK_GRAY + ChatColor.STRIKETHROUGH.toString() + "--------------------------");
+-        sender.sendMessage(ChatColor.YELLOW + "1m - " + format(MinecraftServer.getServer().tps1.getAverage()));
+-        sender.sendMessage(ChatColor.YELLOW + "5m - " + format(MinecraftServer.getServer().tps5.getAverage()));
+-        sender.sendMessage(ChatColor.YELLOW + "15m - " + format(MinecraftServer.getServer().tps15.getAverage()));
++        sender.sendMessage(ChatColor.YELLOW + "1s - " + format(MinecraftServer.getServer().tps1.getAverage()));
++        sender.sendMessage(ChatColor.YELLOW + "5s - " + format(MinecraftServer.getServer().tps5.getAverage()));
++        sender.sendMessage(ChatColor.YELLOW + "15s - " + format(MinecraftServer.getServer().tps15.getAverage()));
++        sender.sendMessage(ChatColor.YELLOW + "30s - " + format(MinecraftServer.getServer().tps30.getAverage()));
++        sender.sendMessage(ChatColor.YELLOW + "60s - " + format(MinecraftServer.getServer().tps60.getAverage()));
++        sender.sendMessage(ChatColor.YELLOW + "2m - " + format(MinecraftServer.getServer().tps120.getAverage()));
++        sender.sendMessage(ChatColor.YELLOW + "5m - " + format(MinecraftServer.getServer().tps300.getAverage()));
+         sender.sendMessage(ChatColor.DARK_GRAY + ChatColor.STRIKETHROUGH.toString() + "--------------------------");
+ 
+         return true;
+-- 
+2.21.0.windows.1
+

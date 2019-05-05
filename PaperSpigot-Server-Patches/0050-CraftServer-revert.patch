@@ -1,0 +1,152 @@
+From 1d217a34bc2c4ade3a16f7f23eb1cf215d5829a6 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 02:14:38 -0400
+Subject: [PATCH] CraftServer revert
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index ec480bee2..71d6e3f54 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -79,7 +79,6 @@ import java.util.*;
+ import java.util.logging.Level;
+ import java.util.logging.Logger;
+ import java.util.regex.Pattern;
+-import java.util.stream.Collectors;
+ 
+ public final class CraftServer implements Server {
+     private static final Player[] EMPTY_PLAYER_ARRAY = new Player[0];
+@@ -116,7 +115,7 @@ public final class CraftServer implements Server {
+     public boolean playerCommandState;
+     private boolean printSaveWarning;
+     private CraftIconCache icon;
+-    private boolean overrideAllCommandBlockCommands = false;
++    private boolean overrideAllCommandBlockCommands;
+     private final Pattern validUserPattern = Pattern.compile("^[a-zA-Z0-9_]{2,16}$");
+     private final UUID invalidUserUUID = UUID.nameUUIDFromBytes("InvalidUsername".getBytes(Charsets.UTF_8));
+     private final List<CraftPlayer> playerView;
+@@ -131,80 +130,71 @@ public final class CraftServer implements Server {
+         CraftItemFactory.instance();
+     }
+ 
+-    public CraftServer(MinecraftServer console, PlayerList playerList) {
++    public CraftServer(final MinecraftServer console, final PlayerList playerList) {
++        this.monsterSpawn = -1;
++        this.animalSpawn = -1;
++        this.waterAnimalSpawn = -1;
++        this.ambientSpawn = -1;
++        this.chunkGCPeriod = -1;
++        this.chunkGCLoadThresh = 0;
++        this.warningState = Warning.WarningState.DEFAULT;
++        this.overrideAllCommandBlockCommands = false;
+         this.console = console;
+         this.playerList = (DedicatedPlayerList) playerList;
+-        this.playerView = Collections.unmodifiableList(playerList.players.stream().map(player -> player.getBukkitEntity()).collect(Collectors.toList()));
++        this.playerView = Collections.unmodifiableList(Lists.transform(playerList.players, (Function<? super EntityPlayer, ? extends CraftPlayer>) EntityPlayer::getBukkitEntity));
+         this.serverVersion = CraftServer.class.getPackage().getImplementationVersion();
+         online.value = console.getPropertyManager().getBoolean("online-mode", true);
+-
+         Bukkit.setServer(this);
+-
+-        // Register all the Enchantments and PotionTypes now so we can stop new registration immediately after
+         Enchantment.DAMAGE_ALL.getClass();
+         org.bukkit.enchantments.Enchantment.stopAcceptingRegistrations();
+-
+         Potion.setPotionBrewer(new CraftPotionBrewer());
+         MobEffectList.BLINDNESS.getClass();
+         PotionEffectType.stopAcceptingRegistrations();
+-        // Ugly hack :(
+-
+         if (!Main.useConsole) {
+-            getLogger().info("Console input is disabled due to --noconsole command argument");
++            this.getLogger().info("Console input is disabled due to --noconsole command argument");
+         }
+-
+-        configuration = YamlConfiguration.loadConfiguration(getConfigFile());
+-        configuration.options().copyDefaults(true);
+-        configuration.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getClassLoader().getResourceAsStream("configurations/bukkit.yml"), Charsets.UTF_8)));
++        this.configuration = YamlConfiguration.loadConfiguration(this.getConfigFile());
++        this.configuration.options().copyDefaults(true);
++        this.configuration.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("configurations/bukkit.yml"), Charsets.UTF_8)));
+         ConfigurationSection legacyAlias = null;
+-        if (!configuration.isString("aliases")) {
+-            legacyAlias = configuration.getConfigurationSection("aliases");
+-            configuration.set("aliases", "now-in-commands.yml");
++        if (!this.configuration.isString("aliases")) {
++            legacyAlias = this.configuration.getConfigurationSection("aliases");
++            this.configuration.set("aliases", "now-in-commands.yml");
+         }
+-        saveConfig();
+-        if (getCommandsConfigFile().isFile()) {
++        this.saveConfig();
++        if (this.getCommandsConfigFile().isFile()) {
+             legacyAlias = null;
+         }
+-        commandsConfiguration = YamlConfiguration.loadConfiguration(getCommandsConfigFile());
+-        commandsConfiguration.options().copyDefaults(true);
+-        commandsConfiguration.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(getClass().getClassLoader().getResourceAsStream("configurations/commands.yml"), Charsets.UTF_8)));
+-        saveCommandsConfig();
+-
+-        // Migrate aliases from old file and add previously implicit $1- to pass all arguments
++        this.commandsConfiguration = YamlConfiguration.loadConfiguration(this.getCommandsConfigFile());
++        this.commandsConfiguration.options().copyDefaults(true);
++        this.commandsConfiguration.setDefaults(YamlConfiguration.loadConfiguration(new InputStreamReader(this.getClass().getClassLoader().getResourceAsStream("configurations/commands.yml"), Charsets.UTF_8)));
++        this.saveCommandsConfig();
+         if (legacyAlias != null) {
+-            ConfigurationSection aliases = commandsConfiguration.createSection("aliases");
+-            for (String key : legacyAlias.getKeys(false)) {
+-                ArrayList<String> commands = new ArrayList<>();
+-
++            final ConfigurationSection aliases = this.commandsConfiguration.createSection("aliases");
++            for (final String key : legacyAlias.getKeys(false)) {
++                final ArrayList<String> commands = new ArrayList<String>();
+                 if (legacyAlias.isList(key)) {
+-                    for (String command : legacyAlias.getStringList(key)) {
+-                        commands.add(command + " $1-");
++                    for (final String command : legacyAlias.getStringList(key)) {
++                        commands.add(String.valueOf(command) + " $1-");
+                     }
+                 } else {
+-                    commands.add(legacyAlias.getString(key) + " $1-");
++                    commands.add(String.valueOf(legacyAlias.getString(key)) + " $1-");
+                 }
+-
+                 aliases.set(key, commands);
+             }
+         }
+-
+-        saveCommandsConfig();
+-        overrideAllCommandBlockCommands = commandsConfiguration.getStringList("command-block-overrides").contains("*");
+-        ((SimplePluginManager) pluginManager).useTimings(configuration.getBoolean("settings.plugin-profiling"));
+-        monsterSpawn = configuration.getInt("spawn-limits.monsters");
+-        animalSpawn = configuration.getInt("spawn-limits.animals");
+-        waterAnimalSpawn = configuration.getInt("spawn-limits.water-animals");
+-        ambientSpawn = configuration.getInt("spawn-limits.ambient");
+-        console.autosavePeriod = configuration.getInt("ticks-per.autosave");
+-        warningState = WarningState.value(configuration.getString("settings.deprecated-verbose"));
+-        chunkGCPeriod = configuration.getInt("chunk-gc.period-in-ticks");
+-        chunkGCLoadThresh = configuration.getInt("chunk-gc.load-threshold");
+-        loadIcon();
+-
+-        // Spigot Start - Moved to old location of new DedicatedPlayerList in DedicatedServer
+-        // loadPlugins();
+-        // enablePlugins(PluginLoadOrder.STARTUP);
+-        // Spigot End
++        this.saveCommandsConfig();
++        this.overrideAllCommandBlockCommands = this.commandsConfiguration.getStringList("command-block-overrides").contains("*");
++        ((SimplePluginManager) this.pluginManager).useTimings(this.configuration.getBoolean("settings.plugin-profiling"));
++        this.monsterSpawn = this.configuration.getInt("spawn-limits.monsters");
++        this.animalSpawn = this.configuration.getInt("spawn-limits.animals");
++        this.waterAnimalSpawn = this.configuration.getInt("spawn-limits.water-animals");
++        this.ambientSpawn = this.configuration.getInt("spawn-limits.ambient");
++        console.autosavePeriod = this.configuration.getInt("ticks-per.autosave");
++        this.warningState = Warning.WarningState.value(this.configuration.getString("settings.deprecated-verbose"));
++        this.chunkGCPeriod = this.configuration.getInt("chunk-gc.period-in-ticks");
++        this.chunkGCLoadThresh = this.configuration.getInt("chunk-gc.load-threshold");
++        this.loadIcon();
+     }
+ 
+     public boolean getCommandBlockOverride(String command) {
+-- 
+2.21.0.windows.1
+

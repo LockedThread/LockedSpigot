@@ -1,0 +1,417 @@
+From 7f5aaf83dc063b45a64cee57ec4360415de3f100 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 00:06:53 -0400
+Subject: [PATCH] Reverted to jline 2.14.6
+
+
+diff --git a/pom.xml b/pom.xml
+index abc110805..e7d4d517b 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -60,9 +60,9 @@
+             <scope>compile</scope>
+         </dependency>
+         <dependency>
+-            <groupId>org.jline</groupId>
++            <groupId>jline</groupId>
+             <artifactId>jline</artifactId>
+-            <version>3.11.0</version>
++            <version>2.14.6</version>
+             <type>jar</type>
+             <scope>compile</scope>
+         </dependency>
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index f342c2450..699996143 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -557,7 +557,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+         }
+     }
+     // PaperSpigot End
+- 
++
+     public void run() {
+         try {
+             if (this.init()) {
+@@ -1269,7 +1269,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+         for (int i = 0; i < this.worlds.size(); ++i) {
+             WorldServer worldserver = this.worlds.get(i);
+             // CraftBukkit end
+-            
++
+             if (worldserver != null) {
+                 worldserver.saveLevel();
+             }
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftServer.java b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+index a2fb03987..69905fc45 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftServer.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftServer.java
+@@ -1,48 +1,30 @@
+ package org.bukkit.craftbukkit;
+ 
+-import java.awt.image.BufferedImage;
+-import java.io.File;
+-import java.io.FileInputStream;
+-import java.io.FileNotFoundException;
+-import java.io.IOException;
+-import java.io.InputStreamReader;
+-import java.util.ArrayList;
+-import java.util.Arrays;
+-import java.util.Collections;
+-import java.util.HashSet;
+-import java.util.Iterator;
+-import java.util.LinkedHashMap;
+-import java.util.LinkedHashSet;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Set;
+-import java.util.UUID;
+-import java.util.logging.Level;
+-import java.util.logging.Logger;
+-import java.util.regex.Pattern;
+-
+-import javax.imageio.ImageIO;
+-
++import com.avaje.ebean.config.DataSourceConfig;
++import com.avaje.ebean.config.ServerConfig;
++import com.avaje.ebean.config.dbplatform.SQLitePlatform;
++import com.avaje.ebeaninternal.server.lib.sql.TransactionIsolation;
++import com.google.common.base.Charsets;
++import com.google.common.base.Function;
++import com.google.common.collect.ImmutableList;
++import com.google.common.collect.Lists;
++import com.google.common.collect.MapMaker;
++import com.mojang.authlib.GameProfile;
++import io.netty.buffer.ByteBuf;
++import io.netty.buffer.ByteBufOutputStream;
++import io.netty.buffer.Unpooled;
++import io.netty.handler.codec.base64.Base64;
++import jline.console.ConsoleReader;
++import net.md_5.bungee.api.chat.BaseComponent;
++import net.minecraft.server.WorldType;
+ import net.minecraft.server.*;
+-
+-import org.bukkit.BanList;
+-import org.bukkit.Bukkit;
+-import org.bukkit.ChatColor;
+-import org.bukkit.GameMode;
+-import org.bukkit.Location;
+-import org.bukkit.OfflinePlayer;
+-import org.bukkit.Server;
+-import org.bukkit.UnsafeValues;
+-import org.bukkit.Warning.WarningState;
++import org.apache.commons.lang.Validate;
++import org.bukkit.*;
+ import org.bukkit.World;
++import org.bukkit.Warning.WarningState;
+ import org.bukkit.World.Environment;
+-import org.bukkit.WorldCreator;
+-import org.bukkit.command.Command;
+ import org.bukkit.command.CommandException;
+-import org.bukkit.command.CommandSender;
+-import org.bukkit.command.ConsoleCommandSender;
+-import org.bukkit.command.PluginCommand;
+-import org.bukkit.command.SimpleCommandMap;
++import org.bukkit.command.*;
+ import org.bukkit.configuration.ConfigurationSection;
+ import org.bukkit.configuration.file.YamlConfiguration;
+ import org.bukkit.configuration.serialization.ConfigurationSerialization;
+@@ -51,13 +33,7 @@ import org.bukkit.craftbukkit.command.VanillaCommandWrapper;
+ import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.bukkit.craftbukkit.generator.CraftChunkData;
+ import org.bukkit.craftbukkit.help.SimpleHelpMap;
+-import org.bukkit.craftbukkit.inventory.CraftFurnaceRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftInventoryCustom;
+-import org.bukkit.craftbukkit.inventory.CraftItemFactory;
+-import org.bukkit.craftbukkit.inventory.CraftRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftShapedRecipe;
+-import org.bukkit.craftbukkit.inventory.CraftShapelessRecipe;
+-import org.bukkit.craftbukkit.inventory.RecipeIterator;
++import org.bukkit.craftbukkit.inventory.*;
+ import org.bukkit.craftbukkit.map.CraftMapView;
+ import org.bukkit.craftbukkit.metadata.EntityMetadataStore;
+ import org.bukkit.craftbukkit.metadata.PlayerMetadataStore;
+@@ -75,55 +51,33 @@ import org.bukkit.event.inventory.InventoryType;
+ import org.bukkit.event.player.PlayerChatTabCompleteEvent;
+ import org.bukkit.event.world.WorldInitEvent;
+ import org.bukkit.event.world.WorldLoadEvent;
+-import org.bukkit.event.world.WorldSaveEvent;
+ import org.bukkit.event.world.WorldUnloadEvent;
+ import org.bukkit.generator.ChunkGenerator;
+ import org.bukkit.help.HelpMap;
+-import org.bukkit.inventory.FurnaceRecipe;
+ import org.bukkit.inventory.ItemStack;
+-import org.bukkit.inventory.Inventory;
+-import org.bukkit.inventory.InventoryHolder;
+-import org.bukkit.inventory.Recipe;
+-import org.bukkit.inventory.ShapedRecipe;
+-import org.bukkit.inventory.ShapelessRecipe;
++import org.bukkit.inventory.*;
+ import org.bukkit.permissions.Permissible;
+ import org.bukkit.permissions.Permission;
+-import org.bukkit.plugin.Plugin;
+-import org.bukkit.plugin.PluginLoadOrder;
+-import org.bukkit.plugin.PluginManager;
+-import org.bukkit.plugin.ServicesManager;
+-import org.bukkit.plugin.SimplePluginManager;
+-import org.bukkit.plugin.SimpleServicesManager;
++import org.bukkit.plugin.*;
+ import org.bukkit.plugin.java.JavaPluginLoader;
+ import org.bukkit.plugin.messaging.Messenger;
++import org.bukkit.plugin.messaging.StandardMessenger;
+ import org.bukkit.potion.Potion;
+ import org.bukkit.potion.PotionEffectType;
+-import org.bukkit.plugin.messaging.StandardMessenger;
+ import org.bukkit.scheduler.BukkitWorker;
+ import org.bukkit.util.StringUtil;
+ import org.bukkit.util.permissions.DefaultPermissions;
+ import org.yaml.snakeyaml.Yaml;
+ import org.yaml.snakeyaml.constructor.SafeConstructor;
+ import org.yaml.snakeyaml.error.MarkedYAMLException;
+-import org.apache.commons.lang.Validate;
+ 
+-import com.avaje.ebean.config.DataSourceConfig;
+-import com.avaje.ebean.config.ServerConfig;
+-import com.avaje.ebean.config.dbplatform.SQLitePlatform;
+-import com.avaje.ebeaninternal.server.lib.sql.TransactionIsolation;
+-import com.google.common.base.Charsets;
+-import com.google.common.base.Function;
+-import com.google.common.collect.ImmutableList;
+-import com.google.common.collect.Lists;
+-import com.google.common.collect.MapMaker;
+-import com.mojang.authlib.GameProfile;
+-
+-import io.netty.buffer.ByteBuf;
+-import io.netty.buffer.ByteBufOutputStream;
+-import io.netty.buffer.Unpooled;
+-import io.netty.handler.codec.base64.Base64;
+-import jline.console.ConsoleReader;
+-import net.md_5.bungee.api.chat.BaseComponent;
++import javax.imageio.ImageIO;
++import java.awt.image.BufferedImage;
++import java.io.*;
++import java.util.*;
++import java.util.logging.Level;
++import java.util.logging.Logger;
++import java.util.regex.Pattern;
+ 
+ public final class CraftServer implements Server {
+     private static final Player[] EMPTY_PLAYER_ARRAY = new Player[0];
+@@ -343,7 +297,7 @@ public final class CraftServer implements Server {
+         for (ICommand cmd : commands.values()) {
+             // Spigot start
+             VanillaCommandWrapper wrapper = new VanillaCommandWrapper((CommandAbstract) cmd, LocaleI18n.get(cmd.getUsage(null)));
+-            if (org.spigotmc.SpigotConfig.replaceCommands.contains( wrapper.getName() ) ) {
++            if (org.spigotmc.SpigotConfig.replaceCommands.contains(wrapper.getName())) {
+                 if (first) {
+                     commandMap.register("minecraft", wrapper);
+                 }
+@@ -617,7 +571,7 @@ public final class CraftServer implements Server {
+     // NOTE: Should only be called from DedicatedServer.ah()
+     public boolean dispatchServerCommand(CommandSender sender, ServerCommand serverCommand) {
+         if (sender instanceof Conversable) {
+-            Conversable conversable = (Conversable)sender;
++            Conversable conversable = (Conversable) sender;
+ 
+             if (conversable.isConversing()) {
+                 conversable.acceptConversationInput(serverCommand.command);
+@@ -748,7 +702,8 @@ public final class CraftServer implements Server {
+         while (pollCount < 50 && getScheduler().getActiveWorkers().size() > 0) {
+             try {
+                 Thread.sleep(50);
+-            } catch (InterruptedException e) {}
++            } catch (InterruptedException e) {
++            }
+             pollCount++;
+         }
+ 
+@@ -760,10 +715,10 @@ public final class CraftServer implements Server {
+                 author = plugin.getDescription().getAuthors().get(0);
+             }
+             getLogger().log(Level.SEVERE, String.format(
+-                "Nag author: '%s' of '%s' about the following: %s",
+-                author,
+-                plugin.getDescription().getName(),
+-                "This plugin is not properly shutting down its async tasks when it is being reloaded.  This may cause conflicts with the newly loaded version of the plugin"
++                    "Nag author: '%s' of '%s' about the following: %s",
++                    author,
++                    plugin.getDescription().getName(),
++                    "This plugin is not properly shutting down its async tasks when it is being reloaded.  This may cause conflicts with the newly loaded version of the plugin"
+             ));
+         }
+         loadPlugins();
+@@ -783,7 +738,7 @@ public final class CraftServer implements Server {
+         }
+     }
+ 
+-    @SuppressWarnings({ "unchecked", "finally" })
++    @SuppressWarnings({"unchecked", "finally"})
+     private void loadCustomPermissions() {
+         File file = new File(configuration.getString("settings.permissions-file"));
+         FileInputStream stream;
+@@ -811,7 +766,8 @@ public final class CraftServer implements Server {
+         } finally {
+             try {
+                 stream.close();
+-            } catch (IOException ex) {}
++            } catch (IOException ex) {
++            }
+         }
+ 
+         if (perms == null) {
+@@ -880,7 +836,8 @@ public final class CraftServer implements Server {
+             converter.convert(name, new IProgressUpdate() {
+                 private long b = System.currentTimeMillis();
+ 
+-                public void a(String s) {}
++                public void a(String s) {
++                }
+ 
+                 public void a(int i) {
+                     if (System.currentTimeMillis() - this.b >= 1000L) {
+@@ -890,7 +847,8 @@ public final class CraftServer implements Server {
+ 
+                 }
+ 
+-                public void c(String s) {}
++                public void c(String s) {
++                }
+             });
+         }
+ 
+@@ -904,7 +862,7 @@ public final class CraftServer implements Server {
+                     break;
+                 }
+             }
+-        } while(used);
++        } while (used);
+         boolean hardcore = false;
+ 
+         IDataManager sdm = new ServerNBTManager(getWorldContainer(), name, true);
+@@ -1014,7 +972,7 @@ public final class CraftServer implements Server {
+         synchronized (RegionFileCache.class) {
+             // RegionFileCache.a should be RegionFileCache.cache
+             Iterator<Map.Entry<File, RegionFile>> i = RegionFileCache.a.entrySet().iterator();
+-            while(i.hasNext()) {
++            while (i.hasNext()) {
+                 Map.Entry<File, RegionFile> entry = i.next();
+                 File child = entry.getKey().getAbsoluteFile();
+                 while (child != null) {
+@@ -1333,16 +1291,15 @@ public final class CraftServer implements Server {
+     @Deprecated
+     public OfflinePlayer getOfflinePlayer(String name) {
+         Validate.notNull(name, "Name cannot be null");
+-        com.google.common.base.Preconditions.checkArgument( !org.apache.commons.lang.StringUtils.isBlank( name ), "Name cannot be blank" ); // Spigot
++        com.google.common.base.Preconditions.checkArgument(!org.apache.commons.lang.StringUtils.isBlank(name), "Name cannot be blank"); // Spigot
+ 
+         OfflinePlayer result = getPlayerExact(name);
+         if (result == null) {
+             // Spigot Start
+             GameProfile profile = null;
+             // Only fetch an online UUID in online mode
+-            if ( MinecraftServer.getServer().getOnlineMode() || org.spigotmc.SpigotConfig.bungee )
+-            {
+-                profile = MinecraftServer.getServer().getUserCache().getProfile( name );
++            if (MinecraftServer.getServer().getOnlineMode() || org.spigotmc.SpigotConfig.bungee) {
++                profile = MinecraftServer.getServer().getUserCache().getProfile(name);
+             }
+             // Spigot end
+             if (profile == null) {
+@@ -1409,7 +1366,7 @@ public final class CraftServer implements Server {
+ 
+         for (JsonListEntry entry : playerList.getProfileBans().getValues()) {
+             result.add(getOfflinePlayer((GameProfile) entry.getKey()));
+-        }        
++        }
+ 
+         return result;
+     }
+@@ -1418,12 +1375,12 @@ public final class CraftServer implements Server {
+     public BanList getBanList(BanList.Type type) {
+         Validate.notNull(type, "Type cannot be null");
+ 
+-        switch(type){
+-        case IP:
+-            return new CraftIpBanList(playerList.getIPBans());
+-        case NAME:
+-        default:
+-            return new CraftProfileBanList(playerList.getProfileBans());
++        switch (type) {
++            case IP:
++                return new CraftIpBanList(playerList.getIPBans());
++            case NAME:
++            default:
++                return new CraftProfileBanList(playerList.getProfileBans());
+         }
+     }
+ 
+@@ -1648,8 +1605,7 @@ public final class CraftServer implements Server {
+      */
+     public List<String> tabCompleteCommand(Player player, String message, BlockPosition blockPosition) {
+         // Spigot Start
+-        if ( (org.spigotmc.SpigotConfig.tabComplete < 0 || message.length() <= org.spigotmc.SpigotConfig.tabComplete) && !message.contains( " " ) )
+-        {
++        if ((org.spigotmc.SpigotConfig.tabComplete < 0 || message.length() <= org.spigotmc.SpigotConfig.tabComplete) && !message.contains(" ")) {
+             return ImmutableList.of();
+         }
+         // Spigot End
+@@ -1769,13 +1725,12 @@ public final class CraftServer implements Server {
+         return CraftMagicNumbers.INSTANCE;
+     }
+ 
+-    private final Spigot spigot = new Spigot()
+-    {
++    private final Spigot spigot = new Spigot() {
+ 
+         // PaperSpigot start - Add getTPS (Further improve tick loop)
+         @Override
+         public double[] getTPS() {
+-            return new double[] {
++            return new double[]{
+                     MinecraftServer.getServer().tps1.getAverage(),
+                     MinecraftServer.getServer().tps5.getAverage(),
+                     MinecraftServer.getServer().tps15.getAverage()
+@@ -1785,26 +1740,22 @@ public final class CraftServer implements Server {
+ 
+         @Deprecated
+         @Override
+-        public YamlConfiguration getConfig()
+-        {
++        public YamlConfiguration getConfig() {
+             return getBukkitConfig();
+         }
+ 
+         @Override
+-        public YamlConfiguration getBukkitConfig()
+-        {
++        public YamlConfiguration getBukkitConfig() {
+             return configuration;
+         }
+ 
+         @Override
+-        public YamlConfiguration getSpigotConfig()
+-        {
++        public YamlConfiguration getSpigotConfig() {
+             return org.spigotmc.SpigotConfig.config;
+         }
+ 
+         @Override
+-        public YamlConfiguration getPaperSpigotConfig()
+-        {
++        public YamlConfiguration getPaperSpigotConfig() {
+             return org.github.paperspigot.PaperSpigotConfig.config;
+         }
+ 
+@@ -1828,8 +1779,7 @@ public final class CraftServer implements Server {
+         }
+     };
+ 
+-    public Spigot spigot()
+-    {
++    public Spigot spigot() {
+         return spigot;
+     }
+ }
+-- 
+2.21.0.windows.1
+

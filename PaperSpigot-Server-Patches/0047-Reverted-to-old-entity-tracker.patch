@@ -1,0 +1,162 @@
+From 47ac4032ce7811950bb52321dde161993e6765b8 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 00:07:00 -0400
+Subject: [PATCH] Reverted to old entity tracker
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityTracker.java b/src/main/java/net/minecraft/server/EntityTracker.java
+index dbd42cf4b..8a0568933 100644
+--- a/src/main/java/net/minecraft/server/EntityTracker.java
++++ b/src/main/java/net/minecraft/server/EntityTracker.java
+@@ -15,7 +15,7 @@ public class EntityTracker {
+     private static final Logger a = LogManager.getLogger();
+     private final WorldServer world;
+     private Set<EntityTrackerEntry> c = Sets.newHashSet();
+-    public IntHashMap<EntityTrackerEntry> trackedEntities = new IntHashMap();
++    public IntHashMap<EntityTrackerEntry> trackedEntities = new IntHashMap<>(); // CraftBukkit - public
+     private int e;
+ 
+     public EntityTracker(WorldServer worldserver) {
+@@ -27,8 +27,11 @@ public class EntityTracker {
+         if (entity instanceof EntityPlayer) {
+             this.addEntity(entity, 512, 2);
+             EntityPlayer entityplayer = (EntityPlayer) entity;
++            Iterator iterator = this.c.iterator();
++
++            while (iterator.hasNext()) {
++                EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
+ 
+-            for (EntityTrackerEntry entitytrackerentry : this.c) {
+                 if (entitytrackerentry.tracker != entityplayer) {
+                     entitytrackerentry.updatePlayer(entityplayer);
+                 }
+@@ -112,10 +115,10 @@ public class EntityTracker {
+             CrashReport crashreport = CrashReport.a(throwable, "Adding entity to track");
+             CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Entity To Track");
+ 
+-            crashreportsystemdetails.a("Tracking range", i + " blocks");
++            crashreportsystemdetails.a("Tracking range", (Object) (i + " blocks"));
+             final int finalI = i; // CraftBukkit - fix decompile error
+             crashreportsystemdetails.a("Update interval", new Callable() {
+-                public String a() {
++                public String a() throws Exception {
+                     String s = "Once per " + finalI + " ticks"; // CraftBukkit
+ 
+                     if (finalI == Integer.MAX_VALUE) { // CraftBukkit
+@@ -132,7 +135,7 @@ public class EntityTracker {
+             entity.appendEntityCrashDetails(crashreportsystemdetails);
+             CrashReportSystemDetails crashreportsystemdetails1 = crashreport.a("Entity That Is Already Tracked");
+ 
+-            this.trackedEntities.get(entity.getId()).tracker.appendEntityCrashDetails(crashreportsystemdetails1);
++            ((EntityTrackerEntry) this.trackedEntities.get(entity.getId())).tracker.appendEntityCrashDetails(crashreportsystemdetails1);
+ 
+             try {
+                 throw new ReportedException(crashreport);
+@@ -147,13 +150,16 @@ public class EntityTracker {
+         org.spigotmc.AsyncCatcher.catchOp("entity untrack"); // Spigot
+         if (entity instanceof EntityPlayer) {
+             EntityPlayer entityplayer = (EntityPlayer) entity;
++            Iterator iterator = this.c.iterator();
++
++            while (iterator.hasNext()) {
++                EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
+ 
+-            for (EntityTrackerEntry entitytrackerentry : this.c) {
+                 entitytrackerentry.a(entityplayer);
+             }
+         }
+ 
+-        EntityTrackerEntry entitytrackerentry1 = this.trackedEntities.d(entity.getId());
++        EntityTrackerEntry entitytrackerentry1 = (EntityTrackerEntry) this.trackedEntities.d(entity.getId());
+ 
+         if (entitytrackerentry1 != null) {
+             this.c.remove(entitytrackerentry1);
+@@ -164,18 +170,24 @@ public class EntityTracker {
+ 
+     public void updatePlayers() {
+         ArrayList arraylist = Lists.newArrayList();
++        Iterator iterator = this.c.iterator();
++
++        while (iterator.hasNext()) {
++            EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
+ 
+-        for (EntityTrackerEntry entitytrackerentry : this.c) {
+             entitytrackerentry.track(this.world.players);
+             if (entitytrackerentry.n && entitytrackerentry.tracker instanceof EntityPlayer) {
+-                arraylist.add(entitytrackerentry.tracker);
++                arraylist.add((EntityPlayer) entitytrackerentry.tracker);
+             }
+         }
+ 
+-        for (Object o : arraylist) {
+-            EntityPlayer entityplayer = (EntityPlayer) o;
++        for (int i = 0; i < arraylist.size(); ++i) {
++            EntityPlayer entityplayer = (EntityPlayer) arraylist.get(i);
++            Iterator iterator1 = this.c.iterator();
++
++            while (iterator1.hasNext()) {
++                EntityTrackerEntry entitytrackerentry1 = (EntityTrackerEntry) iterator1.next();
+ 
+-            for (EntityTrackerEntry entitytrackerentry1 : this.c) {
+                 if (entitytrackerentry1.tracker != entityplayer) {
+                     entitytrackerentry1.updatePlayer(entityplayer);
+                 }
+@@ -185,8 +197,11 @@ public class EntityTracker {
+     }
+ 
+     public void a(EntityPlayer entityplayer) {
++        Iterator iterator = this.c.iterator();
++
++        while (iterator.hasNext()) {
++            EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
+ 
+-        for (EntityTrackerEntry entitytrackerentry : this.c) {
+             if (entitytrackerentry.tracker == entityplayer) {
+                 entitytrackerentry.scanPlayers(this.world.players);
+             } else {
+@@ -197,7 +212,7 @@ public class EntityTracker {
+     }
+ 
+     public void a(Entity entity, Packet packet) {
+-        EntityTrackerEntry entitytrackerentry = this.trackedEntities.get(entity.getId());
++        EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) this.trackedEntities.get(entity.getId());
+ 
+         if (entitytrackerentry != null) {
+             entitytrackerentry.broadcast(packet);
+@@ -206,7 +221,7 @@ public class EntityTracker {
+     }
+ 
+     public void sendPacketToEntity(Entity entity, Packet packet) {
+-        EntityTrackerEntry entitytrackerentry = this.trackedEntities.get(entity.getId());
++        EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) this.trackedEntities.get(entity.getId());
+ 
+         if (entitytrackerentry != null) {
+             entitytrackerentry.broadcastIncludingSelf(packet);
+@@ -215,16 +230,22 @@ public class EntityTracker {
+     }
+ 
+     public void untrackPlayer(EntityPlayer entityplayer) {
++        Iterator iterator = this.c.iterator();
++
++        while (iterator.hasNext()) {
++            EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
+ 
+-        for (EntityTrackerEntry entitytrackerentry : this.c) {
+             entitytrackerentry.clear(entityplayer);
+         }
+ 
+     }
+ 
+     public void a(EntityPlayer entityplayer, Chunk chunk) {
++        Iterator iterator = this.c.iterator();
++
++        while (iterator.hasNext()) {
++            EntityTrackerEntry entitytrackerentry = (EntityTrackerEntry) iterator.next();
+ 
+-        for (EntityTrackerEntry entitytrackerentry : this.c) {
+             if (entitytrackerentry.tracker != entityplayer && entitytrackerentry.tracker.ae == chunk.locX && entitytrackerentry.tracker.ag == chunk.locZ) {
+                 entitytrackerentry.updatePlayer(entityplayer);
+             }
+-- 
+2.21.0.windows.1
+

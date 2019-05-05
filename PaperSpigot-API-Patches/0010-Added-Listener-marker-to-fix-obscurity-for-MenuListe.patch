@@ -1,0 +1,47 @@
+From 83a73c9b25ad783a96a42db5163b4607361cd5c4 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 17:51:21 -0400
+Subject: [PATCH] Added Listener marker to fix obscurity for MenuListener
+
+
+diff --git a/src/main/java/dev/lockedthread/menu/MenuListener.java b/src/main/java/dev/lockedthread/menu/MenuListener.java
+index 18946635..21830961 100644
+--- a/src/main/java/dev/lockedthread/menu/MenuListener.java
++++ b/src/main/java/dev/lockedthread/menu/MenuListener.java
+@@ -1,13 +1,16 @@
+ package dev.lockedthread.menu;
+ 
++import org.bukkit.event.EventHandler;
++import org.bukkit.event.Listener;
+ import org.bukkit.event.inventory.InventoryClickEvent;
+ import org.bukkit.event.inventory.InventoryCloseEvent;
+ import org.bukkit.event.inventory.InventoryOpenEvent;
+ 
+ import java.util.Optional;
+ 
+-public class MenuListener {
++public class MenuListener implements Listener {
+ 
++    @EventHandler
+     public void onInventoryOpen(InventoryOpenEvent event) {
+         if (!event.isCancelled() && event.getInventory() != null) {
+             Menu menu = (Menu) event.getInventory().getHolder();
+@@ -17,6 +20,7 @@ public class MenuListener {
+         }
+     }
+ 
++    @EventHandler
+     public void onInventoryClose(InventoryCloseEvent event) {
+         if (event.getInventory() != null) {
+             Menu menu = (Menu) event.getInventory().getHolder();
+@@ -26,6 +30,7 @@ public class MenuListener {
+         }
+     }
+ 
++    @EventHandler
+     public void onInventoryClick(InventoryClickEvent event) {
+         if (!event.isCancelled() && event.getInventory() != null) {
+             Menu menu = (Menu) event.getClickedInventory().getHolder();
+-- 
+2.21.0.windows.1
+

@@ -1,0 +1,2185 @@
+From 94c969fd1da341c19530e288a9cdd9c5dc67e3f0 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 13:49:59 -0400
+Subject: [PATCH] Code cleanups and optimized tntprimed entity loading of
+ chunks
+
+
+diff --git a/src/main/java/net/minecraft/server/BlockDispenser.java b/src/main/java/net/minecraft/server/BlockDispenser.java
+index 010d7c6d6..ffc3bee66 100644
+--- a/src/main/java/net/minecraft/server/BlockDispenser.java
++++ b/src/main/java/net/minecraft/server/BlockDispenser.java
+@@ -6,13 +6,13 @@ public class BlockDispenser extends BlockContainer {
+ 
+     public static final BlockStateDirection FACING = BlockStateDirection.of("facing");
+     public static final BlockStateBoolean TRIGGERED = BlockStateBoolean.of("triggered");
+-    public static final RegistryDefault<Item, IDispenseBehavior> REGISTRY = new RegistryDefault(new DispenseBehaviorItem());
++    public static final RegistryDefault<Item, IDispenseBehavior> REGISTRY = new RegistryDefault<>(new DispenseBehaviorItem());
+     protected Random O = new Random();
+     public static boolean eventFired = false; // CraftBukkit
+ 
+     protected BlockDispenser() {
+         super(Material.STONE);
+-        this.j(this.blockStateList.getBlockData().set(BlockDispenser.FACING, EnumDirection.NORTH).set(BlockDispenser.TRIGGERED, Boolean.valueOf(false)));
++        this.j(this.blockStateList.getBlockData().set(BlockDispenser.FACING, EnumDirection.NORTH).set(BlockDispenser.TRIGGERED, Boolean.FALSE));
+         this.a(CreativeModeTab.d);
+     }
+ 
+@@ -27,7 +27,7 @@ public class BlockDispenser extends BlockContainer {
+ 
+     private void e(World world, BlockPosition blockposition, IBlockData iblockdata) {
+         if (!world.isClientSide) {
+-            EnumDirection enumdirection = (EnumDirection) iblockdata.get(BlockDispenser.FACING);
++            EnumDirection enumdirection = iblockdata.get(BlockDispenser.FACING);
+             boolean flag = world.getType(blockposition.north()).getBlock().o();
+             boolean flag1 = world.getType(blockposition.south()).getBlock().o();
+ 
+@@ -53,25 +53,20 @@ public class BlockDispenser extends BlockContainer {
+     public boolean interact(World world, BlockPosition blockposition, IBlockData iblockdata, EntityHuman entityhuman, EnumDirection enumdirection, float f, float f1, float f2) {
+         if (world.isClientSide) {
+             return true;
+-        } else {
+-            TileEntity tileentity = world.getTileEntity(blockposition);
+-
+-            if (tileentity instanceof TileEntityDispenser) {
+-                entityhuman.openContainer((TileEntityDispenser) tileentity);
+-                if (tileentity instanceof TileEntityDropper) {
+-                    entityhuman.b(StatisticList.O);
+-                } else {
+-                    entityhuman.b(StatisticList.Q);
+-                }
+-            }
++        }
++        TileEntity tileentity = world.getTileEntity(blockposition);
+ 
+-            return true;
++        if (tileentity instanceof TileEntityDispenser) {
++            entityhuman.openContainer((TileEntityDispenser) tileentity);
++            entityhuman.b(tileentity instanceof TileEntityDropper ? StatisticList.O : StatisticList.Q);
+         }
++
++        return true;
+     }
+ 
+     public void dispense(World world, BlockPosition blockposition) {
+         SourceBlock sourceblock = new SourceBlock(world, blockposition);
+-        TileEntityDispenser tileentitydispenser = (TileEntityDispenser) sourceblock.getTileEntity();
++        TileEntityDispenser tileentitydispenser = sourceblock.getTileEntity();
+ 
+         if (tileentitydispenser != null) {
+             int i = tileentitydispenser.m();
+@@ -94,18 +89,18 @@ public class BlockDispenser extends BlockContainer {
+     }
+ 
+     protected IDispenseBehavior a(ItemStack itemstack) {
+-        return (IDispenseBehavior) BlockDispenser.REGISTRY.get(itemstack == null ? null : itemstack.getItem());
++        return BlockDispenser.REGISTRY.get(itemstack == null ? null : itemstack.getItem());
+     }
+ 
+     public void doPhysics(World world, BlockPosition blockposition, IBlockData iblockdata, Block block) {
+         boolean flag = world.isBlockIndirectlyPowered(blockposition) || world.isBlockIndirectlyPowered(blockposition.up());
+-        boolean flag1 = ((Boolean) iblockdata.get(BlockDispenser.TRIGGERED)).booleanValue();
++        boolean flag1 = iblockdata.get(BlockDispenser.TRIGGERED);
+ 
+         if (flag && !flag1) {
+-            world.a(blockposition, (Block) this, this.a(world));
+-            world.setTypeAndData(blockposition, iblockdata.set(BlockDispenser.TRIGGERED, Boolean.valueOf(true)), 4);
++            world.a(blockposition, this, this.a(world));
++            world.setTypeAndData(blockposition, iblockdata.set(BlockDispenser.TRIGGERED, Boolean.TRUE), 4);
+         } else if (!flag && flag1) {
+-            world.setTypeAndData(blockposition, iblockdata.set(BlockDispenser.TRIGGERED, Boolean.valueOf(false)), 4);
++            world.setTypeAndData(blockposition, iblockdata.set(BlockDispenser.TRIGGERED, Boolean.FALSE), 4);
+         }
+ 
+     }
+@@ -122,7 +117,7 @@ public class BlockDispenser extends BlockContainer {
+     }
+ 
+     public IBlockData getPlacedState(World world, BlockPosition blockposition, EnumDirection enumdirection, float f, float f1, float f2, int i, EntityLiving entityliving) {
+-        return this.getBlockData().set(BlockDispenser.FACING, BlockPiston.a(world, blockposition, entityliving)).set(BlockDispenser.TRIGGERED, Boolean.valueOf(false));
++        return this.getBlockData().set(BlockDispenser.FACING, BlockPiston.a(world, blockposition, entityliving)).set(BlockDispenser.TRIGGERED, Boolean.FALSE);
+     }
+ 
+     public void postPlace(World world, BlockPosition blockposition, IBlockData iblockdata, EntityLiving entityliving, ItemStack itemstack) {
+@@ -174,14 +169,14 @@ public class BlockDispenser extends BlockContainer {
+     }
+ 
+     public IBlockData fromLegacyData(int i) {
+-        return this.getBlockData().set(BlockDispenser.FACING, b(i)).set(BlockDispenser.TRIGGERED, Boolean.valueOf((i & 8) > 0));
++        return this.getBlockData().set(BlockDispenser.FACING, b(i)).set(BlockDispenser.TRIGGERED, (i & 8) > 0);
+     }
+ 
+     public int toLegacyData(IBlockData iblockdata) {
+         byte b0 = 0;
+-        int i = b0 | ((EnumDirection) iblockdata.get(BlockDispenser.FACING)).a();
++        int i = b0 | iblockdata.get(BlockDispenser.FACING).a();
+ 
+-        if (((Boolean) iblockdata.get(BlockDispenser.TRIGGERED)).booleanValue()) {
++        if (iblockdata.get(BlockDispenser.TRIGGERED)) {
+             i |= 8;
+         }
+ 
+@@ -189,6 +184,6 @@ public class BlockDispenser extends BlockContainer {
+     }
+ 
+     protected BlockStateList getStateList() {
+-        return new BlockStateList(this, new IBlockState[] { BlockDispenser.FACING, BlockDispenser.TRIGGERED});
++        return new BlockStateList(this, BlockDispenser.FACING, BlockDispenser.TRIGGERED);
+     }
+ }
+diff --git a/src/main/java/net/minecraft/server/ContainerDispenser.java b/src/main/java/net/minecraft/server/ContainerDispenser.java
+index 8862b2a27..2a31a2b71 100644
+--- a/src/main/java/net/minecraft/server/ContainerDispenser.java
++++ b/src/main/java/net/minecraft/server/ContainerDispenser.java
+@@ -1,6 +1,7 @@
+ package net.minecraft.server;
+ 
+ // CraftBukkit start
++
+ import org.bukkit.craftbukkit.inventory.CraftInventory;
+ import org.bukkit.craftbukkit.inventory.CraftInventoryView;
+ // CraftBukkit end
+@@ -17,7 +18,7 @@ public class ContainerDispenser extends Container {
+         this.items = iinventory1;
+         // CraftBukkit start - Save player
+         // TODO: Should we check to make sure it really is an InventoryPlayer?
+-        this.player = (PlayerInventory)iinventory;
++        this.player = (PlayerInventory) iinventory;
+         // CraftBukkit end
+ 
+         int i;
+@@ -48,7 +49,7 @@ public class ContainerDispenser extends Container {
+ 
+     public ItemStack b(EntityHuman entityhuman, int i) {
+         ItemStack itemstack = null;
+-        Slot slot = (Slot) this.c.get(i);
++        Slot slot = this.c.get(i);
+ 
+         if (slot != null && slot.hasItem()) {
+             ItemStack itemstack1 = slot.getItem();
+@@ -63,7 +64,7 @@ public class ContainerDispenser extends Container {
+             }
+ 
+             if (itemstack1.count == 0) {
+-                slot.set((ItemStack) null);
++                slot.set(null);
+             } else {
+                 slot.f();
+             }
+diff --git a/src/main/java/net/minecraft/server/DispenserRegistry.java b/src/main/java/net/minecraft/server/DispenserRegistry.java
+index cc7a1e31b..c617973ad 100644
+--- a/src/main/java/net/minecraft/server/DispenserRegistry.java
++++ b/src/main/java/net/minecraft/server/DispenserRegistry.java
+@@ -101,7 +101,7 @@ public class DispenserRegistry {
+                     itemstack.count++;
+                     // Chain to handler for new item
+                     ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
+-                    IDispenseBehavior idispensebehavior = (IDispenseBehavior) BlockDispenser.REGISTRY.get(eventStack.getItem());
++                    IDispenseBehavior idispensebehavior = BlockDispenser.REGISTRY.get(eventStack.getItem());
+                     if (idispensebehavior != IDispenseBehavior.NONE && idispensebehavior != this) {
+                         idispensebehavior.a(isourceblock, eventStack);
+                         return itemstack;
+@@ -113,7 +113,7 @@ public class DispenserRegistry {
+                 Entity entity = ItemMonsterEgg.spawnCreature(isourceblock.getWorld(), itemstack.getData(), event.getVelocity().getX(), event.getVelocity().getY(), event.getVelocity().getZ(), org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.DISPENSE_EGG);
+ 
+                 if (entity instanceof EntityLiving && itemstack.hasName()) {
+-                    ((EntityInsentient) entity).setCustomName(itemstack.getName());
++                    entity.setCustomName(itemstack.getName());
+                 }
+ 
+                 // itemstack.a(1); // Handled during event processing
+@@ -147,7 +147,7 @@ public class DispenserRegistry {
+                     itemstack.count++;
+                     // Chain to handler for new item
+                     ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
+-                    IDispenseBehavior idispensebehavior = (IDispenseBehavior) BlockDispenser.REGISTRY.get(eventStack.getItem());
++                    IDispenseBehavior idispensebehavior = BlockDispenser.REGISTRY.get(eventStack.getItem());
+                     if (idispensebehavior != IDispenseBehavior.NONE && idispensebehavior != this) {
+                         idispensebehavior.a(isourceblock, eventStack);
+                         return itemstack;
+@@ -199,7 +199,7 @@ public class DispenserRegistry {
+                     itemstack.count++;
+                     // Chain to handler for new item
+                     ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
+-                    IDispenseBehavior idispensebehavior = (IDispenseBehavior) BlockDispenser.REGISTRY.get(eventStack.getItem());
++                    IDispenseBehavior idispensebehavior = BlockDispenser.REGISTRY.get(eventStack.getItem());
+                     if (idispensebehavior != IDispenseBehavior.NONE && idispensebehavior != this) {
+                         idispensebehavior.a(isourceblock, eventStack);
+                         return itemstack;
+@@ -207,7 +207,7 @@ public class DispenserRegistry {
+                 }
+ 
+                 EntitySmallFireball entitysmallfireball = new EntitySmallFireball(world, d0, d1, d2, event.getVelocity().getX(), event.getVelocity().getY(), event.getVelocity().getZ());
+-                entitysmallfireball.projectileSource = new org.bukkit.craftbukkit.projectiles.CraftBlockProjectileSource((TileEntityDispenser) isourceblock.getTileEntity());
++                entitysmallfireball.projectileSource = new org.bukkit.craftbukkit.projectiles.CraftBlockProjectileSource(isourceblock.getTileEntity());
+ 
+                 world.addEntity(entitysmallfireball);
+                 // itemstack.a(1); // Handled during event processing
+@@ -262,7 +262,7 @@ public class DispenserRegistry {
+                     itemstack.count++;
+                     // Chain to handler for new item
+                     ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
+-                    IDispenseBehavior idispensebehavior = (IDispenseBehavior) BlockDispenser.REGISTRY.get(eventStack.getItem());
++                    IDispenseBehavior idispensebehavior = BlockDispenser.REGISTRY.get(eventStack.getItem());
+                     if (idispensebehavior != IDispenseBehavior.NONE && idispensebehavior != this) {
+                         idispensebehavior.a(isourceblock, eventStack);
+                         return itemstack;
+@@ -309,7 +309,7 @@ public class DispenserRegistry {
+                     if (!event.getItem().equals(craftItem)) {
+                         // Chain to handler for new item
+                         ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
+-                        IDispenseBehavior idispensebehavior = (IDispenseBehavior) BlockDispenser.REGISTRY.get(eventStack.getItem());
++                        IDispenseBehavior idispensebehavior = BlockDispenser.REGISTRY.get(eventStack.getItem());
+                         if (idispensebehavior != IDispenseBehavior.NONE && idispensebehavior != this) {
+                             idispensebehavior.a(isourceblock, eventStack);
+                             return itemstack;
+@@ -350,10 +350,10 @@ public class DispenserRegistry {
+                 Material material = block.getMaterial();
+                 Item item;
+ 
+-                if (Material.WATER.equals(material) && block instanceof BlockFluids && ((Integer) iblockdata.get(BlockFluids.LEVEL)).intValue() == 0) {
++                if (Material.WATER.equals(material) && block instanceof BlockFluids && iblockdata.get(BlockFluids.LEVEL) == 0) {
+                     item = Items.WATER_BUCKET;
+                 } else {
+-                    if (!Material.LAVA.equals(material) || !(block instanceof BlockFluids) || ((Integer) iblockdata.get(BlockFluids.LEVEL)).intValue() != 0) {
++                    if (!Material.LAVA.equals(material) || !(block instanceof BlockFluids) || iblockdata.get(BlockFluids.LEVEL) != 0) {
+                         return super.b(isourceblock, itemstack);
+                     }
+ 
+@@ -376,7 +376,7 @@ public class DispenserRegistry {
+                 if (!event.getItem().equals(craftItem)) {
+                     // Chain to handler for new item
+                     ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
+-                    IDispenseBehavior idispensebehavior = (IDispenseBehavior) BlockDispenser.REGISTRY.get(eventStack.getItem());
++                    IDispenseBehavior idispensebehavior = BlockDispenser.REGISTRY.get(eventStack.getItem());
+                     if (idispensebehavior != IDispenseBehavior.NONE && idispensebehavior != this) {
+                         idispensebehavior.a(isourceblock, eventStack);
+                         return itemstack;
+@@ -418,7 +418,7 @@ public class DispenserRegistry {
+                 if (!event.getItem().equals(craftItem)) {
+                     // Chain to handler for new item
+                     ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
+-                    IDispenseBehavior idispensebehavior = (IDispenseBehavior) BlockDispenser.REGISTRY.get(eventStack.getItem());
++                    IDispenseBehavior idispensebehavior = BlockDispenser.REGISTRY.get(eventStack.getItem());
+                     if (idispensebehavior != IDispenseBehavior.NONE && idispensebehavior != this) {
+                         idispensebehavior.a(isourceblock, eventStack);
+                         return itemstack;
+@@ -478,7 +478,7 @@ public class DispenserRegistry {
+                     if (!event.getItem().equals(craftItem)) {
+                         // Chain to handler for new item
+                         ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
+-                        IDispenseBehavior idispensebehavior = (IDispenseBehavior) BlockDispenser.REGISTRY.get(eventStack.getItem());
++                        IDispenseBehavior idispensebehavior = BlockDispenser.REGISTRY.get(eventStack.getItem());
+                         if (idispensebehavior != IDispenseBehavior.NONE && idispensebehavior != this) {
+                             idispensebehavior.a(isourceblock, eventStack);
+                             return itemstack;
+@@ -495,9 +495,8 @@ public class DispenserRegistry {
+                     }
+ 
+                     return itemstack;
+-                } else {
+-                    return super.b(isourceblock, itemstack);
+                 }
++                return super.b(isourceblock, itemstack);
+             }
+ 
+             protected void a(ISourceBlock isourceblock) {
+@@ -538,14 +537,14 @@ public class DispenserRegistry {
+                     itemstack.count++;
+                     // Chain to handler for new item
+                     ItemStack eventStack = CraftItemStack.asNMSCopy(event.getItem());
+-                    IDispenseBehavior idispensebehavior = (IDispenseBehavior) BlockDispenser.REGISTRY.get(eventStack.getItem());
++                    IDispenseBehavior idispensebehavior = BlockDispenser.REGISTRY.get(eventStack.getItem());
+                     if (idispensebehavior != IDispenseBehavior.NONE && idispensebehavior != this) {
+                         idispensebehavior.a(isourceblock, eventStack);
+                         return itemstack;
+                     }
+                 }
+ 
+-                EntityTNTPrimed entitytntprimed = new EntityTNTPrimed(block.getLocation(), world, event.getVelocity().getX(), event.getVelocity().getY(), event.getVelocity().getZ(), (EntityLiving) null); // PaperSpigot
++                EntityTNTPrimed entitytntprimed = new EntityTNTPrimed(block.getLocation(), world, event.getVelocity().getX(), event.getVelocity().getY(), event.getVelocity().getZ(), null); // PaperSpigot
+                 // CraftBukkit end
+ 
+                 world.addEntity(entitytntprimed);
+@@ -581,7 +580,7 @@ public class DispenserRegistry {
+                                         String s = nbttagcompound.getString("SkullOwner");
+ 
+                                         if (!UtilColor.b(s)) {
+-                                            gameprofile = new GameProfile((UUID) null, s);
++                                            gameprofile = new GameProfile(null, s);
+                                         }
+                                     }
+                                 }
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index c4bfd5fe6..cd57fa148 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -1,46 +1,51 @@
+ package net.minecraft.server;
+ 
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Random;
+-import java.util.UUID;
+-import java.util.concurrent.Callable;
+-
+-// CraftBukkit start
++import co.aikar.timings.SpigotTimings;
++import co.aikar.timings.Timing;
+ import org.bukkit.Bukkit;
+ import org.bukkit.Location;
+ import org.bukkit.Server;
+ import org.bukkit.TravelAgent;
+ import org.bukkit.block.BlockFace;
++import org.bukkit.craftbukkit.CraftWorld;
++import org.bukkit.craftbukkit.entity.CraftEntity;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.entity.Hanging;
+ import org.bukkit.entity.LivingEntity;
+ import org.bukkit.entity.Painting;
+ import org.bukkit.entity.Vehicle;
+-import co.aikar.timings.SpigotTimings; // Spigot
+-import co.aikar.timings.Timing; // Spigot
+ import org.bukkit.event.entity.EntityCombustByEntityEvent;
++import org.bukkit.event.entity.EntityCombustEvent;
++import org.bukkit.event.entity.EntityPortalEvent;
+ import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+ import org.bukkit.event.painting.PaintingBreakByEntityEvent;
+ import org.bukkit.event.vehicle.VehicleBlockCollisionEvent;
+ import org.bukkit.event.vehicle.VehicleEnterEvent;
+ import org.bukkit.event.vehicle.VehicleExitEvent;
+-import org.bukkit.craftbukkit.CraftWorld;
+-import org.bukkit.craftbukkit.entity.CraftEntity;
+-import org.bukkit.craftbukkit.entity.CraftPlayer;
+-import org.bukkit.craftbukkit.event.CraftEventFactory;
+-import org.bukkit.event.entity.EntityCombustEvent;
+-import org.bukkit.event.entity.EntityPortalEvent;
+ import org.bukkit.plugin.PluginManager;
++import org.spigotmc.event.entity.EntityDismountEvent;
++
++import java.util.Iterator;
++import java.util.List;
++import java.util.Random;
++import java.util.UUID;
++import java.util.concurrent.Callable;
++
++// CraftBukkit start
+ // CraftBukkit end
++// PaperSpigot start
+ 
++// CraftBukkit start
++// CraftBukkit end
+ // PaperSpigot start
+-import org.spigotmc.event.entity.EntityDismountEvent;
+ // PaperSpigot end
+ 
+ public abstract class Entity implements ICommandListener {
+ 
+     // CraftBukkit start
+     private static final int CURRENT_LEVEL = 2;
++
+     static boolean isLevelAtLeast(NBTTagCompound tag, int level) {
+         return tag.hasKey("Bukkit.updateLevel") && tag.getInt("Bukkit.updateLevel") >= level;
+     }
+@@ -102,6 +107,7 @@ public abstract class Entity implements ICommandListener {
+     private double ar;
+     private double as;
+     public boolean ad;
++
+     // PaperSpigot start - EAR: Fix bug with teleporting entities
+     public boolean isAddedToChunk() {
+         int chunkX = MathHelper.floor(locX / 16.0D);
+@@ -110,9 +116,25 @@ public abstract class Entity implements ICommandListener {
+ 
+         return ad && getChunkX() == chunkX && getChunkY() == chunkY || getChunkZ() == chunkZ;
+     }
+-    public int ae; public int getChunkX() { return ae; } // PAIL
+-    public int af; public int getChunkY() { return af; } // PAIL
+-    public int ag; public int getChunkZ() { return ag; } // PAIL
++
++    public int ae;
++
++    public int getChunkX() {
++        return ae;
++    } // PAIL
++
++    public int af;
++
++    public int getChunkY() {
++        return af;
++    } // PAIL
++
++    public int ag;
++
++    public int getChunkZ() {
++        return ag;
++    } // PAIL
++
+     // PaperSpigot end
+     public boolean ah;
+     public boolean ai;
+@@ -138,7 +160,9 @@ public abstract class Entity implements ICommandListener {
+     public final boolean defaultActivationState;
+     public long activatedTick = Integer.MIN_VALUE;
+     public boolean fromMobSpawner;
+-    public void inactiveTick() { }
++
++    public void inactiveTick() {
++    }
+     // Spigot end
+ 
+     public int getId() {
+@@ -429,9 +453,25 @@ public abstract class Entity implements ICommandListener {
+         }
+     }
+ 
++    public void loadTntChunk() {
++        int chunkX = (int) locX >> 4;
++        int chunkZ = (int) locZ >> 4;
++        if (!world.chunkProvider.isChunkLoaded(chunkX, chunkZ)) {
++            ((ChunkProviderServer) world.chunkProvider).loadChunk(chunkX, chunkZ);
++        }
++    }
++
+ 
+     public void move(double d0, double d1, double d2) {
+-        if (this.loadChunks) loadChunks(); // PaperSpigot - Load chunks
++        //TODO: Figure out better way
++        if (this.loadChunks) {
++            if (this instanceof EntityTNTPrimed) {
++                loadTntChunk();
++            } else {
++                loadChunks(); // PaperSpigot - Load chunks
++            }
++        }
++
+         if (this.noclip) {
+             this.a(this.getBoundingBox().c(d0, d1, d2));
+             this.recalcPosition();
+@@ -539,16 +579,18 @@ public abstract class Entity implements ICommandListener {
+             AxisAlignedBB axisalignedbb2;
+             Iterator iterator1;
+ 
+-            if(this.world.tacoSpigotConfig.fixEastWest && Math.abs(d0) > Math.abs(d2)) { //TacoSpigot - fix east/west cannoning by calculating the z movement before x if the x velocity is greater
+-            if(axisScan) list = this.world.getCubes(this, this.getBoundingBox().a(0, 0, d2)); // TacoSpigot - get z axis blocks
++            if (this.world.tacoSpigotConfig.fixEastWest && Math.abs(d0) > Math.abs(d2)) { //TacoSpigot - fix east/west cannoning by calculating the z movement before x if the x velocity is greater
++                if (axisScan)
++                    list = this.world.getCubes(this, this.getBoundingBox().a(0, 0, d2)); // TacoSpigot - get z axis blocks
+ 
+-            for (iterator1 = list.iterator(); iterator1.hasNext(); d2 = axisalignedbb2.c(this.getBoundingBox(), d2)) {
+-                axisalignedbb2 = (AxisAlignedBB) iterator1.next();
+-            }
++                for (iterator1 = list.iterator(); iterator1.hasNext(); d2 = axisalignedbb2.c(this.getBoundingBox(), d2)) {
++                    axisalignedbb2 = (AxisAlignedBB) iterator1.next();
++                }
+ 
+                 this.a(this.getBoundingBox().c(0.0D, 0.0D, d2));
+ 
+-                if(axisScan) list = this.world.getCubes(this, this.getBoundingBox().a(d0, 0, 0)); // TacoSpigot - get x axis blocks
++                if (axisScan)
++                    list = this.world.getCubes(this, this.getBoundingBox().a(d0, 0, 0)); // TacoSpigot - get x axis blocks
+ 
+                 for (iterator1 = list.iterator(); iterator1.hasNext(); d0 = axisalignedbb2.a(this.getBoundingBox(), d0)) {
+                     axisalignedbb2 = (AxisAlignedBB) iterator1.next();
+@@ -557,21 +599,23 @@ public abstract class Entity implements ICommandListener {
+                 this.a(this.getBoundingBox().c(d0, 0.0D, 0.0D));
+ 
+             } else {
+-            if(axisScan) list = this.world.getCubes(this, this.getBoundingBox().a(d0, 0, 0)); // TacoSpigot - get x axis blocks
++                if (axisScan)
++                    list = this.world.getCubes(this, this.getBoundingBox().a(d0, 0, 0)); // TacoSpigot - get x axis blocks
+ 
+-            for (iterator1 = list.iterator(); iterator1.hasNext(); d0 = axisalignedbb2.a(this.getBoundingBox(), d0)) {
+-                axisalignedbb2 = (AxisAlignedBB) iterator1.next();
+-            }
++                for (iterator1 = list.iterator(); iterator1.hasNext(); d0 = axisalignedbb2.a(this.getBoundingBox(), d0)) {
++                    axisalignedbb2 = (AxisAlignedBB) iterator1.next();
++                }
+ 
+-            this.a(this.getBoundingBox().c(d0, 0.0D, 0.0D));
++                this.a(this.getBoundingBox().c(d0, 0.0D, 0.0D));
+ 
+-            if(axisScan) list = this.world.getCubes(this, this.getBoundingBox().a(0, 0, d2)); // TacoSpigot - get z axis blocks
++                if (axisScan)
++                    list = this.world.getCubes(this, this.getBoundingBox().a(0, 0, d2)); // TacoSpigot - get z axis blocks
+ 
+-            for (iterator1 = list.iterator(); iterator1.hasNext(); d2 = axisalignedbb2.c(this.getBoundingBox(), d2)) {
+-                axisalignedbb2 = (AxisAlignedBB) iterator1.next();
+-            }
++                for (iterator1 = list.iterator(); iterator1.hasNext(); d2 = axisalignedbb2.c(this.getBoundingBox(), d2)) {
++                    axisalignedbb2 = (AxisAlignedBB) iterator1.next();
++                }
+ 
+-            this.a(this.getBoundingBox().c(0.0D, 0.0D, d2));
++                this.a(this.getBoundingBox().c(0.0D, 0.0D, d2));
+             }
+ 
+             if (this.S > 0.0F && flag1 && (d6 != d0 || d8 != d2)) {
+@@ -978,7 +1022,7 @@ public abstract class Entity implements ICommandListener {
+         Block block = iblockdata.getBlock();
+ 
+         if (block.b() != -1) {
+-            this.world.addParticle(EnumParticle.BLOCK_CRACK, this.locX + ((double) this.random.nextFloat() - 0.5D) * (double) this.width, this.getBoundingBox().b + 0.1D, this.locZ + ((double) this.random.nextFloat() - 0.5D) * (double) this.width, -this.motX * 4.0D, 1.5D, -this.motZ * 4.0D, new int[] { Block.getCombinedId(iblockdata)});
++            this.world.addParticle(EnumParticle.BLOCK_CRACK, this.locX + ((double) this.random.nextFloat() - 0.5D) * (double) this.width, this.getBoundingBox().b + 0.1D, this.locZ + ((double) this.random.nextFloat() - 0.5D) * (double) this.width, -this.motX * 4.0D, 1.5D, -this.motZ * 4.0D, new int[]{Block.getCombinedId(iblockdata)});
+         }
+ 
+     }
+@@ -1118,9 +1162,11 @@ public abstract class Entity implements ICommandListener {
+         return d0 * d0 + d1 * d1 + d2 * d2;
+     }
+ 
+-    public void d(EntityHuman entityhuman) {}
++    public void d(EntityHuman entityhuman) {
++    }
+ 
+     int numCollisions = 0; // Spigot
++
+     public void collide(Entity entity) {
+         if (entity.passenger != this && entity.vehicle != this) {
+             if (!entity.noclip && !this.noclip) {
+@@ -1205,7 +1251,8 @@ public abstract class Entity implements ICommandListener {
+         return false;
+     }
+ 
+-    public void b(Entity entity, int i) {}
++    public void b(Entity entity, int i) {
++    }
+ 
+     public boolean c(NBTTagCompound nbttagcompound) {
+         String s = this.ag();
+@@ -1233,8 +1280,8 @@ public abstract class Entity implements ICommandListener {
+ 
+     public void e(NBTTagCompound nbttagcompound) {
+         try {
+-            nbttagcompound.set("Pos", this.a(new double[] { this.locX, this.locY, this.locZ}));
+-            nbttagcompound.set("Motion", this.a(new double[] { this.motX, this.motY, this.motZ}));
++            nbttagcompound.set("Pos", this.a(new double[]{this.locX, this.locY, this.locZ}));
++            nbttagcompound.set("Motion", this.a(new double[]{this.motX, this.motY, this.motZ}));
+ 
+             // CraftBukkit start - Checking for NaN pitch/yaw and resetting to zero
+             // TODO: make sure this is the best way to address this.
+@@ -1247,7 +1294,7 @@ public abstract class Entity implements ICommandListener {
+             }
+             // CraftBukkit end
+ 
+-            nbttagcompound.set("Rotation", this.a(new float[] { this.yaw, this.pitch}));
++            nbttagcompound.set("Rotation", this.a(new float[]{this.yaw, this.pitch}));
+             nbttagcompound.setFloat("FallDistance", this.fallDistance);
+             nbttagcompound.setShort("Fire", (short) this.fireTicks);
+             nbttagcompound.setShort("Air", (short) this.getAirTicks());
+@@ -1399,7 +1446,7 @@ public abstract class Entity implements ICommandListener {
+                     bworld = ((org.bukkit.craftbukkit.CraftServer) server).getServer().getWorldServer(entityPlayer.dimension).getWorld();
+                 }
+ 
+-                spawnIn(bworld == null? null : ((CraftWorld) bworld).getHandle());
++                spawnIn(bworld == null ? null : ((CraftWorld) bworld).getHandle());
+             }
+             // CraftBukkit end
+ 
+@@ -1424,7 +1471,8 @@ public abstract class Entity implements ICommandListener {
+ 
+     protected abstract void b(NBTTagCompound nbttagcompound);
+ 
+-    public void ah() {}
++    public void ah() {
++    }
+ 
+     protected NBTTagList a(double... adouble) {
+         NBTTagList nbttaglist = new NBTTagList();
+@@ -1653,12 +1701,10 @@ public abstract class Entity implements ICommandListener {
+             }
+             // CraftBukkit end
+             // Spigot Start
+-            if ( entity.world.isChunkLoaded( (int) entity.locX >> 4, (int) entity.locZ >> 4, true ) )
+-            {
+-                org.spigotmc.event.entity.EntityMountEvent event = new org.spigotmc.event.entity.EntityMountEvent( this.getBukkitEntity(), entity.getBukkitEntity() );
+-                pluginManager.callEvent( event );
+-                if ( event.isCancelled() )
+-                {
++            if (entity.world.isChunkLoaded((int) entity.locX >> 4, (int) entity.locZ >> 4, true)) {
++                org.spigotmc.event.entity.EntityMountEvent event = new org.spigotmc.event.entity.EntityMountEvent(this.getBukkitEntity(), entity.getBukkitEntity());
++                pluginManager.callEvent(event);
++                if (event.isCancelled()) {
+                     return;
+                 }
+             }
+@@ -1718,7 +1764,8 @@ public abstract class Entity implements ICommandListener {
+         return null;
+     }
+ 
+-    public void setEquipment(int i, ItemStack itemstack) {}
++    public void setEquipment(int i, ItemStack itemstack) {
++    }
+ 
+     public boolean isBurning() {
+         boolean flag = this.world != null && this.world.isClientSide;
+@@ -1829,7 +1876,8 @@ public abstract class Entity implements ICommandListener {
+ 
+     }
+ 
+-    public void a(EntityLiving entityliving) {}
++    public void a(EntityLiving entityliving) {
++    }
+ 
+     protected boolean j(double d0, double d1, double d2) {
+         BlockPosition blockposition = new BlockPosition(d0, d1, d2);
+@@ -1926,9 +1974,11 @@ public abstract class Entity implements ICommandListener {
+         return 0.0F;
+     }
+ 
+-    public void f(float f) {}
++    public void f(float f) {
++    }
+ 
+-    public void g(float f) {}
++    public void g(float f) {
++    }
+ 
+     public boolean aD() {
+         return true;
+@@ -1939,7 +1989,7 @@ public abstract class Entity implements ICommandListener {
+     }
+ 
+     public String toString() {
+-        return String.format("%s[\'%s\'/%d, l=\'%s\', x=%.2f, y=%.2f, z=%.2f]", new Object[] { this.getClass().getSimpleName(), this.getName(), Integer.valueOf(this.id), this.world == null ? "~NULL~" : this.world.getWorldData().getName(), Double.valueOf(this.locX), Double.valueOf(this.locY), Double.valueOf(this.locZ)});
++        return String.format("%s[\'%s\'/%d, l=\'%s\', x=%.2f, y=%.2f, z=%.2f]", new Object[]{this.getClass().getSimpleName(), this.getName(), Integer.valueOf(this.id), this.world == null ? "~NULL~" : this.world.getWorldData().getName(), Double.valueOf(this.locX), Double.valueOf(this.locY), Double.valueOf(this.locZ)});
+     }
+ 
+     public boolean isInvulnerable(DamageSource damagesource) {
+@@ -2039,7 +2089,7 @@ public abstract class Entity implements ICommandListener {
+                 entity.bukkitEntity = this.getBukkitEntity();
+ 
+                 if (this instanceof EntityInsentient) {
+-                    ((EntityInsentient)this).unleash(true, false); // Unleash to prevent duping of leads.
++                    ((EntityInsentient) this).unleash(true, false); // Unleash to prevent duping of leads.
+                 }
+                 // CraftBukkit end
+             }
+@@ -2096,9 +2146,9 @@ public abstract class Entity implements ICommandListener {
+                 return this.a();
+             }
+         });
+-        crashreportsystemdetails.a("Entity\'s Exact location", (Object) String.format("%.2f, %.2f, %.2f", new Object[] { Double.valueOf(this.locX), Double.valueOf(this.locY), Double.valueOf(this.locZ)}));
++        crashreportsystemdetails.a("Entity\'s Exact location", (Object) String.format("%.2f, %.2f, %.2f", new Object[]{Double.valueOf(this.locX), Double.valueOf(this.locY), Double.valueOf(this.locZ)}));
+         crashreportsystemdetails.a("Entity\'s Block location", (Object) CrashReportSystemDetails.a((double) MathHelper.floor(this.locX), (double) MathHelper.floor(this.locY), (double) MathHelper.floor(this.locZ)));
+-        crashreportsystemdetails.a("Entity\'s Momentum", (Object) String.format("%.2f, %.2f, %.2f", new Object[] { Double.valueOf(this.motX), Double.valueOf(this.motY), Double.valueOf(this.motZ)}));
++        crashreportsystemdetails.a("Entity\'s Momentum", (Object) String.format("%.2f, %.2f, %.2f", new Object[]{Double.valueOf(this.motX), Double.valueOf(this.motY), Double.valueOf(this.motZ)}));
+         crashreportsystemdetails.a("Entity\'s Rider", new Callable() {
+             public String a() throws Exception {
+                 return Entity.this.passenger.toString();
+@@ -2164,7 +2214,8 @@ public abstract class Entity implements ICommandListener {
+         this.setPositionRotation(d0, d1, d2, this.yaw, this.pitch);
+     }
+ 
+-    public void i(int i) {}
++    public void i(int i) {
++    }
+ 
+     public EnumDirection getDirection() {
+         return EnumDirection.fromType2(MathHelper.floor((double) (this.yaw * 4.0F / 360.0F) + 0.5D) & 3);
+@@ -2230,7 +2281,8 @@ public abstract class Entity implements ICommandListener {
+         return false;
+     }
+ 
+-    public void sendMessage(IChatBaseComponent ichatbasecomponent) {}
++    public void sendMessage(IChatBaseComponent ichatbasecomponent) {
++    }
+ 
+     public boolean a(int i, String s) {
+         return true;
+diff --git a/src/main/java/net/minecraft/server/EntityPotion.java b/src/main/java/net/minecraft/server/EntityPotion.java
+index fd174c346..d39b1675e 100644
+--- a/src/main/java/net/minecraft/server/EntityPotion.java
++++ b/src/main/java/net/minecraft/server/EntityPotion.java
+@@ -1,13 +1,13 @@
+ package net.minecraft.server;
+ 
++import org.bukkit.craftbukkit.entity.CraftLivingEntity;
++import org.bukkit.entity.LivingEntity;
++
++import java.util.HashMap;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+ // CraftBukkit start
+-import java.util.HashMap;
+-
+-import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+-import org.bukkit.entity.LivingEntity;
+ // CraftBukkit end
+ 
+ public class EntityPotion extends EntityProjectile {
+@@ -62,77 +62,68 @@ public class EntityPotion extends EntityProjectile {
+ 
+     protected void a(MovingObjectPosition movingobjectposition) {
+         if (!this.world.isClientSide) {
+-            List list = Items.POTION.h(this.item);
+-
+-            if (true || list != null && !list.isEmpty()) { // CraftBukkit - Call event even if no effects to apply
+-                AxisAlignedBB axisalignedbb = this.getBoundingBox().grow(4.0D, 2.0D, 4.0D);
+-                List list1 = this.world.a(EntityLiving.class, axisalignedbb);
++            List<MobEffect> list = Items.POTION.h(this.item);
+ 
+-                if (true || !list1.isEmpty()) { // CraftBukkit - Run code even if there are no entities around
+-                    Iterator iterator = list1.iterator();
++            // CraftBukkit - Call event even if no effects to apply
++            AxisAlignedBB axisalignedbb = this.getBoundingBox().grow(4.0D, 2.0D, 4.0D);
++            List list1 = this.world.a(EntityLiving.class, axisalignedbb);
+ 
+-                    // CraftBukkit
+-                    HashMap<LivingEntity, Double> affected = new HashMap<LivingEntity, Double>();
++            // CraftBukkit - Run code even if there are no entities around
++            Iterator iterator = list1.iterator();
+ 
+-                    while (iterator.hasNext()) {
+-                        EntityLiving entityliving = (EntityLiving) iterator.next();
+-                        double d0 = this.h(entityliving);
++            // CraftBukkit
++            HashMap<LivingEntity, Double> affected = new HashMap<>();
+ 
+-                        if (d0 < 16.0D) {
+-                            double d1 = 1.0D - Math.sqrt(d0) / 4.0D;
++            while (iterator.hasNext()) {
++                EntityLiving entityliving = (EntityLiving) iterator.next();
++                double d0 = this.h(entityliving);
+ 
+-                            if (entityliving == movingobjectposition.entity) {
+-                                d1 = 1.0D;
+-                            }
++                if (d0 < 16.0D) {
++                    double d1 = 1.0D - Math.sqrt(d0) / 4.0D;
+ 
+-                            // CraftBukkit start
+-                            affected.put((LivingEntity) entityliving.getBukkitEntity(), d1);
+-                        }
++                    if (entityliving == movingobjectposition.entity) {
++                        d1 = 1.0D;
+                     }
+ 
+-                    org.bukkit.event.entity.PotionSplashEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callPotionSplashEvent(this, affected);
+-                    if (!event.isCancelled() && list != null && !list.isEmpty()) { // do not process effects if there are no effects to process
+-                        for (LivingEntity victim : event.getAffectedEntities()) {
+-                            if (!(victim instanceof CraftLivingEntity)) {
+-                                continue;
+-                            }
+-
+-                            EntityLiving entityliving = ((CraftLivingEntity) victim).getHandle();
+-                            double d1 = event.getIntensity(victim);
+-                            // CraftBukkit end
+-
+-                            Iterator iterator1 = list.iterator();
+-
+-                            while (iterator1.hasNext()) {
+-                                MobEffect mobeffect = (MobEffect) iterator1.next();
+-                                int i = mobeffect.getEffectId();
++                    // CraftBukkit start
++                    affected.put((LivingEntity) entityliving.getBukkitEntity(), d1);
++                }
++            }
+ 
+-                                // CraftBukkit start - Abide by PVP settings - for players only!
+-                                if (!this.world.pvpMode && this.getShooter() instanceof EntityPlayer && entityliving instanceof EntityPlayer && entityliving != this.getShooter()) {
+-                                    // Block SLOWER_MOVEMENT, SLOWER_DIG, HARM, BLINDNESS, HUNGER, WEAKNESS and POISON potions
+-                                    if (i == 2 || i == 4 || i == 7 || i == 15 || i == 17 || i == 18 || i == 19) continue;
+-                                }
+-                                // CraftBukkit end
++            org.bukkit.event.entity.PotionSplashEvent event = org.bukkit.craftbukkit.event.CraftEventFactory.callPotionSplashEvent(this, affected);
++            if (!event.isCancelled() && list != null && !list.isEmpty()) { // do not process effects if there are no effects to process
++                for (LivingEntity victim : event.getAffectedEntities()) {
++                    if (!(victim instanceof CraftLivingEntity)) {
++                        continue;
++                    }
+ 
+-                                if (MobEffectList.byId[i].isInstant()) {
+-                                    MobEffectList.byId[i].applyInstantEffect(this, this.getShooter(), entityliving, mobeffect.getAmplifier(), d1);
+-                                } else {
+-                                    int j = (int) (d1 * (double) mobeffect.getDuration() + 0.5D);
++                    EntityLiving entityliving = ((CraftLivingEntity) victim).getHandle();
++                    double d1 = event.getIntensity(victim);
++                    // CraftBukkit end
++
++                    // CraftBukkit start - Abide by PVP settings - for players only!
++                    // CraftBukkit end
++                    for (MobEffect mobeffect : list) {
++                        int i = mobeffect.getEffectId();
++                        if (!this.world.pvpMode && this.getShooter() instanceof EntityPlayer && entityliving instanceof EntityPlayer && entityliving != this.getShooter()) {
++                            // Block SLOWER_MOVEMENT, SLOWER_DIG, HARM, BLINDNESS, HUNGER, WEAKNESS and POISON potions
++                            if (i == 2 || i == 4 || i == 7 || i == 15 || i == 17 || i == 18 || i == 19) continue;
++                        }
++                        if (MobEffectList.byId[i].isInstant()) {
++                            MobEffectList.byId[i].applyInstantEffect(this, this.getShooter(), entityliving, mobeffect.getAmplifier(), d1);
++                        } else {
++                            int j = (int) (d1 * (double) mobeffect.getDuration() + 0.5D);
+ 
+-                                    if (j > 20) {
+-                                        entityliving.addEffect(new MobEffect(i, j, mobeffect.getAmplifier()));
+-                                    }
+-                                }
++                            if (j > 20) {
++                                entityliving.addEffect(new MobEffect(i, j, mobeffect.getAmplifier()));
+                             }
+                         }
+                     }
+                 }
+             }
+-
+             this.world.triggerEffect(2002, new BlockPosition(this), this.getPotionValue());
+             this.die();
+         }
+-
+     }
+ 
+     public void a(NBTTagCompound nbttagcompound) {
+@@ -146,7 +137,6 @@ public class EntityPotion extends EntityProjectile {
+         if (this.item == null) {
+             this.die();
+         }
+-
+     }
+ 
+     public void b(NBTTagCompound nbttagcompound) {
+@@ -154,6 +144,5 @@ public class EntityPotion extends EntityProjectile {
+         if (this.item != null) {
+             nbttagcompound.set("Potion", this.item.save(new NBTTagCompound()));
+         }
+-
+     }
+ }
+diff --git a/src/main/java/net/minecraft/server/EntityTNTPrimed.java b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
+index 872d9659c..faf3a013d 100644
+--- a/src/main/java/net/minecraft/server/EntityTNTPrimed.java
++++ b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
+@@ -90,7 +90,7 @@ public class EntityTNTPrimed extends Entity {
+             // CraftBukkit end
+         } else {
+             this.W();
+-            this.world.addParticle(EnumParticle.SMOKE_NORMAL, this.locX, this.locY + 0.5D, this.locZ, 0.0D, 0.0D, 0.0D, new int[0]);
++            this.world.addParticle(EnumParticle.SMOKE_NORMAL, this.locX, this.locY + 0.5D, this.locZ, 0.0D, 0.0D, 0.0D);
+         }
+ 
+     }
+diff --git a/src/main/java/net/minecraft/server/ScoreboardServer.java b/src/main/java/net/minecraft/server/ScoreboardServer.java
+index 1fe9d9345..c26feead3 100644
+--- a/src/main/java/net/minecraft/server/ScoreboardServer.java
++++ b/src/main/java/net/minecraft/server/ScoreboardServer.java
+@@ -69,9 +69,8 @@ public class ScoreboardServer extends Scoreboard {
+             this.sendAll(new PacketPlayOutScoreboardTeam(scoreboardteam, Arrays.asList(new String[] { s}), 3));
+             this.b();
+             return true;
+-        } else {
+-            return false;
+         }
++        return false;
+     }
+ 
+     public void removePlayerFromTeam(String s, ScoreboardTeam scoreboardteam) {
+diff --git a/src/main/java/net/minecraft/server/SecondaryWorldServer.java b/src/main/java/net/minecraft/server/SecondaryWorldServer.java
+index 209eb01db..abd6fcfa9 100644
+--- a/src/main/java/net/minecraft/server/SecondaryWorldServer.java
++++ b/src/main/java/net/minecraft/server/SecondaryWorldServer.java
+@@ -55,7 +55,7 @@ public class SecondaryWorldServer extends WorldServer {
+             this.worldMaps.a(s, this.villages);
+         } else {
+             this.villages = persistentvillage;
+-            this.villages.a((World) this);
++            this.villages.a(this);
+         }
+ 
+         return super.b(); // CraftBukkit
+diff --git a/src/main/java/net/minecraft/server/ServerConnection.java b/src/main/java/net/minecraft/server/ServerConnection.java
+index f13182c18..ac9fb4cf4 100644
+--- a/src/main/java/net/minecraft/server/ServerConnection.java
++++ b/src/main/java/net/minecraft/server/ServerConnection.java
+@@ -3,12 +3,7 @@ package net.minecraft.server;
+ import com.google.common.collect.Lists;
+ import com.google.common.util.concurrent.ThreadFactoryBuilder;
+ import io.netty.bootstrap.ServerBootstrap;
+-import io.netty.channel.Channel;
+-import io.netty.channel.ChannelException;
+-import io.netty.channel.ChannelFuture;
+-import io.netty.channel.ChannelInitializer;
+-import io.netty.channel.ChannelOption;
+-import io.netty.channel.EventLoopGroup;
++import io.netty.channel.*;
+ import io.netty.channel.epoll.Epoll;
+ import io.netty.channel.epoll.EpollEventLoopGroup;
+ import io.netty.channel.epoll.EpollServerSocketChannel;
+@@ -16,51 +11,37 @@ import io.netty.channel.local.LocalEventLoopGroup;
+ import io.netty.channel.nio.NioEventLoopGroup;
+ import io.netty.channel.socket.nio.NioServerSocketChannel;
+ import io.netty.handler.timeout.ReadTimeoutHandler;
+-import io.netty.util.concurrent.Future;
+-import io.netty.util.concurrent.GenericFutureListener;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++
+ import java.io.IOException;
+ import java.net.InetAddress;
+ import java.util.Collections;
+ import java.util.Iterator;
+ import java.util.List;
+-import java.util.concurrent.Callable;
+-import org.apache.logging.log4j.LogManager;
+-import org.apache.logging.log4j.Logger;
+ 
+ public class ServerConnection {
+ 
+     private static final Logger e = LogManager.getLogger();
+-    public static final LazyInitVar<NioEventLoopGroup> a = new LazyInitVar() {
+-        protected NioEventLoopGroup a() {
++    public static final LazyInitVar<NioEventLoopGroup> a = new LazyInitVar<NioEventLoopGroup>() {
++        protected NioEventLoopGroup init() {
+             return new NioEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Server IO #%d").setDaemon(true).build());
+         }
+-
+-        protected Object init() {
+-            return this.a();
+-        }
+     };
+-    public static final LazyInitVar<EpollEventLoopGroup> b = new LazyInitVar() {
+-        protected EpollEventLoopGroup a() {
++    public static final LazyInitVar<EpollEventLoopGroup> b = new LazyInitVar<EpollEventLoopGroup>() {
++        protected EpollEventLoopGroup init() {
+             return new EpollEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Epoll Server IO #%d").setDaemon(true).build());
+         }
+-
+-        protected Object init() {
+-            return this.a();
+-        }
+     };
+-    public static final LazyInitVar<LocalEventLoopGroup> c = new LazyInitVar() {
+-        protected LocalEventLoopGroup a() {
++    public static final LazyInitVar<LocalEventLoopGroup> c = new LazyInitVar<LocalEventLoopGroup>() {
++        protected LocalEventLoopGroup init() {
+             return new LocalEventLoopGroup(0, (new ThreadFactoryBuilder()).setNameFormat("Netty Local Server IO #%d").setDaemon(true).build());
+         }
+-
+-        protected Object init() {
+-            return this.a();
+-        }
+     };
+     private final MinecraftServer f;
+     public volatile boolean d;
+-    private final List<ChannelFuture> g = Collections.synchronizedList(Lists.<ChannelFuture>newArrayList());
+-    private final List<NetworkManager> h = Collections.synchronizedList(Lists.<NetworkManager>newArrayList());
++    private final List<ChannelFuture> g = Collections.synchronizedList(Lists.newArrayList());
++    private final List<NetworkManager> h = Collections.synchronizedList(Lists.newArrayList());
+ 
+     public ServerConnection(MinecraftServer minecraftserver) {
+         this.f = minecraftserver;
+@@ -68,7 +49,6 @@ public class ServerConnection {
+     }
+ 
+     public void a(InetAddress inetaddress, int i) throws IOException {
+-        List list = this.g;
+ 
+         synchronized (this.g) {
+             Class oclass;
+@@ -84,12 +64,11 @@ public class ServerConnection {
+                 ServerConnection.e.info("Using default channel type");
+             }
+ 
+-            this.g.add(((ServerBootstrap) ((ServerBootstrap) (new ServerBootstrap()).channel(oclass)).childHandler(new ChannelInitializer() {
++            this.g.add((new ServerBootstrap()).channel(oclass).childHandler(new ChannelInitializer() {
+                 protected void initChannel(Channel channel) throws Exception {
+                     try {
+-                        channel.config().setOption(ChannelOption.TCP_NODELAY, Boolean.valueOf(true));
++                        channel.config().setOption(ChannelOption.TCP_NODELAY, Boolean.TRUE);
+                     } catch (ChannelException channelexception) {
+-                        ;
+                     }
+ 
+                     channel.pipeline().addLast("timeout", new ReadTimeoutHandler(30)).addLast("legacy_query", new LegacyPingHandler(ServerConnection.this)).addLast("splitter", new PacketSplitter()).addLast("decoder", new PacketDecoder(EnumProtocolDirection.SERVERBOUND)).addLast("prepender", new PacketPrepender()).addLast("encoder", new PacketEncoder(EnumProtocolDirection.CLIENTBOUND));
+@@ -97,19 +76,16 @@ public class ServerConnection {
+ 
+                     ServerConnection.this.h.add(networkmanager);
+                     channel.pipeline().addLast("packet_handler", networkmanager);
+-                    networkmanager.a((PacketListener) (new HandshakeListener(ServerConnection.this.f, networkmanager)));
++                    networkmanager.a(new HandshakeListener(ServerConnection.this.f, networkmanager));
+                 }
+-            }).group((EventLoopGroup) lazyinitvar.c()).localAddress(inetaddress, i)).bind().syncUninterruptibly());
++            }).group((EventLoopGroup) lazyinitvar.c()).localAddress(inetaddress, i).bind().syncUninterruptibly());
+         }
+     }
+ 
+     public void b() {
+         this.d = false;
+-        Iterator iterator = this.g.iterator();
+-
+-        while (iterator.hasNext()) {
+-            ChannelFuture channelfuture = (ChannelFuture) iterator.next();
+ 
++        for (ChannelFuture channelfuture : this.g) {
+             try {
+                 channelfuture.channel().close().sync();
+             } catch (InterruptedException interruptedexception) {
+@@ -120,14 +96,11 @@ public class ServerConnection {
+     }
+ 
+     public void c() {
+-        List list = this.h;
+-
+         synchronized (this.h) {
+             // Spigot Start
+             // This prevents players from 'gaming' the server, and strategically relogging to increase their position in the tick order
+-            if ( org.spigotmc.SpigotConfig.playerShuffle > 0 && MinecraftServer.currentTick % org.spigotmc.SpigotConfig.playerShuffle == 0 )
+-            {
+-                Collections.shuffle( this.h );
++            if (org.spigotmc.SpigotConfig.playerShuffle > 0 && MinecraftServer.currentTick % org.spigotmc.SpigotConfig.playerShuffle == 0) {
++                Collections.shuffle(this.h);
+             }
+             // Spigot End
+             Iterator iterator = this.h.iterator();
+@@ -151,26 +124,14 @@ public class ServerConnection {
+                                 CrashReport crashreport = CrashReport.a(exception, "Ticking memory connection");
+                                 CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Ticking connection");
+ 
+-                                crashreportsystemdetails.a("Connection", new Callable() {
+-                                    public String a() throws Exception {
+-                                        return networkmanager.toString();
+-                                    }
+-
+-                                    public Object call() throws Exception {
+-                                        return this.a();
+-                                    }
+-                                });
++                                crashreportsystemdetails.a("Connection", networkmanager::toString);
+                                 throw new ReportedException(crashreport);
+                             }
+ 
+                             ServerConnection.e.warn("Failed to handle packet for " + networkmanager.getSocketAddress(), exception);
+                             final ChatComponentText chatcomponenttext = new ChatComponentText("Internal server error");
+ 
+-                            networkmanager.a(new PacketPlayOutKickDisconnect(chatcomponenttext), new GenericFutureListener() {
+-                                public void operationComplete(Future future) throws Exception {
+-                                    networkmanager.close(chatcomponenttext);
+-                                }
+-                            }, new GenericFutureListener[0]);
++                            networkmanager.a(new PacketPlayOutKickDisconnect(chatcomponenttext), future -> networkmanager.close(chatcomponenttext));
+                             networkmanager.k();
+                         }
+                     }
+diff --git a/src/main/java/net/minecraft/server/ServerStatisticManager.java b/src/main/java/net/minecraft/server/ServerStatisticManager.java
+index 79fb391fd..76c07137b 100644
+--- a/src/main/java/net/minecraft/server/ServerStatisticManager.java
++++ b/src/main/java/net/minecraft/server/ServerStatisticManager.java
+@@ -6,18 +6,15 @@ import com.google.gson.JsonElement;
+ import com.google.gson.JsonObject;
+ import com.google.gson.JsonParseException;
+ import com.google.gson.JsonParser;
++import org.apache.commons.io.FileUtils;
++import org.apache.logging.log4j.LogManager;
++import org.apache.logging.log4j.Logger;
++
+ import java.io.File;
+ import java.io.IOException;
+ import java.lang.reflect.Constructor;
+-import java.util.HashMap;
+-import java.util.HashSet;
+-import java.util.Iterator;
+-import java.util.Map;
+-import java.util.Set;
++import java.util.*;
+ import java.util.Map.Entry;
+-import org.apache.commons.io.FileUtils;
+-import org.apache.logging.log4j.LogManager;
+-import org.apache.logging.log4j.Logger;
+ 
+ public class ServerStatisticManager extends StatisticManager {
+ 
+@@ -32,11 +29,10 @@ public class ServerStatisticManager extends StatisticManager {
+         this.c = minecraftserver;
+         this.d = file;
+         // Spigot start
+-        for ( String name : org.spigotmc.SpigotConfig.forcedStats.keySet() )
+-        {
++        for (String name : org.spigotmc.SpigotConfig.forcedStats.keySet()) {
+             StatisticWrapper wrapper = new StatisticWrapper();
+-            wrapper.a( org.spigotmc.SpigotConfig.forcedStats.get( name ) );
+-            a.put( StatisticList.getStatistic( name ), wrapper );
++            wrapper.a(org.spigotmc.SpigotConfig.forcedStats.get(name));
++            a.put(StatisticList.getStatistic(name), wrapper);
+         }
+         // Spigot end
+     }
+@@ -56,7 +52,7 @@ public class ServerStatisticManager extends StatisticManager {
+     }
+ 
+     public void b() {
+-        if ( org.spigotmc.SpigotConfig.disableStatSaving ) return; // Spigot
++        if (org.spigotmc.SpigotConfig.disableStatSaving) return; // Spigot
+         try {
+             FileUtils.writeStringToFile(this.d, a(this.a));
+         } catch (IOException ioexception) {
+@@ -66,7 +62,7 @@ public class ServerStatisticManager extends StatisticManager {
+     }
+ 
+     public void setStatistic(EntityHuman entityhuman, Statistic statistic, int i) {
+-        if ( org.spigotmc.SpigotConfig.disableStatSaving ) return; // Spigot
++        if (org.spigotmc.SpigotConfig.disableStatSaving) return; // Spigot
+         int j = statistic.d() ? this.getStatisticValue(statistic) : 0;
+ 
+         super.setStatistic(entityhuman, statistic, i);
+@@ -74,14 +70,14 @@ public class ServerStatisticManager extends StatisticManager {
+         if (statistic.d() && j == 0 && i > 0) {
+             this.g = true;
+             if (this.c.aB()) {
+-                this.c.getPlayerList().sendMessage(new ChatMessage("chat.type.achievement", new Object[] { entityhuman.getScoreboardDisplayName(), statistic.j()}));
++                this.c.getPlayerList().sendMessage(new ChatMessage("chat.type.achievement", entityhuman.getScoreboardDisplayName(), statistic.j()));
+             }
+         }
+ 
+         if (statistic.d() && j > 0 && i == 0) {
+             this.g = true;
+             if (this.c.aB()) {
+-                this.c.getPlayerList().sendMessage(new ChatMessage("chat.type.achievement.taken", new Object[] { entityhuman.getScoreboardDisplayName(), statistic.j()}));
++                this.c.getPlayerList().sendMessage(new ChatMessage("chat.type.achievement.taken", entityhuman.getScoreboardDisplayName(), statistic.j()));
+             }
+         }
+ 
+@@ -103,10 +99,9 @@ public class ServerStatisticManager extends StatisticManager {
+         } else {
+             JsonObject jsonobject = jsonelement.getAsJsonObject();
+             HashMap hashmap = Maps.newHashMap();
+-            Iterator iterator = jsonobject.entrySet().iterator();
+ 
+-            while (iterator.hasNext()) {
+-                Entry entry = (Entry) iterator.next();
++            for (Entry<String, JsonElement> stringJsonElementEntry : jsonobject.entrySet()) {
++                Entry entry = stringJsonElementEntry;
+                 Statistic statistic = StatisticList.getStatistic((String) entry.getKey());
+ 
+                 if (statistic != null) {
+@@ -123,7 +118,7 @@ public class ServerStatisticManager extends StatisticManager {
+ 
+                         if (jsonobject1.has("progress") && statistic.l() != null) {
+                             try {
+-                                Constructor constructor = statistic.l().getConstructor(new Class[0]);
++                                Constructor constructor = statistic.l().getConstructor();
+                                 IJsonStatistic ijsonstatistic = (IJsonStatistic) constructor.newInstance(new Object[0]);
+ 
+                                 ijsonstatistic.a(jsonobject1.get("progress"));
+@@ -136,7 +131,7 @@ public class ServerStatisticManager extends StatisticManager {
+ 
+                     hashmap.put(statistic, statisticwrapper);
+                 } else {
+-                    ServerStatisticManager.b.warn("Invalid statistic in " + this.d + ": Don\'t know what " + (String) entry.getKey() + " is");
++                    ServerStatisticManager.b.warn("Invalid statistic in " + this.d + ": Don\'t know what " + entry.getKey() + " is");
+                 }
+             }
+ 
+@@ -146,15 +141,14 @@ public class ServerStatisticManager extends StatisticManager {
+ 
+     public static String a(Map<Statistic, StatisticWrapper> map) {
+         JsonObject jsonobject = new JsonObject();
+-        Iterator iterator = map.entrySet().iterator();
+ 
+-        while (iterator.hasNext()) {
+-            Entry entry = (Entry) iterator.next();
++        for (Entry<Statistic, StatisticWrapper> statisticStatisticWrapperEntry : map.entrySet()) {
++            Entry entry = statisticStatisticWrapperEntry;
+ 
+             if (((StatisticWrapper) entry.getValue()).b() != null) {
+                 JsonObject jsonobject1 = new JsonObject();
+ 
+-                jsonobject1.addProperty("value", Integer.valueOf(((StatisticWrapper) entry.getValue()).a()));
++                jsonobject1.addProperty("value", ((StatisticWrapper) entry.getValue()).a());
+ 
+                 try {
+                     jsonobject1.add("progress", ((StatisticWrapper) entry.getValue()).b().a());
+@@ -164,7 +158,7 @@ public class ServerStatisticManager extends StatisticManager {
+ 
+                 jsonobject.add(((Statistic) entry.getKey()).name, jsonobject1);
+             } else {
+-                jsonobject.addProperty(((Statistic) entry.getKey()).name, Integer.valueOf(((StatisticWrapper) entry.getValue()).a()));
++                jsonobject.addProperty(((Statistic) entry.getKey()).name, ((StatisticWrapper) entry.getValue()).a());
+             }
+         }
+ 
+@@ -172,19 +166,12 @@ public class ServerStatisticManager extends StatisticManager {
+     }
+ 
+     public void d() {
+-        Iterator iterator = this.a.keySet().iterator();
+-
+-        while (iterator.hasNext()) {
+-            Statistic statistic = (Statistic) iterator.next();
+-
+-            this.e.add(statistic);
+-        }
+-
++        this.e.addAll(this.a.keySet());
+     }
+ 
+     public void a(EntityPlayer entityplayer) {
+         int i = this.c.at();
+-        HashMap hashmap = Maps.newHashMap();
++        HashMap<Statistic, Integer> hashmap = Maps.newHashMap();
+ 
+         if (this.g || i - this.f > 300) {
+             this.f = i;
+@@ -198,14 +185,11 @@ public class ServerStatisticManager extends StatisticManager {
+     }
+ 
+     public void updateStatistics(EntityPlayer entityplayer) {
+-        HashMap hashmap = Maps.newHashMap();
+-        Iterator iterator = AchievementList.e.iterator();
+-
+-        while (iterator.hasNext()) {
+-            Achievement achievement = (Achievement) iterator.next();
++        Map<Statistic, Integer> hashmap = new HashMap<>();
+ 
++        for (Achievement achievement : AchievementList.e) {
+             if (this.hasAchievement(achievement)) {
+-                hashmap.put(achievement, Integer.valueOf(this.getStatisticValue(achievement)));
++                hashmap.put(achievement, this.getStatisticValue(achievement));
+                 this.e.remove(achievement);
+             }
+         }
+diff --git a/src/main/java/net/minecraft/server/Slot.java b/src/main/java/net/minecraft/server/Slot.java
+index 3e8e7af9b..c834a26d8 100644
+--- a/src/main/java/net/minecraft/server/Slot.java
++++ b/src/main/java/net/minecraft/server/Slot.java
+@@ -19,11 +19,9 @@ public class Slot {
+         if (itemstack != null && itemstack1 != null) {
+             if (itemstack.getItem() == itemstack1.getItem()) {
+                 int i = itemstack1.count - itemstack.count;
+-
+                 if (i > 0) {
+                     this.a(itemstack, i);
+                 }
+-
+             }
+         }
+     }
+diff --git a/src/main/java/net/minecraft/server/SpawnerCreature.java b/src/main/java/net/minecraft/server/SpawnerCreature.java
+index ea17d7e6f..8a899921d 100644
+--- a/src/main/java/net/minecraft/server/SpawnerCreature.java
++++ b/src/main/java/net/minecraft/server/SpawnerCreature.java
+@@ -1,15 +1,16 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.collect.Sets;
++import org.bukkit.craftbukkit.util.LongHash;
++import org.bukkit.craftbukkit.util.LongHashSet;
++import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
++
+ import java.util.Iterator;
+ import java.util.List;
+ import java.util.Random;
+-import java.util.Set;
+ 
+ // CraftBukkit start
+-import org.bukkit.craftbukkit.util.LongHash;
+-import org.bukkit.craftbukkit.util.LongHashSet;
+-import org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason;
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public final class SpawnerCreature {
+@@ -17,213 +18,196 @@ public final class SpawnerCreature {
+     private static final int a = (int) Math.pow(17.0D, 2.0D);
+     private final LongHashSet b = new LongHashSet(); // CraftBukkit
+ 
+-    public SpawnerCreature() {}
++    public SpawnerCreature() {
++    }
+ 
+     // Spigot start - get entity count only from chunks being processed in b
+-    private int getEntityCount(WorldServer server, Class oClass)
+-    {
++    private int getEntityCount(WorldServer server, Class oClass) {
+         // TacoSpigot start - use entire world, not just active chunks. Spigot broke vanilla expectations.
+-        if (true) {
+-            return server
+-                    .chunkProviderServer
+-                    .chunks.values()
+-                    .stream()
+-                    .collect(java.util.stream.Collectors.summingInt(c -> c.entityCount.get(oClass)));
+-        }
++        return server
++                .chunkProviderServer
++                .chunks.values()
++                .stream()
++                .mapToInt(c -> c.entityCount.get(oClass))
++                .sum();
+         // TacoSpigot end
+-        int i = 0;
+-        Iterator<Long> it = this.b.iterator();
+-        while ( it.hasNext() )
+-        {
+-            Long coord = it.next();
+-            int x = LongHash.msw( coord );
+-            int z = LongHash.lsw( coord );
+-            if ( !server.chunkProviderServer.unloadQueue.contains( coord ) && server.isChunkLoaded( x, z, true ) )
+-            {
+-                i += server.getChunkAt( x, z ).entityCount.get( oClass );
+-            }
+-        }
+-        return i;
+     }
+     // Spigot end
+ 
+     public int a(WorldServer worldserver, boolean flag, boolean flag1, boolean flag2) {
+         if (!flag && !flag1) {
+             return 0;
+-        } else {
+-            this.b.clear();
+-            int i = 0;
+-            Iterator iterator = worldserver.players.iterator();
+-
+-            int j;
+-            int k;
+-
+-            while (iterator.hasNext()) {
+-                EntityHuman entityhuman = (EntityHuman) iterator.next();
+-
+-                if (!entityhuman.isSpectator() || !entityhuman.affectsSpawning) { // PaperSpigot
+-                    int l = MathHelper.floor(entityhuman.locX / 16.0D);
+-
+-                    j = MathHelper.floor(entityhuman.locZ / 16.0D);
+-                    byte b0 = 8;
+-                    // Spigot Start
+-                    b0 = worldserver.spigotConfig.mobSpawnRange;
+-                    b0 = ( b0 > worldserver.spigotConfig.viewDistance ) ? (byte) worldserver.spigotConfig.viewDistance : b0;
+-                    b0 = ( b0 > 8 ) ? 8 : b0;
+-                    // Spigot End
+-
+-                    for (int i1 = -b0; i1 <= b0; ++i1) {
+-                        for (k = -b0; k <= b0; ++k) {
+-                            boolean flag3 = i1 == -b0 || i1 == b0 || k == -b0 || k == b0;
+-                            // CraftBukkit start - use LongHash and LongHashSet
+-                            // ChunkCoordIntPair chunkcoordintpair = new ChunkCoordIntPair(i1 + l, k + j);
+-
+-                            long chunkCoords = LongHash.toLong(i1 + l, k + j);
+-                            if (!this.b.contains(chunkCoords)) {
+-                                ++i;
+-                                if (!flag3 && worldserver.getWorldBorder().isInBounds(i1 + l, k + j)) {
+-                                    this.b.add(chunkCoords);
+-                                }
++        }
++        this.b.clear();
++        int i = 0;
++        Iterator iterator = worldserver.players.iterator();
++
++        int j;
++        int k;
++
++        while (iterator.hasNext()) {
++            EntityHuman entityhuman = (EntityHuman) iterator.next();
++
++            if (!entityhuman.isSpectator() || !entityhuman.affectsSpawning) { // PaperSpigot
++                int l = MathHelper.floor(entityhuman.locX / 16.0D);
++
++                j = MathHelper.floor(entityhuman.locZ / 16.0D);
++                byte b0 = 8;
++                // Spigot Start
++                b0 = worldserver.spigotConfig.mobSpawnRange;
++                b0 = (b0 > worldserver.spigotConfig.viewDistance) ? (byte) worldserver.spigotConfig.viewDistance : b0;
++                b0 = (b0 > 8) ? 8 : b0;
++                // Spigot End
++
++                for (int i1 = -b0; i1 <= b0; ++i1) {
++                    for (k = -b0; k <= b0; ++k) {
++                        boolean flag3 = i1 == -b0 || i1 == b0 || k == -b0 || k == b0;
++                        // CraftBukkit start - use LongHash and LongHashSet
++                        // ChunkCoordIntPair chunkcoordintpair = new ChunkCoordIntPair(i1 + l, k + j);
++
++                        long chunkCoords = LongHash.toLong(i1 + l, k + j);
++                        if (!this.b.contains(chunkCoords)) {
++                            ++i;
++                            if (!flag3 && worldserver.getWorldBorder().isInBounds(i1 + l, k + j)) {
++                                this.b.add(chunkCoords);
+                             }
+-                            // CraftBukkit end
+                         }
++                        // CraftBukkit end
+                     }
+                 }
+             }
++        }
+ 
+-            int j1 = 0;
+-            BlockPosition blockposition = worldserver.getSpawn();
+-            EnumCreatureType[] aenumcreaturetype = EnumCreatureType.values();
+-
+-            j = aenumcreaturetype.length;
+-
+-            for (int k1 = 0; k1 < j; ++k1) {
+-                EnumCreatureType enumcreaturetype = aenumcreaturetype[k1];
+-
+-               // CraftBukkit start - Use per-world spawn limits
+-                int limit = enumcreaturetype.b();
+-                switch (enumcreaturetype) {
+-                    case MONSTER:
+-                        limit = worldserver.getWorld().getMonsterSpawnLimit();
+-                        break;
+-                    case CREATURE:
+-                        limit = worldserver.getWorld().getAnimalSpawnLimit();
+-                        break;
+-                    case WATER_CREATURE:
+-                        limit = worldserver.getWorld().getWaterAnimalSpawnLimit();
+-                        break;
+-                    case AMBIENT:
+-                        limit = worldserver.getWorld().getAmbientSpawnLimit();
+-                        break;
+-                }
++        int j1 = 0;
++        BlockPosition blockposition = worldserver.getSpawn();
++        EnumCreatureType[] aenumcreaturetype = EnumCreatureType.values();
++
++        j = aenumcreaturetype.length;
++
++        for (int k1 = 0; k1 < j; ++k1) {
++            EnumCreatureType enumcreaturetype = aenumcreaturetype[k1];
++
++            // CraftBukkit start - Use per-world spawn limits
++            int limit = enumcreaturetype.b();
++            switch (enumcreaturetype) {
++                case MONSTER:
++                    limit = worldserver.getWorld().getMonsterSpawnLimit();
++                    break;
++                case CREATURE:
++                    limit = worldserver.getWorld().getAnimalSpawnLimit();
++                    break;
++                case WATER_CREATURE:
++                    limit = worldserver.getWorld().getWaterAnimalSpawnLimit();
++                    break;
++                case AMBIENT:
++                    limit = worldserver.getWorld().getAmbientSpawnLimit();
++                    break;
++            }
+ 
+-                if (limit == 0) {
+-                    continue;
+-                }
+-				int mobcnt = 0; // Spigot
+-                // CraftBukkit end
+-
+-                if ((!enumcreaturetype.d() || flag1) && (enumcreaturetype.d() || flag) && (!enumcreaturetype.e() || flag2)) {
+-                    k = worldserver.a(enumcreaturetype.a());
+-                    int l1 = limit * i / a; // CraftBukkit - use per-world limits
+-
+-                    if ((mobcnt = getEntityCount(worldserver, enumcreaturetype.a())) <= limit * i / 289) { // TacoSpigot - use 17x17 like vanilla (a at top of file)
+-                        Iterator iterator1 = this.b.iterator();
+-
+-                        int moblimit = (limit * i / 256) - mobcnt + 1; // Spigot - up to 1 more than limit
+-                        label115:
+-                        while (iterator1.hasNext() && (moblimit > 0)) { // Spigot - while more allowed
+-                            // CraftBukkit start = use LongHash and LongObjectHashMap
+-                            long key = ((Long) iterator1.next()).longValue();
+-                            BlockPosition blockposition1 = getRandomPosition(worldserver, LongHash.msw(key), LongHash.lsw(key));
+-                            // CraftBukkit
+-                            int i2 = blockposition1.getX();
+-                            int j2 = blockposition1.getY();
+-                            int k2 = blockposition1.getZ();
+-                            Block block = worldserver.getType(blockposition1).getBlock();
+-
+-                            if (!block.isOccluding()) {
+-                                int l2 = 0;
+-                                int i3 = 0;
+-
+-                                while (i3 < 3) {
+-                                    int j3 = i2;
+-                                    int k3 = j2;
+-                                    int l3 = k2;
+-                                    byte b1 = 6;
+-                                    BiomeBase.BiomeMeta biomebase_biomemeta = null;
+-                                    GroupDataEntity groupdataentity = null;
+-                                    int i4 = 0;
+-
+-                                    while (true) {
+-                                        if (i4 < 4) {
+-                                            label108: {
+-                                                j3 += worldserver.random.nextInt(b1) - worldserver.random.nextInt(b1);
+-                                                k3 += worldserver.random.nextInt(1) - worldserver.random.nextInt(1);
+-                                                l3 += worldserver.random.nextInt(b1) - worldserver.random.nextInt(b1);
+-                                                BlockPosition blockposition2 = new BlockPosition(j3, k3, l3);
+-                                                float f = (float) j3 + 0.5F;
+-                                                float f1 = (float) l3 + 0.5F;
+-
+-                                                if (!worldserver.isPlayerNearbyWhoAffectsSpawning((double) f, (double) k3, (double) f1, 24.0D) && blockposition.c((double) f, (double) k3, (double) f1) >= 576.0D) { // PaperSpigot - Affects Spawning API
++            if (limit == 0) {
++                continue;
++            }
++            int mobcnt = 0; // Spigot
++            // CraftBukkit end
++
++            if ((!enumcreaturetype.d() || flag1) && (enumcreaturetype.d() || flag) && (!enumcreaturetype.e() || flag2)) {
++
++                if ((mobcnt = getEntityCount(worldserver, enumcreaturetype.a())) <= limit * i / 289) { // TacoSpigot - use 17x17 like vanilla (a at top of file)
++                    Iterator iterator1 = this.b.iterator();
++
++                    int moblimit = (limit * i / 256) - mobcnt + 1; // Spigot - up to 1 more than limit
++                    label115:
++                    while (iterator1.hasNext() && (moblimit > 0)) { // Spigot - while more allowed
++                        // CraftBukkit start = use LongHash and LongObjectHashMap
++                        long key = ((Long) iterator1.next()).longValue();
++                        BlockPosition blockposition1 = getRandomPosition(worldserver, LongHash.msw(key), LongHash.lsw(key));
++                        // CraftBukkit
++                        int i2 = blockposition1.getX();
++                        int j2 = blockposition1.getY();
++                        int k2 = blockposition1.getZ();
++                        Block block = worldserver.getType(blockposition1).getBlock();
++
++                        if (!block.isOccluding()) {
++                            int l2 = 0;
++                            int i3 = 0;
++
++                            while (i3 < 3) {
++                                int j3 = i2;
++                                int k3 = j2;
++                                int l3 = k2;
++                                byte b1 = 6;
++                                BiomeBase.BiomeMeta biomebase_biomemeta = null;
++                                GroupDataEntity groupdataentity = null;
++                                int i4 = 0;
++
++                                while (true) {
++                                    if (i4 < 4) {
++                                        label108:
++                                        {
++                                            j3 += worldserver.random.nextInt(b1) - worldserver.random.nextInt(b1);
++                                            k3 += worldserver.random.nextInt(1) - worldserver.random.nextInt(1);
++                                            l3 += worldserver.random.nextInt(b1) - worldserver.random.nextInt(b1);
++                                            BlockPosition blockposition2 = new BlockPosition(j3, k3, l3);
++                                            float f = (float) j3 + 0.5F;
++                                            float f1 = (float) l3 + 0.5F;
++
++                                            if (!worldserver.isPlayerNearbyWhoAffectsSpawning((double) f, (double) k3, (double) f1, 24.0D) && blockposition.c((double) f, (double) k3, (double) f1) >= 576.0D) { // PaperSpigot - Affects Spawning API
++                                                if (biomebase_biomemeta == null) {
++                                                    biomebase_biomemeta = worldserver.a(enumcreaturetype, blockposition2);
+                                                     if (biomebase_biomemeta == null) {
+-                                                        biomebase_biomemeta = worldserver.a(enumcreaturetype, blockposition2);
+-                                                        if (biomebase_biomemeta == null) {
+-                                                            break label108;
+-                                                        }
++                                                        break label108;
+                                                     }
++                                                }
+ 
+-                                                    if (worldserver.a(enumcreaturetype, biomebase_biomemeta, blockposition2) && a(EntityPositionTypes.a(biomebase_biomemeta.b), worldserver, blockposition2)) {
+-                                                        EntityInsentient entityinsentient;
++                                                if (worldserver.a(enumcreaturetype, biomebase_biomemeta, blockposition2) && a(EntityPositionTypes.a(biomebase_biomemeta.b), worldserver, blockposition2)) {
++                                                    EntityInsentient entityinsentient;
+ 
+-                                                        try {
+-                                                            entityinsentient = (EntityInsentient) biomebase_biomemeta.b.getConstructor(new Class[] { World.class}).newInstance(new Object[] { worldserver});
+-                                                        } catch (Exception exception) {
+-                                                            exception.printStackTrace();
+-                                                            return j1;
+-                                                        }
++                                                    try {
++                                                        entityinsentient = biomebase_biomemeta.b.getConstructor(new Class[]{World.class}).newInstance(new Object[]{worldserver});
++                                                    } catch (Exception exception) {
++                                                        exception.printStackTrace();
++                                                        return j1;
++                                                    }
+ 
+-                                                        entityinsentient.setPositionRotation((double) f, (double) k3, (double) f1, worldserver.random.nextFloat() * 360.0F, 0.0F);
+-                                                        if (entityinsentient.bR() && entityinsentient.canSpawn()) {
+-                                                            groupdataentity = entityinsentient.prepare(worldserver.E(new BlockPosition(entityinsentient)), groupdataentity);
+-                                                            if (entityinsentient.canSpawn()) {
+-                                                                ++l2;
+-                                                                worldserver.addEntity(entityinsentient, SpawnReason.NATURAL); // CraftBukkit - Added a reason for spawning this creature
+-                                                            }
+-
+-                                                            // Spigot start
+-                                                            if ( --moblimit <= 0 )
+-                                                            {
+-                                                                // If we're past limit, stop spawn
+-                                                                continue label115;
+-                                                            }
+-                                                            // Spigot end
+-                                                            if (l2 >= entityinsentient.bV()) {
+-                                                                continue label115;
+-                                                            }
++                                                    entityinsentient.setPositionRotation((double) f, (double) k3, (double) f1, worldserver.random.nextFloat() * 360.0F, 0.0F);
++                                                    if (entityinsentient.bR() && entityinsentient.canSpawn()) {
++                                                        groupdataentity = entityinsentient.prepare(worldserver.E(new BlockPosition(entityinsentient)), groupdataentity);
++                                                        if (entityinsentient.canSpawn()) {
++                                                            ++l2;
++                                                            worldserver.addEntity(entityinsentient, SpawnReason.NATURAL); // CraftBukkit - Added a reason for spawning this creature
+                                                         }
+ 
+-                                                        j1 += l2;
++                                                        // Spigot start
++                                                        if (--moblimit <= 0) {
++                                                            // If we're past limit, stop spawn
++                                                            continue label115;
++                                                        }
++                                                        // Spigot end
++                                                        if (l2 >= entityinsentient.bV()) {
++                                                            continue label115;
++                                                        }
+                                                     }
+-                                                }
+ 
+-                                                ++i4;
+-                                                continue;
++                                                    j1 += l2;
++                                                }
+                                             }
+-                                        }
+ 
+-                                        ++i3;
+-                                        break;
++                                            ++i4;
++                                            continue;
++                                        }
+                                     }
++
++                                    ++i3;
++                                    break;
+                                 }
+                             }
+                         }
+                     }
+                 }
+             }
+-
+-            return j1;
+         }
++
++        return j1;
+     }
+ 
+     protected static BlockPosition getRandomPosition(World world, int i, int j) {
+@@ -239,24 +223,21 @@ public final class SpawnerCreature {
+     public static boolean a(EntityInsentient.EnumEntityPositionType entityinsentient_enumentitypositiontype, World world, BlockPosition blockposition) {
+         if (!world.getWorldBorder().a(blockposition)) {
+             return false;
+-        } else {
+-            Block block = world.getType(blockposition).getBlock();
+-
+-            if (entityinsentient_enumentitypositiontype == EntityInsentient.EnumEntityPositionType.IN_WATER) {
+-                return block.getMaterial().isLiquid() && world.getType(blockposition.down()).getBlock().getMaterial().isLiquid() && !world.getType(blockposition.up()).getBlock().isOccluding();
+-            } else {
+-                BlockPosition blockposition1 = blockposition.down();
++        }
++        Block block = world.getType(blockposition).getBlock();
+ 
+-                if (!World.a((IBlockAccess) world, blockposition1)) {
+-                    return false;
+-                } else {
+-                    Block block1 = world.getType(blockposition1).getBlock();
+-                    boolean flag = block1 != Blocks.BEDROCK && block1 != Blocks.BARRIER;
++        if (entityinsentient_enumentitypositiontype == EntityInsentient.EnumEntityPositionType.IN_WATER) {
++            return block.getMaterial().isLiquid() && world.getType(blockposition.down()).getBlock().getMaterial().isLiquid() && !world.getType(blockposition.up()).getBlock().isOccluding();
++        }
++        BlockPosition blockposition1 = blockposition.down();
+ 
+-                    return flag && !block.isOccluding() && !block.getMaterial().isLiquid() && !world.getType(blockposition.up()).getBlock().isOccluding();
+-                }
+-            }
++        if (!World.a(world, blockposition1)) {
++            return false;
+         }
++        Block block1 = world.getType(blockposition1).getBlock();
++        boolean flag = block1 != Blocks.BEDROCK && block1 != Blocks.BARRIER;
++
++        return flag && !block.isOccluding() && !block.getMaterial().isLiquid() && !world.getType(blockposition.up()).getBlock().isOccluding();
+     }
+ 
+     public static void a(World world, BiomeBase biomebase, int i, int j, int k, int l, Random random) {
+@@ -282,7 +263,7 @@ public final class SpawnerCreature {
+                             EntityInsentient entityinsentient;
+ 
+                             try {
+-                                entityinsentient = (EntityInsentient) biomebase_biomemeta.b.getConstructor(new Class[] { World.class}).newInstance(new Object[] { world});
++                                entityinsentient = biomebase_biomemeta.b.getConstructor(new Class[]{World.class}).newInstance(new Object[]{world});
+                             } catch (Exception exception) {
+                                 exception.printStackTrace();
+                                 continue;
+@@ -304,7 +285,6 @@ public final class SpawnerCreature {
+                     }
+                 }
+             }
+-
+         }
+     }
+ }
+diff --git a/src/main/java/net/minecraft/server/StatisticManager.java b/src/main/java/net/minecraft/server/StatisticManager.java
+index 5d6c3deac..9af30b675 100644
+--- a/src/main/java/net/minecraft/server/StatisticManager.java
++++ b/src/main/java/net/minecraft/server/StatisticManager.java
+@@ -30,7 +30,7 @@ public class StatisticManager {
+     }
+ 
+     public void setStatistic(EntityHuman entityhuman, Statistic statistic, int i) {
+-        StatisticWrapper statisticwrapper = (StatisticWrapper) this.a.get(statistic);
++        StatisticWrapper statisticwrapper = this.a.get(statistic);
+ 
+         if (statisticwrapper == null) {
+             statisticwrapper = new StatisticWrapper();
+@@ -41,19 +41,19 @@ public class StatisticManager {
+     }
+ 
+     public int getStatisticValue(Statistic statistic) {
+-        StatisticWrapper statisticwrapper = (StatisticWrapper) this.a.get(statistic);
++        StatisticWrapper statisticwrapper = this.a.get(statistic);
+ 
+         return statisticwrapper == null ? 0 : statisticwrapper.a();
+     }
+ 
+     public <T extends IJsonStatistic> T b(Statistic statistic) {
+-        StatisticWrapper statisticwrapper = (StatisticWrapper) this.a.get(statistic);
++        StatisticWrapper statisticwrapper = this.a.get(statistic);
+ 
+         return statisticwrapper != null ? (T) statisticwrapper.b() : null; // CraftBukkit - fix decompile error
+     }
+ 
+     public <T extends IJsonStatistic> T a(Statistic statistic, T t0) {
+-        StatisticWrapper statisticwrapper = (StatisticWrapper) this.a.get(statistic);
++        StatisticWrapper statisticwrapper = this.a.get(statistic);
+ 
+         if (statisticwrapper == null) {
+             statisticwrapper = new StatisticWrapper();
+diff --git a/src/main/java/net/minecraft/server/TileEntityBanner.java b/src/main/java/net/minecraft/server/TileEntityBanner.java
+index aa5ad2ef0..f05d6e0a7 100644
+--- a/src/main/java/net/minecraft/server/TileEntityBanner.java
++++ b/src/main/java/net/minecraft/server/TileEntityBanner.java
+@@ -108,7 +108,7 @@ public class TileEntityBanner extends TileEntity {
+                 if (nbttaglist.isEmpty()) {
+                     itemstack.getTag().remove("BlockEntityTag");
+                     if (itemstack.getTag().isEmpty()) {
+-                        itemstack.setTag((NBTTagCompound) null);
++                        itemstack.setTag(null);
+                     }
+                 }
+ 
+@@ -116,7 +116,7 @@ public class TileEntityBanner extends TileEntity {
+         }
+     }
+ 
+-    public static enum EnumBannerPatternType {
++    public enum EnumBannerPatternType {
+ 
+         BASE("base", "b"), SQUARE_BOTTOM_LEFT("square_bottom_left", "bl", "   ", "   ", "#  "), SQUARE_BOTTOM_RIGHT("square_bottom_right", "br", "   ", "   ", "  #"), SQUARE_TOP_LEFT("square_top_left", "tl", "#  ", "   ", "   "), SQUARE_TOP_RIGHT("square_top_right", "tr", "  #", "   ", "   "), STRIPE_BOTTOM("stripe_bottom", "bs", "   ", "   ", "###"), STRIPE_TOP("stripe_top", "ts", "###", "   ", "   "), STRIPE_LEFT("stripe_left", "ls", "#  ", "#  ", "#  "), STRIPE_RIGHT("stripe_right", "rs", "  #", "  #", "  #"), STRIPE_CENTER("stripe_center", "cs", " # ", " # ", " # "), STRIPE_MIDDLE("stripe_middle", "ms", "   ", "###", "   "), STRIPE_DOWNRIGHT("stripe_downright", "drs", "#  ", " # ", "  #"), STRIPE_DOWNLEFT("stripe_downleft", "dls", "  #", " # ", "#  "), STRIPE_SMALL("small_stripes", "ss", "# #", "# #", "   "), CROSS("cross", "cr", "# #", " # ", "# #"), STRAIGHT_CROSS("straight_cross", "sc", " # ", "###", " # "), TRIANGLE_BOTTOM("triangle_bottom", "bt", "   ", " # ", "# #"), TRIANGLE_TOP("triangle_top", "tt", "# #", " # ", "   "), TRIANGLES_BOTTOM("triangles_bottom", "bts", "   ", "# #", " # "), TRIANGLES_TOP("triangles_top", "tts", " # ", "# #", "   "), DIAGONAL_LEFT("diagonal_left", "ld", "## ", "#  ", "   "), DIAGONAL_RIGHT("diagonal_up_right", "rd", "   ", "  #", " ##"), DIAGONAL_LEFT_MIRROR("diagonal_up_left", "lud", "   ", "#  ", "## "), DIAGONAL_RIGHT_MIRROR("diagonal_right", "rud", " ##", "  #", "   "), CIRCLE_MIDDLE("circle", "mc", "   ", " # ", "   "), RHOMBUS_MIDDLE("rhombus", "mr", " # ", "# #", " # "), HALF_VERTICAL("half_vertical", "vh", "## ", "## ", "## "), HALF_HORIZONTAL("half_horizontal", "hh", "###", "###", "   "), HALF_VERTICAL_MIRROR("half_vertical_right", "vhr", " ##", " ##", " ##"), HALF_HORIZONTAL_MIRROR("half_horizontal_bottom", "hhb", "   ", "###", "###"), BORDER("border", "bo", "###", "# #", "###"), CURLY_BORDER("curly_border", "cbo", new ItemStack(Blocks.VINE)), CREEPER("creeper", "cre", new ItemStack(Items.SKULL, 1, 4)), GRADIENT("gradient", "gra", "# #", " # ", " # "), GRADIENT_UP("gradient_up", "gru", " # ", " # ", "# #"), BRICKS("bricks", "bri", new ItemStack(Blocks.BRICK_BLOCK)), SKULL("skull", "sku", new ItemStack(Items.SKULL, 1, 1)), FLOWER("flower", "flo", new ItemStack(Blocks.RED_FLOWER, 1, BlockFlowers.EnumFlowerVarient.OXEYE_DAISY.b())), MOJANG("mojang", "moj", new ItemStack(Items.GOLDEN_APPLE, 1, 1));
+ 
+@@ -125,18 +125,18 @@ public class TileEntityBanner extends TileEntity {
+         private String[] P;
+         private ItemStack Q;
+ 
+-        private EnumBannerPatternType(String s, String s1) {
++        EnumBannerPatternType(String s, String s1) {
+             this.P = new String[3];
+             this.N = s;
+             this.O = s1;
+         }
+ 
+-        private EnumBannerPatternType(String s, String s1, ItemStack itemstack) {
++        EnumBannerPatternType(String s, String s1, ItemStack itemstack) {
+             this(s, s1);
+             this.Q = itemstack;
+         }
+ 
+-        private EnumBannerPatternType(String s, String s1, String s2, String s3, String s4) {
++        EnumBannerPatternType(String s, String s1, String s2, String s3, String s4) {
+             this(s, s1);
+             this.P[0] = s2;
+             this.P[1] = s3;
+diff --git a/src/main/java/net/minecraft/server/TileEntityBeacon.java b/src/main/java/net/minecraft/server/TileEntityBeacon.java
+index f4717af7d..89b63b100 100644
+--- a/src/main/java/net/minecraft/server/TileEntityBeacon.java
++++ b/src/main/java/net/minecraft/server/TileEntityBeacon.java
+@@ -1,26 +1,26 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
++import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.entity.HumanEntity;
++import org.bukkit.entity.Player;
++import org.bukkit.potion.PotionEffect;
++import org.bukkit.potion.PotionEffectType;
++import org.github.paperspigot.event.block.BeaconEffectEvent;
++
+ import java.util.Arrays;
+ import java.util.Iterator;
+ import java.util.List;
+ 
+ // CraftBukkit start
+-import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+-import org.bukkit.entity.HumanEntity;
+ // CraftBukkit end
+-
+ // PaperSpigot start
+-import org.bukkit.craftbukkit.event.CraftEventFactory;
+-import org.bukkit.entity.Player;
+-import org.bukkit.potion.PotionEffect;
+-import org.bukkit.potion.PotionEffectType;
+-import org.github.paperspigot.event.block.BeaconEffectEvent;
+ // PaperSpigot end
+ 
+ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlayerListBox, IInventory {
+ 
+-    public static final MobEffectList[][] a = new MobEffectList[][] { { MobEffectList.FASTER_MOVEMENT, MobEffectList.FASTER_DIG}, { MobEffectList.RESISTANCE, MobEffectList.JUMP}, { MobEffectList.INCREASE_DAMAGE}, { MobEffectList.REGENERATION}};
++    public static final MobEffectList[][] a = new MobEffectList[][]{{MobEffectList.FASTER_MOVEMENT, MobEffectList.FASTER_DIG}, {MobEffectList.RESISTANCE, MobEffectList.JUMP}, {MobEffectList.INCREASE_DAMAGE}, {MobEffectList.REGENERATION}};
+     private final List<TileEntityBeacon.BeaconColorTracker> f = Lists.newArrayList();
+     private boolean i;
+     private int j = -1;
+@@ -33,7 +33,7 @@ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlay
+     private int maxStack = MAX_STACK;
+ 
+     public ItemStack[] getContents() {
+-        return new ItemStack[] { this.inventorySlot };
++        return new ItemStack[]{this.inventorySlot};
+     }
+ 
+     public void onOpen(CraftHumanEntity who) {
+@@ -53,7 +53,8 @@ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlay
+     }
+     // CraftBukkit end
+ 
+-    public TileEntityBeacon() {}
++    public TileEntityBeacon() {
++    }
+ 
+     public void c() {
+         if (this.world.getTime() % 80L == 0L) {
+@@ -141,7 +142,7 @@ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlay
+             float[] afloat;
+ 
+             if (iblockdata.getBlock() == Blocks.STAINED_GLASS) {
+-                afloat = EntitySheep.a((EnumColor) iblockdata.get(BlockStainedGlass.COLOR));
++                afloat = EntitySheep.a(iblockdata.get(BlockStainedGlass.COLOR));
+             } else {
+                 if (iblockdata.getBlock() != Blocks.STAINED_GLASS_PANE) {
+                     if (iblockdata.getBlock().p() >= 15 && iblockdata.getBlock() != Blocks.BEDROCK) {
+@@ -154,11 +155,11 @@ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlay
+                     continue;
+                 }
+ 
+-                afloat = EntitySheep.a((EnumColor) iblockdata.get(BlockStainedGlassPane.COLOR));
++                afloat = EntitySheep.a(iblockdata.get(BlockStainedGlassPane.COLOR));
+             }
+ 
+             if (!flag) {
+-                afloat = new float[] { (tileentitybeacon_beaconcolortracker.b()[0] + afloat[0]) / 2.0F, (tileentitybeacon_beaconcolortracker.b()[1] + afloat[1]) / 2.0F, (tileentitybeacon_beaconcolortracker.b()[2] + afloat[2]) / 2.0F};
++                afloat = new float[]{(tileentitybeacon_beaconcolortracker.b()[0] + afloat[0]) / 2.0F, (tileentitybeacon_beaconcolortracker.b()[1] + afloat[1]) / 2.0F, (tileentitybeacon_beaconcolortracker.b()[2] + afloat[2]) / 2.0F};
+             }
+ 
+             if (Arrays.equals(afloat, tileentitybeacon_beaconcolortracker.b())) {
+@@ -203,12 +204,9 @@ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlay
+         }
+ 
+         if (!this.world.isClientSide && this.j == 4 && i < this.j) {
+-            Iterator iterator = this.world.a(EntityHuman.class, (new AxisAlignedBB((double) j, (double) k, (double) l, (double) j, (double) (k - 4), (double) l)).grow(10.0D, 5.0D, 10.0D)).iterator();
+-
+-            while (iterator.hasNext()) {
+-                EntityHuman entityhuman = (EntityHuman) iterator.next();
+ 
+-                entityhuman.b((Statistic) AchievementList.K);
++            for (EntityHuman entityhuman : this.world.a(EntityHuman.class, (new AxisAlignedBB((double) j, (double) k, (double) l, (double) j, (double) (k - 4), (double) l)).grow(10.0D, 5.0D, 10.0D))) {
++                entityhuman.b(AchievementList.K);
+             }
+         }
+ 
+@@ -224,11 +222,9 @@ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlay
+     private int h(int i) {
+         if (i >= 0 && i < MobEffectList.byId.length && MobEffectList.byId[i] != null) {
+             MobEffectList mobeffectlist = MobEffectList.byId[i];
+-
+             return mobeffectlist != MobEffectList.FASTER_MOVEMENT && mobeffectlist != MobEffectList.FASTER_DIG && mobeffectlist != MobEffectList.RESISTANCE && mobeffectlist != MobEffectList.JUMP && mobeffectlist != MobEffectList.INCREASE_DAMAGE && mobeffectlist != MobEffectList.REGENERATION ? 0 : i;
+-        } else {
+-            return 0;
+         }
++        return 0;
+     }
+ 
+     public void a(NBTTagCompound nbttagcompound) {
+@@ -264,9 +260,8 @@ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlay
+                 this.inventorySlot.count -= j;
+                 return new ItemStack(this.inventorySlot.getItem(), j, this.inventorySlot.getData());
+             }
+-        } else {
+-            return null;
+         }
++        return null;
+     }
+ 
+     public ItemStack splitWithoutUpdate(int i) {
+@@ -304,12 +299,14 @@ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlay
+     }
+ 
+     public boolean a(EntityHuman entityhuman) {
+-        return this.world.getTileEntity(this.position) != this ? false : entityhuman.e((double) this.position.getX() + 0.5D, (double) this.position.getY() + 0.5D, (double) this.position.getZ() + 0.5D) <= 64.0D;
++        return this.world.getTileEntity(this.position) == this && entityhuman.e((double) this.position.getX() + 0.5D, (double) this.position.getY() + 0.5D, (double) this.position.getZ() + 0.5D) <= 64.0D;
+     }
+ 
+-    public void startOpen(EntityHuman entityhuman) {}
++    public void startOpen(EntityHuman entityhuman) {
++    }
+ 
+-    public void closeContainer(EntityHuman entityhuman) {}
++    public void closeContainer(EntityHuman entityhuman) {
++    }
+ 
+     public boolean b(int i, ItemStack itemstack) {
+         return itemstack.getItem() == Items.EMERALD || itemstack.getItem() == Items.DIAMOND || itemstack.getItem() == Items.GOLD_INGOT || itemstack.getItem() == Items.IRON_INGOT;
+@@ -325,32 +322,32 @@ public class TileEntityBeacon extends TileEntityContainer implements IUpdatePlay
+ 
+     public int getProperty(int i) {
+         switch (i) {
+-        case 0:
+-            return this.j;
++            case 0:
++                return this.j;
+ 
+-        case 1:
+-            return this.k;
++            case 1:
++                return this.k;
+ 
+-        case 2:
+-            return this.l;
++            case 2:
++                return this.l;
+ 
+-        default:
+-            return 0;
++            default:
++                return 0;
+         }
+     }
+ 
+     public void b(int i, int j) {
+         switch (i) {
+-        case 0:
+-            this.j = j;
+-            break;
++            case 0:
++                this.j = j;
++                break;
+ 
+-        case 1:
+-            this.k = this.h(j);
+-            break;
++            case 1:
++                this.k = this.h(j);
++                break;
+ 
+-        case 2:
+-            this.l = this.h(j);
++            case 2:
++                this.l = this.h(j);
+         }
+ 
+     }
+diff --git a/src/main/java/net/minecraft/server/TileEntityDispenser.java b/src/main/java/net/minecraft/server/TileEntityDispenser.java
+index 9be494ba5..e8c73805f 100644
+--- a/src/main/java/net/minecraft/server/TileEntityDispenser.java
++++ b/src/main/java/net/minecraft/server/TileEntityDispenser.java
+@@ -1,22 +1,22 @@
+ package net.minecraft.server;
+ 
+-import java.util.Random;
++import org.bukkit.craftbukkit.entity.CraftHumanEntity;
++import org.bukkit.entity.HumanEntity;
+ 
+-// CraftBukkit start
+ import java.util.List;
+ 
+-import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+-import org.bukkit.entity.HumanEntity;
++// CraftBukkit start
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public class TileEntityDispenser extends TileEntityContainer implements IInventory {
+ 
+-    private static final Random f = new Random();
+     private ItemStack[] items = new ItemStack[9];
+     protected String a;
+ 
+     // CraftBukkit start - add fields and methods
+-    public List<HumanEntity> transaction = new java.util.ArrayList<HumanEntity>();
++    public List<HumanEntity> transaction = new java.util.ArrayList<>();
+     private int maxStack = MAX_STACK;
+ 
+     public ItemStack[] getContents() {
+@@ -40,7 +40,8 @@ public class TileEntityDispenser extends TileEntityContainer implements IInvento
+     }
+     // CraftBukkit end
+ 
+-    public TileEntityDispenser() {}
++    public TileEntityDispenser() {
++    }
+ 
+     public int getSize() {
+         return 9;
+@@ -68,9 +69,8 @@ public class TileEntityDispenser extends TileEntityContainer implements IInvento
+                 this.update();
+                 return itemstack;
+             }
+-        } else {
+-            return null;
+         }
++        return null;
+     }
+ 
+     public ItemStack splitWithoutUpdate(int i) {
+@@ -79,9 +79,8 @@ public class TileEntityDispenser extends TileEntityContainer implements IInvento
+ 
+             this.items[i] = null;
+             return itemstack;
+-        } else {
+-            return null;
+         }
++        return null;
+     }
+ 
+     public int m() {
+@@ -89,7 +88,7 @@ public class TileEntityDispenser extends TileEntityContainer implements IInvento
+         int j = 1;
+ 
+         for (int k = 0; k < this.items.length; ++k) {
+-            if (this.items[k] != null && TileEntityDispenser.f.nextInt(j++) == 0) {
++            if (this.items[k] != null && world.random.nextInt(j++) == 0) {
+                 if (this.items[k].count == 0) continue; // CraftBukkit
+                 i = k;
+             }
+@@ -140,7 +139,7 @@ public class TileEntityDispenser extends TileEntityContainer implements IInvento
+             NBTTagCompound nbttagcompound1 = nbttaglist.get(i);
+             int j = nbttagcompound1.getByte("Slot") & 255;
+ 
+-            if (j >= 0 && j < this.items.length) {
++            if (j < this.items.length) {
+                 this.items[j] = ItemStack.createStack(nbttagcompound1);
+             }
+         }
+@@ -177,12 +176,14 @@ public class TileEntityDispenser extends TileEntityContainer implements IInvento
+     }
+ 
+     public boolean a(EntityHuman entityhuman) {
+-        return this.world.getTileEntity(this.position) != this ? false : entityhuman.e((double) this.position.getX() + 0.5D, (double) this.position.getY() + 0.5D, (double) this.position.getZ() + 0.5D) <= 64.0D;
++        return this.world.getTileEntity(this.position) == this && entityhuman.e((double) this.position.getX() + 0.5D, (double) this.position.getY() + 0.5D, (double) this.position.getZ() + 0.5D) <= 64.0D;
+     }
+ 
+-    public void startOpen(EntityHuman entityhuman) {}
++    public void startOpen(EntityHuman entityhuman) {
++    }
+ 
+-    public void closeContainer(EntityHuman entityhuman) {}
++    public void closeContainer(EntityHuman entityhuman) {
++    }
+ 
+     public boolean b(int i, ItemStack itemstack) {
+         return true;
+@@ -200,7 +201,8 @@ public class TileEntityDispenser extends TileEntityContainer implements IInvento
+         return 0;
+     }
+ 
+-    public void b(int i, int j) {}
++    public void b(int i, int j) {
++    }
+ 
+     public int g() {
+         return 0;
+diff --git a/src/main/java/net/minecraft/server/TileEntityPiston.java b/src/main/java/net/minecraft/server/TileEntityPiston.java
+index 2e11fa1b4..8aa808304 100644
+--- a/src/main/java/net/minecraft/server/TileEntityPiston.java
++++ b/src/main/java/net/minecraft/server/TileEntityPiston.java
+@@ -1,7 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+-import java.util.Iterator;
++
+ import java.util.List;
+ 
+ public class TileEntityPiston extends TileEntity implements IUpdatePlayerListBox {
+@@ -14,7 +14,8 @@ public class TileEntityPiston extends TileEntity implements IUpdatePlayerListBox
+     private float j;
+     private List<Entity> k = Lists.newArrayList();
+ 
+-    public TileEntityPiston() {}
++    public TileEntityPiston() {
++    }
+ 
+     public TileEntityPiston(IBlockData iblockdata, EnumDirection enumdirection, boolean flag, boolean flag1) {
+         this.a = iblockdata;
+@@ -57,27 +58,24 @@ public class TileEntityPiston extends TileEntity implements IUpdatePlayerListBox
+         AxisAlignedBB axisalignedbb = Blocks.PISTON_EXTENSION.a(this.world, this.position, this.a, f, this.f);
+ 
+         if (axisalignedbb != null) {
+-            List list = this.world.getEntities((Entity) null, axisalignedbb);
++            List list = this.world.getEntities(null, axisalignedbb);
+ 
+             if (!list.isEmpty()) {
+                 this.k.addAll(list);
+-                Iterator iterator = this.k.iterator();
+-
+-                while (iterator.hasNext()) {
+-                    Entity entity = (Entity) iterator.next();
+ 
++                for (Entity entity : this.k) {
+                     if (this.a.getBlock() == Blocks.SLIME && this.g) {
+-                        switch (TileEntityPiston.SyntheticClass_1.a[this.f.k().ordinal()]) {
+-                        case 1:
+-                            entity.motX = (double) this.f.getAdjacentX();
+-                            break;
++                        switch (SyntheticClass_1.a[this.f.k().ordinal()]) {
++                            case 1:
++                                entity.motX = (double) this.f.getAdjacentX();
++                                break;
+ 
+-                        case 2:
+-                            entity.motY = (double) this.f.getAdjacentY();
+-                            break;
++                            case 2:
++                                entity.motY = (double) this.f.getAdjacentY();
++                                break;
+ 
+-                        case 3:
+-                            entity.motZ = (double) this.f.getAdjacentZ();
++                            case 3:
++                                entity.motZ = (double) this.f.getAdjacentZ();
+                         }
+                     } else {
+                         entity.move((double) (f1 * (float) this.f.getAdjacentX()), (double) (f1 * (float) this.f.getAdjacentY()), (double) (f1 * (float) this.f.getAdjacentZ()));
+@@ -152,19 +150,19 @@ public class TileEntityPiston extends TileEntity implements IUpdatePlayerListBox
+         static {
+             try {
+                 TileEntityPiston.SyntheticClass_1.a[EnumDirection.EnumAxis.X.ordinal()] = 1;
+-            } catch (NoSuchFieldError nosuchfielderror) {
++            } catch (NoSuchFieldError ignored) {
+                 ;
+             }
+ 
+             try {
+                 TileEntityPiston.SyntheticClass_1.a[EnumDirection.EnumAxis.Y.ordinal()] = 2;
+-            } catch (NoSuchFieldError nosuchfielderror1) {
++            } catch (NoSuchFieldError ignored) {
+                 ;
+             }
+ 
+             try {
+                 TileEntityPiston.SyntheticClass_1.a[EnumDirection.EnumAxis.Z.ordinal()] = 3;
+-            } catch (NoSuchFieldError nosuchfielderror2) {
++            } catch (NoSuchFieldError ignored) {
+                 ;
+             }
+ 
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 6735f4ed4..23b6d3a5b 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -1645,7 +1645,9 @@ public abstract class World implements IBlockAccess {
+             int i1 = MathHelper.floor(entity.locZ / 16.0D);
+ 
+             if (!entity.ad || entity.ae != k || entity.af != l || entity.ag != i1) {
+-                if (entity.loadChunks) entity.loadChunks(); // PaperSpigot - Force load chunks
++                if (entity.loadChunks) {
++                    entity.loadChunks(); // PaperSpigot - Force load chunks
++                }
+                 if (entity.ad && this.isChunkLoaded(entity.ae, entity.ag, true)) {
+                     this.getChunkAt(entity.ae, entity.ag).a(entity, entity.af);
+                 }
+-- 
+2.21.0.windows.1
+

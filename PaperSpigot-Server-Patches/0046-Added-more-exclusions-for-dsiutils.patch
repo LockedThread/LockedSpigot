@@ -1,0 +1,75 @@
+From 252c708f146c0003643ae8727c729809cac5c43f Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 23:49:04 -0400
+Subject: [PATCH] Added more exclusions for dsiutils
+
+
+diff --git a/pom.xml b/pom.xml
+index 714aa190f..634fd51de 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -47,6 +47,22 @@
+                     <groupId>com.google.guava</groupId>
+                     <artifactId>guava</artifactId>
+                 </exclusion>
++                <exclusion>
++                    <groupId>commons-logging</groupId>
++                    <artifactId>commons-logging</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>ch.qos.logback</groupId>
++                    <artifactId>logback-classic</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>ch.qos.logback</groupId>
++                    <artifactId>logback-core</artifactId>
++                </exclusion>
++                <exclusion>
++                    <groupId>net.sf.trove4j</groupId>
++                    <artifactId>trove4j</artifactId>
++                </exclusion>
+             </exclusions>
+         </dependency>
+         <dependency>
+@@ -129,22 +145,22 @@
+         <defaultGoal>install</defaultGoal>
+         <plugins>
+             <plugin>
+-            <groupId>com.lukegb.mojo</groupId>
+-            <artifactId>gitdescribe-maven-plugin</artifactId>
+-            <version>1.3</version>
+-            <configuration>
+-                <outputPrefix>git-TacoSpigot-</outputPrefix>
+-                <scmDirectory>..</scmDirectory>
+-            </configuration>
+-            <executions>
+-                <execution>
+-                    <phase>compile</phase>
+-                    <goals>
+-                        <goal>gitdescribe</goal>
+-                    </goals>
+-                </execution>
+-            </executions>
+-        </plugin>
++                <groupId>com.lukegb.mojo</groupId>
++                <artifactId>gitdescribe-maven-plugin</artifactId>
++                <version>1.3</version>
++                <configuration>
++                    <outputPrefix>git-TacoSpigot-</outputPrefix>
++                    <scmDirectory>..</scmDirectory>
++                </configuration>
++                <executions>
++                    <execution>
++                        <phase>compile</phase>
++                        <goals>
++                            <goal>gitdescribe</goal>
++                        </goals>
++                    </execution>
++                </executions>
++            </plugin>
+             <plugin>
+                 <groupId>org.apache.maven.plugins</groupId>
+                 <artifactId>maven-jar-plugin</artifactId>
+-- 
+2.21.0.windows.1
+

@@ -1,0 +1,31 @@
+From 5a428aa83899191a32c3deb95632e4289d07689b Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 17:38:08 -0400
+Subject: [PATCH] Fixed spigot being retarded with inventories and not directly
+ interpreting 5 slots as a hopper.
+
+
+diff --git a/src/main/java/dev/lockedthread/menu/Menu.java b/src/main/java/dev/lockedthread/menu/Menu.java
+index ef06c2c3..fab88be4 100644
+--- a/src/main/java/dev/lockedthread/menu/Menu.java
++++ b/src/main/java/dev/lockedthread/menu/Menu.java
+@@ -5,6 +5,7 @@ import org.bukkit.Bukkit;
+ import org.bukkit.ChatColor;
+ import org.bukkit.event.inventory.InventoryCloseEvent;
+ import org.bukkit.event.inventory.InventoryOpenEvent;
++import org.bukkit.event.inventory.InventoryType;
+ import org.bukkit.inventory.Inventory;
+ import org.bukkit.inventory.InventoryHolder;
+ import org.bukkit.inventory.ItemStack;
+@@ -20,7 +21,7 @@ public abstract class Menu implements InventoryHolder {
+     private Int2ObjectOpenHashMap<MenuItem> menuItems;
+ 
+     public Menu(String name, int size) {
+-        this.inventory = Bukkit.createInventory(this, size, ChatColor.translateAlternateColorCodes('&', name));
++        this.inventory = size == 5 ? Bukkit.createInventory(this, InventoryType.HOPPER, ChatColor.translateAlternateColorCodes('&', name)) : Bukkit.createInventory(this, size, ChatColor.translateAlternateColorCodes('&', name));
+         this.menuItems = new Int2ObjectOpenHashMap<>();
+     }
+ 
+-- 
+2.21.0.windows.1
+

@@ -1,0 +1,419 @@
+From 658f092fe7b6712db16b81ba1605b5dbf49b21db Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 21:17:09 -0400
+Subject: [PATCH] Fixed random refractors and added IronGolem and Arrow config
+ options
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index b5469c45b..2f2509de8 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -21,6 +21,53 @@ public class LockedSpigotConfig {
+     static int version;
+     /*========================================================================*/
+ 
++    private static boolean ironGolemCancelFallDamage;
++    private static boolean ironGolemDropPoppies;
++    private static boolean ironGolemVillageCheck;
++    private static boolean ironGolemBlockCrackEffect;
++    private static boolean ironGolemCreeperCheck;
++    private static double ironGolemHealth;
++    private static double ironGolemMovementSpeed;
++    private static boolean arrowDropArrows;
++    private static boolean arrowWaterParticles;
++
++    public static boolean isIronGolemCancelFallDamage() {
++        return ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
++    }
++
++    public static boolean isIronGolemDropPoppies() {
++        return ironGolemDropPoppies = getBoolean("irongolem.drop-poppies", false);
++    }
++
++    public static boolean isIronGolemVillageCheck() {
++        return ironGolemVillageCheck = getBoolean("irongolem.checks.village", false);
++    }
++
++    public static boolean isIronGolemBlockCrackEffect() {
++        return ironGolemBlockCrackEffect = getBoolean("irongolem.block-crack-effect", false);
++    }
++
++    public static boolean isIronGolemCreeperCheck() {
++        return ironGolemCreeperCheck = getBoolean("irongolem.checks.creeper", false);
++    }
++
++    public static double getIronGolemHealth() {
++        return ironGolemHealth = getDouble("irongolem.health", 2.0);
++    }
++
++    public static double getIronGolemMovementSpeed() {
++        return ironGolemMovementSpeed = getDouble("irongolem.movement-speed", 0.25);
++    }
++
++    public static boolean isArrowDropArrows() {
++        return arrowDropArrows = getBoolean("arrow.drop-arrow", false);
++    }
++
++    public static boolean isArrowWaterParticles() {
++        return arrowWaterParticles = getBoolean("arrow.waterparticles", false);
++    }
++
++
+     public static void init(File configFile) {
+         CONFIG_FILE = configFile;
+         config = new YamlConfiguration();
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index ca4d8e7b0..87f61c241 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -836,7 +836,7 @@ public abstract class Entity implements ICommandListener {
+             }
+ 
+             if (flag2 && this.fireTicks > 0) {
+-                this.makeSound("getRandom().fizz", 0.7F, 1.6F + (getRandom().nextFloat() - getRandom().nextFloat()) * 0.4F);
++                this.makeSound("random.fizz", 0.7F, 1.6F + (getRandom().nextFloat() - getRandom().nextFloat()) * 0.4F);
+                 this.fireTicks = -this.maxFireTicks;
+             }
+ 
+diff --git a/src/main/java/net/minecraft/server/EntityArrow.java b/src/main/java/net/minecraft/server/EntityArrow.java
+index bfd0111b6..f28812cc9 100644
+--- a/src/main/java/net/minecraft/server/EntityArrow.java
++++ b/src/main/java/net/minecraft/server/EntityArrow.java
+@@ -1,5 +1,6 @@
+ package net.minecraft.server;
+ 
++import dev.lockedthread.LockedSpigotConfig;
+ import net.techcable.tacospigot.event.entity.ArrowCollideEvent;
+ import org.bukkit.Bukkit;
+ import org.bukkit.entity.Arrow;
+@@ -159,7 +160,7 @@ public class EntityArrow extends Entity implements IProjectile {
+ 
+             if (block == this.g && i == this.h) {
+                 ++this.ar;
+-                if (this.ar >= world.spigotConfig.arrowDespawnRate) { // Spigot - First int after shooter
++                if (this.ar >= world.spigotConfig.arrowDespawnRate || !LockedSpigotConfig.isArrowDropArrows()) { // Spigot - First int after shooter
+                     this.die();
+                 }
+             } else {
+@@ -248,13 +249,7 @@ public class EntityArrow extends Entity implements IProjectile {
+                         k += this.getRandom().nextInt(k / 2 + 2);
+                     }
+ 
+-                    DamageSource damagesource;
+-
+-                    if (this.shooter == null) {
+-                        damagesource = DamageSource.arrow(this, this);
+-                    } else {
+-                        damagesource = DamageSource.arrow(this, this.shooter);
+-                    }
++                    DamageSource damagesource = this.shooter == null ? DamageSource.arrow(this, this) : DamageSource.arrow(this, this.shooter);
+ 
+                     // CraftBukkit start - Moved damage call
+                     if (movingobjectposition.entity.damageEntity(damagesource, (float) k)) {
+@@ -292,7 +287,7 @@ public class EntityArrow extends Entity implements IProjectile {
+                             }
+                         }
+ 
+-                        this.makeSound("getRandom().bowhit", 1.0F, 1.2F / (this.getRandom().nextFloat() * 0.2F + 0.9F));
++                        this.makeSound("random.bowhit", 1.0F, 1.2F / (this.getRandom().nextFloat() * 0.2F + 0.9F));
+                         if (!(movingobjectposition.entity instanceof EntityEnderman)) {
+                             this.die();
+                         }
+@@ -321,7 +316,7 @@ public class EntityArrow extends Entity implements IProjectile {
+                     this.locX -= this.motX / (double) f1 * 0.05000000074505806D;
+                     this.locY -= this.motY / (double) f1 * 0.05000000074505806D;
+                     this.locZ -= this.motZ / (double) f1 * 0.05000000074505806D;
+-                    this.makeSound("getRandom().bowhit", 1.0F, 1.2F / (this.getRandom().nextFloat() * 0.2F + 0.9F));
++                    this.makeSound("random.bowhit", 1.0F, 1.2F / (this.getRandom().nextFloat() * 0.2F + 0.9F));
+                     this.inGround = true;
+                     this.shake = 7;
+                     this.setCritical(false);
+@@ -363,12 +358,16 @@ public class EntityArrow extends Entity implements IProjectile {
+             float f4 = 0.99F;
+ 
+             f1 = 0.05F;
+-            if (this.V()) {
+-                for (int l = 0; l < 4; ++l) {
+-                    f3 = 0.25F;
+-                    this.world.addParticle(EnumParticle.WATER_BUBBLE, this.locX - this.motX * (double) f3, this.locY - this.motY * (double) f3, this.locZ - this.motZ * (double) f3, this.motX, this.motY, this.motZ);
+-                }
++            if (LockedSpigotConfig.isArrowWaterParticles()) {
++                if (this.V()) {
++                    for (int l = 0; l < 4; ++l) {
++                        f3 = 0.25F;
++                        this.world.addParticle(EnumParticle.WATER_BUBBLE, this.locX - this.motX * (double) f3, this.locY - this.motY * (double) f3, this.locZ - this.motZ * (double) f3, this.motX, this.motY, this.motZ);
++                    }
+ 
++                    f4 = 0.6F;
++                }
++            } else {
+                 f4 = 0.6F;
+             }
+ 
+@@ -449,7 +448,7 @@ public class EntityArrow extends Entity implements IProjectile {
+             }
+ 
+             if (flag) {
+-                this.makeSound("getRandom().pop", 0.2F, ((this.getRandom().nextFloat() - this.getRandom().nextFloat()) * 0.7F + 1.0F) * 2.0F);
++                this.makeSound("random.pop", 0.2F, ((this.getRandom().nextFloat() - this.getRandom().nextFloat()) * 0.7F + 1.0F) * 2.0F);
+                 entityhuman.receive(this, 1);
+                 this.die();
+             }
+diff --git a/src/main/java/net/minecraft/server/EntityHuman.java b/src/main/java/net/minecraft/server/EntityHuman.java
+index c283f8006..b4bd0a4a9 100644
+--- a/src/main/java/net/minecraft/server/EntityHuman.java
++++ b/src/main/java/net/minecraft/server/EntityHuman.java
+@@ -3,23 +3,19 @@ package net.minecraft.server;
+ import com.google.common.base.Charsets;
+ import com.google.common.collect.Lists;
+ import com.mojang.authlib.GameProfile;
+-import java.util.Collection;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.UUID;
+-
+-// CraftBukkit start
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.craftbukkit.entity.CraftItem;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.entity.EntityCombustByEntityEvent;
+-import org.bukkit.event.player.PlayerBedEnterEvent;
+-import org.bukkit.event.player.PlayerBedLeaveEvent;
+-import org.bukkit.event.player.PlayerDropItemEvent;
+-import org.bukkit.event.player.PlayerItemConsumeEvent;
+-import org.bukkit.event.player.PlayerVelocityEvent;
++import org.bukkit.event.player.*;
+ import org.bukkit.util.Vector;
++
++import java.util.Collection;
++import java.util.List;
++import java.util.UUID;
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public abstract class EntityHuman extends EntityLiving {
+@@ -260,7 +256,7 @@ public abstract class EntityHuman extends EntityLiving {
+ 
+     protected void b(ItemStack itemstack, int i) {
+         if (itemstack.m() == EnumAnimation.DRINK) {
+-            this.makeSound("getRandom().drink", 0.5F, this.world.random.nextFloat() * 0.1F + 0.9F);
++            this.makeSound("random.drink", 0.5F, this.world.random.nextFloat() * 0.1F + 0.9F);
+         }
+ 
+         if (itemstack.m() == EnumAnimation.EAT) {
+@@ -282,7 +278,7 @@ public abstract class EntityHuman extends EntityLiving {
+                 }
+             }
+ 
+-            this.makeSound("getRandom().eat", 0.5F + 0.5F * (float) this.getRandom().nextInt(2), (this.getRandom().nextFloat() - this.getRandom().nextFloat()) * 0.2F + 1.0F);
++            this.makeSound("random.eat", 0.5F + 0.5F * (float) this.getRandom().nextInt(2), (this.getRandom().nextFloat() - this.getRandom().nextFloat()) * 0.2F + 1.0F);
+         }
+ 
+     }
+diff --git a/src/main/java/net/minecraft/server/EntityIronGolem.java b/src/main/java/net/minecraft/server/EntityIronGolem.java
+index 969fa89ec..a247f23fd 100644
+--- a/src/main/java/net/minecraft/server/EntityIronGolem.java
++++ b/src/main/java/net/minecraft/server/EntityIronGolem.java
+@@ -1,6 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.base.Predicate;
++import dev.lockedthread.LockedSpigotConfig;
+ 
+ public class EntityIronGolem extends EntityGolem {
+ 
+@@ -23,7 +24,7 @@ public class EntityIronGolem extends EntityGolem {
+         this.goalSelector.a(8, new PathfinderGoalRandomLookaround(this));
+         this.targetSelector.a(1, new PathfinderGoalDefendVillage(this));
+         this.targetSelector.a(2, new PathfinderGoalHurtByTarget(this, false));
+-        this.targetSelector.a(3, new EntityIronGolem.PathfinderGoalNearestGolemTarget(this, EntityInsentient.class, 10, false, true, IMonster.e));
++        this.targetSelector.a(3, new EntityIronGolem.PathfinderGoalNearestGolemTarget<>(this, EntityInsentient.class, 10, false, true, IMonster.e));
+     }
+ 
+     protected void h() {
+@@ -32,15 +33,17 @@ public class EntityIronGolem extends EntityGolem {
+     }
+ 
+     protected void E() {
+-        if (--this.b <= 0) {
+-            this.b = 70 + this.getRandom().nextInt(50);
+-            this.a = this.world.ae().getClosestVillage(new BlockPosition(this), 32);
+-            if (this.a == null) {
+-                this.cj();
+-            } else {
+-                BlockPosition blockposition = this.a.a();
+-
+-                this.a(blockposition, (int) ((float) this.a.b() * 0.6F));
++        if (LockedSpigotConfig.isIronGolemVillageCheck()) {
++            if (--this.b <= 0) {
++                this.b = 70 + this.getRandom().nextInt(50);
++                this.a = this.world.ae().getClosestVillage(new BlockPosition(this), 32);
++                if (this.a == null) {
++                    this.cj();
++                } else {
++                    BlockPosition blockposition = this.a.a();
++
++                    this.a(blockposition, (int) ((float) this.a.b() * 0.6F));
++                }
+             }
+         }
+ 
+@@ -49,8 +52,8 @@ public class EntityIronGolem extends EntityGolem {
+ 
+     protected void initAttributes() {
+         super.initAttributes();
+-        this.getAttributeInstance(GenericAttributes.maxHealth).setValue(100.0D);
+-        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.25D);
++        this.getAttributeInstance(GenericAttributes.maxHealth).setValue(LockedSpigotConfig.getIronGolemHealth());
++        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(LockedSpigotConfig.getIronGolemMovementSpeed());
+     }
+ 
+     protected int j(int i) {
+@@ -58,8 +61,10 @@ public class EntityIronGolem extends EntityGolem {
+     }
+ 
+     protected void s(Entity entity) {
+-        if (entity instanceof IMonster && !(entity instanceof EntityCreeper) && this.bc().nextInt(20) == 0) {
+-            this.setGoalTarget((EntityLiving) entity, org.bukkit.event.entity.EntityTargetLivingEntityEvent.TargetReason.COLLISION, true); // CraftBukkit - set reason
++        if (LockedSpigotConfig.isIronGolemCreeperCheck()) {
++            if (entity instanceof IMonster && !(entity instanceof EntityCreeper) && this.bc().nextInt(20) == 0) {
++                this.setGoalTarget((EntityLiving) entity, org.bukkit.event.entity.EntityTargetLivingEntityEvent.TargetReason.COLLISION, true); // CraftBukkit - set reason
++            }
+         }
+ 
+         super.s(entity);
+@@ -75,22 +80,24 @@ public class EntityIronGolem extends EntityGolem {
+             --this.bm;
+         }
+ 
+-        if (this.motX * this.motX + this.motZ * this.motZ > 2.500000277905201E-7D && this.getRandom().nextInt(5) == 0) {
+-            int i = MathHelper.floor(this.locX);
+-            int j = MathHelper.floor(this.locY - 0.20000000298023224D);
+-            int k = MathHelper.floor(this.locZ);
+-            IBlockData iblockdata = this.world.getType(new BlockPosition(i, j, k));
+-            Block block = iblockdata.getBlock();
++        if (LockedSpigotConfig.isIronGolemBlockCrackEffect()) {
++            if (this.motX * this.motX + this.motZ * this.motZ > 2.500000277905201E-7D && this.getRandom().nextInt(5) == 0) {
++                int i = MathHelper.floor(this.locX);
++                int j = MathHelper.floor(this.locY - 0.20000000298023224D);
++                int k = MathHelper.floor(this.locZ);
++                IBlockData iblockdata = this.world.getType(new BlockPosition(i, j, k));
++                Block block = iblockdata.getBlock();
+ 
+-            if (block.getMaterial() != Material.AIR) {
+-                this.world.addParticle(EnumParticle.BLOCK_CRACK, this.locX + ((double) this.getRandom().nextFloat() - 0.5D) * (double) this.width, this.getBoundingBox().b + 0.1D, this.locZ + ((double) this.getRandom().nextFloat() - 0.5D) * (double) this.width, 4.0D * ((double) this.getRandom().nextFloat() - 0.5D), 0.5D, ((double) this.getRandom().nextFloat() - 0.5D) * 4.0D, Block.getCombinedId(iblockdata));
++                if (block.getMaterial() != Material.AIR) {
++                    this.world.addParticle(EnumParticle.BLOCK_CRACK, this.locX + ((double) this.getRandom().nextFloat() - 0.5D) * (double) this.width, this.getBoundingBox().b + 0.1D, this.locZ + ((double) this.getRandom().nextFloat() - 0.5D) * (double) this.width, 4.0D * ((double) this.getRandom().nextFloat() - 0.5D), 0.5D, ((double) this.getRandom().nextFloat() - 0.5D) * 4.0D, Block.getCombinedId(iblockdata));
++                }
+             }
+         }
+ 
+     }
+ 
+     public boolean a(Class<? extends EntityLiving> oclass) {
+-        return this.isPlayerCreated() && EntityHuman.class.isAssignableFrom(oclass) ? false : (oclass == EntityCreeper.class ? false : super.a(oclass));
++        return (!this.isPlayerCreated() || !EntityHuman.class.isAssignableFrom(oclass)) && (oclass != EntityCreeper.class && super.a(oclass));
+     }
+ 
+     public void b(NBTTagCompound nbttagcompound) {
+@@ -143,8 +150,10 @@ public class EntityIronGolem extends EntityGolem {
+ 
+         int k;
+ 
+-        for (k = 0; k < j; ++k) {
+-            this.a(Item.getItemOf(Blocks.RED_FLOWER), 1, (float) BlockFlowers.EnumFlowerVarient.POPPY.b());
++        if (LockedSpigotConfig.isIronGolemDropPoppies()) {
++            for (k = 0; k < j; k++) {
++                this.a(Item.getItemOf(Blocks.RED_FLOWER), 1, (float) BlockFlowers.EnumFlowerVarient.POPPY.b());
++            }
+         }
+ 
+         k = 3 + this.getRandom().nextInt(3);
+@@ -166,15 +175,14 @@ public class EntityIronGolem extends EntityGolem {
+     public void setPlayerCreated(boolean flag) {
+         byte b0 = this.datawatcher.getByte(16);
+ 
+-        if (flag) {
+-            this.datawatcher.watch(16, (byte) (b0 | 1));
+-        } else {
+-            this.datawatcher.watch(16, (byte) (b0 & -2));
+-        }
++        this.datawatcher.watch(16, flag ? (byte) (b0 | 1) : (byte) (b0 & -2));
+ 
+     }
+ 
+     public void die(DamageSource damagesource) {
++        if (damagesource == DamageSource.FALL && LockedSpigotConfig.isIronGolemCancelFallDamage()) {
++            return;
++        }
+         if (!this.isPlayerCreated() && this.killer != null && this.a != null) {
+             this.a.a(this.killer.getName(), -5);
+         }
+@@ -186,42 +194,33 @@ public class EntityIronGolem extends EntityGolem {
+ 
+         public PathfinderGoalNearestGolemTarget(final EntityCreature entitycreature, Class<T> oclass, int i, boolean flag, boolean flag1, final Predicate<? super T> predicate) {
+             super(entitycreature, oclass, i, flag, flag1, predicate);
+-            this.c = new Predicate() {
+-                public boolean a(T t0) {
+-                    if (predicate != null && !predicate.apply(t0)) {
+-                        return false;
+-                    } else if (t0 instanceof EntityCreeper) {
+-                        return false;
+-                    } else {
+-                        if (t0 instanceof EntityHuman) {
+-                            double d0 = PathfinderGoalNearestGolemTarget.this.f();
+-
+-                            if (t0.isSneaking()) {
+-                                d0 *= 0.800000011920929D;
+-                            }
+-
+-                            if (t0.isInvisible()) {
+-                                float f = ((EntityHuman) t0).bY();
++            this.c = (Predicate<T>) t0 -> {
++                if (predicate != null && !predicate.apply(t0) || t0 instanceof EntityCreeper) {
++                    return false;
++                }
++                if (t0 instanceof EntityHuman) {
++                    double d0 = PathfinderGoalNearestGolemTarget.this.f();
+ 
+-                                if (f < 0.1F) {
+-                                    f = 0.1F;
+-                                }
++                    if (t0.isSneaking()) {
++                        d0 *= 0.800000011920929D;
++                    }
+ 
+-                                d0 *= (double) (0.7F * f);
+-                            }
++                    if (t0.isInvisible()) {
++                        float f = ((EntityHuman) t0).bY();
+ 
+-                            if ((double) t0.g(entitycreature) > d0) {
+-                                return false;
+-                            }
++                        if (f < 0.1F) {
++                            f = 0.1F;
+                         }
+ 
+-                        return PathfinderGoalNearestGolemTarget.this.a(t0, false);
++                        d0 *= (double) (0.7F * f);
+                     }
+-                }
+ 
+-                public boolean apply(Object object) {
+-                    return this.a((T) object); // CraftBukkit - fix decompiler error
++                    if ((double) t0.g(entitycreature) > d0) {
++                        return false;
++                    }
+                 }
++
++                return PathfinderGoalNearestGolemTarget.this.a(t0, false);
+             };
+         }
+     }
+-- 
+2.21.0.windows.1
+

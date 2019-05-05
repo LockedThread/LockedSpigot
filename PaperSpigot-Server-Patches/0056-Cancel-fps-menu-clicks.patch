@@ -1,0 +1,29 @@
+From 047dac7f57daf9034d982cc0de686d7af18027dc Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 17:51:40 -0400
+Subject: [PATCH] Cancel fps menu clicks
+
+
+diff --git a/src/main/java/dev/lockedthread/commands/CommandFPS.java b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+index 9d6aff612..60c0dfed3 100644
+--- a/src/main/java/dev/lockedthread/commands/CommandFPS.java
++++ b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+@@ -48,6 +48,7 @@ public class CommandFPS extends Command {
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+                     player.setCanSeeFallingBlocks(false);
++                    event.setCancelled(true);
+                     setupFallingBlock(player);
+                 }) : MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuFallingBlockMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuFallingBlockName())
+@@ -57,6 +58,7 @@ public class CommandFPS extends Command {
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+                     player.setCanSeeFallingBlocks(true);
++                    event.setCancelled(true);
+                     setupFallingBlock(player);
+                 });
+     }
+-- 
+2.21.0.windows.1
+

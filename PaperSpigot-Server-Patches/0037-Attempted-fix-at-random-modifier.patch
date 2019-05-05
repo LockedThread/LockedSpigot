@@ -1,0 +1,44 @@
+From 9da0aba5b13423239daddf46cd80c8435e1c46d8 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 17:00:36 -0400
+Subject: [PATCH] Attempted fix at random modifier
+
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 7c22139cb..d94972686 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -106,6 +106,7 @@ public abstract class Entity implements ICommandListener {
+     private double ar;
+     private double as;
+     public boolean ad;
++    private static Random random;
+ 
+     // PaperSpigot start - EAR: Fix bug with teleporting entities
+     public boolean isAddedToChunk() {
+@@ -2333,6 +2334,8 @@ public abstract class Entity implements ICommandListener {
+     }
+ 
+     public Random getRandom() {
+-        return world.random;
++        if (this.world.random != null) return world.random;
++        else if (random != null) return random;
++        else return random = new Random();
+     }
+ }
+diff --git a/src/main/java/net/minecraft/server/NameReferencingFileConverter.java b/src/main/java/net/minecraft/server/NameReferencingFileConverter.java
+index 2b864f789..84d7b4427 100644
+--- a/src/main/java/net/minecraft/server/NameReferencingFileConverter.java
++++ b/src/main/java/net/minecraft/server/NameReferencingFileConverter.java
+@@ -55,8 +55,6 @@ public class NameReferencingFileConverter {
+         if (minecraftserver.getOnlineMode() || org.spigotmc.SpigotConfig.bungee) { // Spigot: bungee = online mode, for now.
+             minecraftserver.getGameProfileRepository().findProfilesByNames(astring, Agent.MINECRAFT, profilelookupcallback);
+         } else {
+-            int i = astring.length;
+-
+             for (String s : astring) {
+                 UUID uuid = EntityHuman.a(new GameProfile(null, s));
+                 GameProfile gameprofile = new GameProfile(uuid, s);
+-- 
+2.21.0.windows.1
+

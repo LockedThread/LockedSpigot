@@ -1,0 +1,1386 @@
+From 481a4071d01a5a6df05ee11706f34d695ab7b75d Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 17:16:30 -0400
+Subject: [PATCH] Added /fps, /test, optimized hoppers a little, and
+ implemented a Menu System.
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index fd7a450e3..410ed967c 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -1,12 +1,18 @@
+ package dev.lockedthread;
+ 
+ import com.google.common.base.Throwables;
++import dev.lockedthread.commands.CommandFPS;
++import dev.lockedthread.commands.CommandTest;
++import net.minecraft.server.MinecraftServer;
++import org.apache.commons.lang3.tuple.Pair;
+ import org.bukkit.Bukkit;
++import org.bukkit.Material;
+ import org.bukkit.configuration.InvalidConfigurationException;
+ import org.bukkit.configuration.file.YamlConfiguration;
+ 
+ import java.io.File;
+ import java.io.IOException;
++import java.util.Arrays;
+ import java.util.List;
+ import java.util.logging.Level;
+ 
+@@ -40,6 +46,23 @@ public class LockedSpigotConfig {
+     private static boolean blazeDropsDefinite;
+     private static int blazeDropsDefiniteAmount;
+ 
++    private static String commandFpsPermission;
++    private static List<String> commandFpsAliases;
++
++    private static String fpsMenuTitle;
++    private static int fpsMenuSize;
++    private static boolean fpsMenuFill;
++    private static int fpsMenuTNTSlot;
++    private static String fpsMenuTNTName;
++    private static List<String> fpsMenuTNTLore;
++    private static Material fpsMenuTNTMaterial;
++    private static int fpsMenuFallingBlockSlot;
++    private static String fpsMenuFallingBlockName;
++    private static List<String> fpsMenuFallingBlockLore;
++    private static Material fpsMenuFallingBlockMaterial;
++
++    private static boolean hopperEfficientSearch;
++
+     private static void load() {
+         ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
+         ironGolemDropPoppies = getBoolean("irongolem.drop-poppies", false);
+@@ -62,11 +85,34 @@ public class LockedSpigotConfig {
+         blazeHealth = getDouble("blaze.health", 10.0);
+         blazeMovementSpeed = getDouble("blaze.movement-speed", 0.23000000417232513);
+         blazeParticlesSmoke = getBoolean("blaze.particles.smoke", false);
++
++        commandFpsPermission = getString("command.fps.permission", "lockedspigot.fps");
++        commandFpsAliases = (List<String>) getList("command.fps.aliases", Arrays.asList("framespersecond", "nolag"));
++
++        fpsMenuTitle = getString("fps-menu.title", "&c{player}'s FPS Settings");
++        fpsMenuSize = getInt("fps-menu.size", 5);
++        fpsMenuFill = getBoolean("fps-menu.fill.enabled", true);
++
++        fpsMenuTNTSlot = getInt("fps-menu.tnt.slot", 1);
++        fpsMenuTNTName = getString("fps-menu.tnt.name", "&c&lTNT &f&lVisibility");
++        fpsMenuTNTLore = getList("fps-menu.tnt.lore", Arrays.asList("", "&eClick to {mode} &etnt visibility", ""));
++        fpsMenuTNTMaterial = getMaterial("fps-menu.tnt.material", Material.TNT);
++
++        fpsMenuFallingBlockSlot = getInt("fps-menu.fallingblock.slot", 3);
++        fpsMenuFallingBlockName = getString("fps-menu.fallingblock.name", "&e&lFallingBlock &f&lVisibility");
++        fpsMenuFallingBlockLore = getList("fps-menu.fallingblock.lore", Arrays.asList("", "&eClick to {mode} &efalling block visibility", ""));
++        fpsMenuFallingBlockMaterial = getMaterial("fps-menu.fallingblock.material", Material.TNT);
++
++        hopperEfficientSearch = getBoolean("hopper.efficient-search", true);
++
+         try {
+             config.save(CONFIG_FILE);
+         } catch (IOException e) {
+             e.printStackTrace();
+         }
++
++        MinecraftServer.getServer().server.getCommandMap().register("test", "lockedspigot", new CommandTest());
++        MinecraftServer.getServer().server.getCommandMap().register("fps", "lockedspigot", new CommandFPS(getCommandFpsAliases()));
+     }
+ 
+     public static boolean isIronGolemCancelFallDamage() {
+@@ -141,6 +187,57 @@ public class LockedSpigotConfig {
+         return blazeParticlesSmoke;
+     }
+ 
++    public static String getCommandFpsPermission() {
++        return commandFpsPermission;
++    }
++
++    public static List<String> getCommandFpsAliases() {
++        return commandFpsAliases;
++    }
++
++    public static String getFpsMenuTitle() {
++        return fpsMenuTitle;
++    }
++
++    public static int getFpsMenuSize() {
++        return fpsMenuSize;
++    }
++
++    public static boolean isFpsMenuFill() {
++        return fpsMenuFill;
++    }
++
++    public static int getFpsMenuTNTSlot() {
++        return fpsMenuTNTSlot;
++    }
++
++    public static int getFpsMenuFallingBlockSlot() {
++        return fpsMenuFallingBlockSlot;
++    }
++
++    public static List<String> getFpsMenuFallingBlockLore() {
++        return fpsMenuFallingBlockLore;
++    }
++
++    public static String getFpsMenuFallingBlockName() {
++        return fpsMenuFallingBlockName;
++    }
++
++    public static List<String> getFpsMenuTNTLore() {
++        return fpsMenuTNTLore;
++    }
++
++    public static String getFpsMenuTNTName() {
++        return fpsMenuTNTName;
++    }
++
++    public static Material getFpsMenuFallingBlockMaterial() {
++        return fpsMenuFallingBlockMaterial;
++    }
++
++    public static Material getFpsMenuTNTMaterial() {
++        return fpsMenuTNTMaterial;
++    }
+ 
+     public static void init(File configFile) {
+         CONFIG_FILE = configFile;
+@@ -190,4 +287,23 @@ public class LockedSpigotConfig {
+         config.addDefault(path, def);
+         return config.getString(path, config.getString(path));
+     }
++
++    private static <L, R> Pair<L, R> getPair(String path, Pair<L, R> def) {
++        config.addDefault(path, def.getLeft() + ":" + def.getRight());
++        return getPairFromString(config.getString(path, config.getString(def.getLeft() + ":" + def.getRight())));
++    }
++
++    private static <L, R> Pair<L, R> getPairFromString(String s) {
++        String[] split = s.split(":");
++        return Pair.of((L) split[0], (R) split[1]);
++    }
++
++    private static Material getMaterial(String path, Material def) {
++        config.addDefault(path, def.name());
++        return Material.valueOf(config.getString(path, config.getString(path)));
++    }
++
++    public static boolean isHopperEfficientSearch() {
++        return hopperEfficientSearch;
++    }
+ }
+diff --git a/src/main/java/dev/lockedthread/commands/CommandFPS.java b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+new file mode 100644
+index 000000000..92aaab2b7
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+@@ -0,0 +1,85 @@
++package dev.lockedthread.commands;
++
++import dev.lockedthread.LockedSpigotConfig;
++import dev.lockedthread.items.ItemStackBuilder;
++import dev.lockedthread.menu.MenuFPS;
++import dev.lockedthread.menu.MenuItem;
++import org.bukkit.ChatColor;
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandSender;
++import org.bukkit.enchantments.Enchantment;
++import org.bukkit.entity.Player;
++import org.bukkit.inventory.ItemFlag;
++
++import java.util.List;
++import java.util.stream.Collectors;
++
++public class CommandFPS extends Command {
++
++    public CommandFPS(List<String> aliases) {
++        super("fps", "Allows players to ", "/fps", aliases);
++    }
++
++    @Override
++    public boolean execute(CommandSender sender, String commandLabel, String[] args) {
++        if (sender instanceof Player) {
++            if (sender.hasPermission(LockedSpigotConfig.getCommandFpsPermission())) {
++                Player player = (Player) sender;
++                MenuFPS menuFPS = new MenuFPS(LockedSpigotConfig.getFpsMenuTitle(), LockedSpigotConfig.getFpsMenuSize());
++                menuFPS.setItem(LockedSpigotConfig.getFpsMenuFallingBlockSlot(), setupFallingBlock(player));
++                menuFPS.setItem(LockedSpigotConfig.getFpsMenuTNTSlot(), setupTNT(player));
++                player.openInventory(menuFPS.getInventory());
++            } else {
++                sender.sendMessage(ChatColor.RED + "Unable to execute /" + commandLabel);
++            }
++        } else {
++            sender.sendMessage(ChatColor.RED + "Unable to execute command as console! Execute as a player.");
++        }
++        return false;
++    }
++
++
++    private MenuItem setupFallingBlock(Player player) {
++        return player.canSeeFallingBlocks() ? MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuFallingBlockMaterial())
++                .setDisplayName(LockedSpigotConfig.getFpsMenuFallingBlockName())
++                .setLore(LockedSpigotConfig.getFpsMenuFallingBlockLore().stream().map(s -> s.replace("{mode}", "&c&lDISABLE")).collect(Collectors.toList()))
++                .addEnchant(Enchantment.DURABILITY, 1)
++                .addItemFlags(ItemFlag.HIDE_ENCHANTS)
++                .build())
++                .setInventoryClickEventConsumer(event -> {
++                    player.setCanSeeFallingBlocks(false);
++                    setupFallingBlock(player);
++                }) : MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuFallingBlockMaterial())
++                .setDisplayName(LockedSpigotConfig.getFpsMenuFallingBlockName())
++                .setLore(LockedSpigotConfig.getFpsMenuFallingBlockLore().stream().map(s -> s.replace("{mode}", "&a&lENABLE")).collect(Collectors.toList()))
++                .addEnchant(Enchantment.DURABILITY, 1)
++                .addItemFlags(ItemFlag.HIDE_ENCHANTS)
++                .build())
++                .setInventoryClickEventConsumer(event -> {
++                    player.setCanSeeFallingBlocks(true);
++                    setupFallingBlock(player);
++                });
++    }
++
++    private MenuItem setupTNT(Player player) {
++        return player.canSeeTNT() ? MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuTNTMaterial())
++                .setDisplayName(LockedSpigotConfig.getFpsMenuTNTName())
++                .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&c&lDISABLE")).collect(Collectors.toList()))
++                .addEnchant(Enchantment.DURABILITY, 1)
++                .addItemFlags(ItemFlag.HIDE_ENCHANTS)
++                .build())
++                .setInventoryClickEventConsumer(event -> {
++                    player.setCanSeeTNT(false);
++                    setupTNT(player);
++                }) : MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuTNTMaterial())
++                .setDisplayName(LockedSpigotConfig.getFpsMenuTNTName())
++                .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&a&lENABLE")).collect(Collectors.toList()))
++                .addEnchant(Enchantment.DURABILITY, 1)
++                .addItemFlags(ItemFlag.HIDE_ENCHANTS)
++                .build())
++                .setInventoryClickEventConsumer(event -> {
++                    player.setCanSeeTNT(true);
++                    setupTNT(player);
++                });
++    }
++}
+diff --git a/src/main/java/dev/lockedthread/commands/CommandTest.java b/src/main/java/dev/lockedthread/commands/CommandTest.java
+new file mode 100644
+index 000000000..9fa9071fb
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/commands/CommandTest.java
+@@ -0,0 +1,45 @@
++package dev.lockedthread.commands;
++
++import com.google.common.base.Joiner;
++import org.bukkit.ChatColor;
++import org.bukkit.command.Command;
++import org.bukkit.command.CommandSender;
++import org.bukkit.entity.EntityType;
++import org.bukkit.entity.Player;
++
++import java.util.Collections;
++
++public class CommandTest extends Command {
++
++    public CommandTest() {
++        super("test", "Allows developers and beta testers to test features", "/test {test-type}", Collections.emptyList());
++    }
++
++    @Override
++    public boolean execute(CommandSender sender, String commandLabel, String[] args) {
++        if (sender.isOp()) {
++            if (args.length == 0) {
++                sender.sendMessage(ChatColor.YELLOW + "/test {test-type}");
++                sender.sendMessage(ChatColor.YELLOW + "TestTypes: entity-spawn");
++            } else if (args.length == 1) {
++                switch (args[0].toLowerCase()) {
++                    case "entity-spawn":
++                        if (sender instanceof Player) {
++                            for (EntityType entityType : EntityType.values()) {
++                                ((Player) sender).getWorld().spawnEntity(((Player) sender).getLocation(), entityType);
++                            }
++                            sender.sendMessage(ChatColor.GREEN + "Spawned Entities: " + Joiner.on(", ").skipNulls().join(EntityType.values()));
++                            sender.sendMessage(ChatColor.YELLOW + "Check console for errors. If you find errors send them to LockedThread.");
++                        } else {
++                            sender.sendMessage(ChatColor.RED + "You must be a player to do this!");
++                        }
++                        break;
++                    default:
++                        sender.sendMessage(ChatColor.RED + "Unable to find EntityType with name \"" + args[0] + "\"");
++                        break;
++                }
++            }
++        }
++        return false;
++    }
++}
+diff --git a/src/main/java/dev/lockedthread/items/ItemStackBuilder.java b/src/main/java/dev/lockedthread/items/ItemStackBuilder.java
+new file mode 100644
+index 000000000..a37405cb9
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/items/ItemStackBuilder.java
+@@ -0,0 +1,182 @@
++package dev.lockedthread.items;
++
++
++import org.bukkit.ChatColor;
++import org.bukkit.Color;
++import org.bukkit.DyeColor;
++import org.bukkit.Material;
++import org.bukkit.configuration.ConfigurationSection;
++import org.bukkit.enchantments.Enchantment;
++import org.bukkit.inventory.ItemFlag;
++import org.bukkit.inventory.ItemStack;
++import org.bukkit.inventory.meta.ItemMeta;
++import org.bukkit.inventory.meta.LeatherArmorMeta;
++
++import java.util.Collection;
++import java.util.function.Consumer;
++import java.util.stream.Collectors;
++
++public class ItemStackBuilder {
++
++    private ItemStack itemStack;
++
++    private ItemStackBuilder() {
++        this.itemStack = new ItemStack(Material.WOOD, 1);
++    }
++
++    private ItemStackBuilder(Material material) {
++        this.itemStack = new ItemStack(material, 1);
++    }
++
++    private ItemStackBuilder(Material material, int amount) {
++        this.itemStack = new ItemStack(material, amount);
++    }
++
++    private ItemStackBuilder(Material material, DyeColor dyeColor) {
++        this.itemStack = new ItemStack(material, material == Material.WOOL ? dyeColor.getWoolData() : dyeColor.getDyeData());
++    }
++
++    private ItemStackBuilder(ItemStack itemStack) {
++        this.itemStack = itemStack;
++    }
++
++    public static ItemStackBuilder of(ItemStack itemStack) {
++        return new ItemStackBuilder(itemStack);
++    }
++
++    public static ItemStackBuilder of(ConfigurationSection section) {
++        ItemStackBuilder itemStackBuilder = section.isSet("material") ? ItemStackBuilder.of(Material.matchMaterial(section.getString("material"))) : new ItemStackBuilder();
++        if (section.isSet("amount")) {
++            if (section.isInt("amount")) {
++                itemStackBuilder.setAmount(section.getInt("amount"));
++            } else {
++                throw new RuntimeException(section.getCurrentPath() + ".amount can't be parsed as an integer");
++            }
++        }
++        if (section.isSet("data")) {
++            if (section.isString("data")) {
++                final DyeColor dyeColor = parseDyeColor(section.getString("data"));
++                if (dyeColor != null) {
++                    itemStackBuilder.setDyeColor(dyeColor);
++                } else {
++                    itemStackBuilder.setData(Short.parseShort(section.getString("data")));
++                }
++            } else {
++                itemStackBuilder.setData((short) section.getInt("data"));
++            }
++        }
++        if (section.isSet("color")) {
++            if (section.isColor("color")) {
++                itemStackBuilder.setColor(section.getColor("color"));
++            } else {
++                throw new RuntimeException(section.getCurrentPath() + ".color can't be parsed as a org.bukkit.Color");
++            }
++        }
++        if (section.isSet("name") && section.isString("name")) {
++            itemStackBuilder.setDisplayName(section.getString("name"));
++        }
++        if (section.isSet("lore") && section.isList("lore")) {
++            itemStackBuilder.setLore(section.getStringList("lore"));
++        }
++        if (section.isSet("itemflags") && section.isList("itemflags")) {
++            itemStackBuilder.addItemFlags(section.getStringList("itemflags").stream().map(ItemStackBuilder::parseItemFlag).toArray(ItemFlag[]::new));
++        }
++        if (section.isSet("enchants") && section.isList("enchants")) {
++            for (String enchants : section.getStringList("enchants")) {
++                String[] split = enchants.split(":");
++                itemStackBuilder.addEnchant(Enchantment.getByName(split[0]), Integer.parseInt(split[1]));
++            }
++        }
++        if (section.isSet("unbreakable") && section.isBoolean("unbreakable")) {
++            itemStackBuilder.setUnbreakable(section.getBoolean("unbreakable"));
++        }
++        return itemStackBuilder;
++    }
++
++    public static ItemStackBuilder of(Material material) {
++        return new ItemStackBuilder(material);
++    }
++
++    private static DyeColor parseDyeColor(String s) {
++        try {
++            return DyeColor.valueOf(s.toUpperCase());
++        } catch (IllegalArgumentException e) {
++            throw new RuntimeException("Unable to parse " + s + " as a Bukkit DyeColor", e);
++        }
++    }
++
++    private static ItemFlag parseItemFlag(String s) {
++        try {
++            return ItemFlag.valueOf(s.toUpperCase());
++        } catch (IllegalArgumentException e) {
++            throw new RuntimeException("Unable to parse " + s + " as a Bukkit DyeColor", e);
++        }
++    }
++
++    public ItemStackBuilder setUnbreakable(boolean b) {
++        itemStack.getItemMeta().spigot().setUnbreakable(b);
++        return this;
++    }
++
++    public ItemStackBuilder setAmount(int amount) {
++        itemStack.setAmount(amount);
++        return this;
++    }
++
++    public ItemStackBuilder addEnchant(Enchantment enchantment, int level) {
++        consumeItemMeta(itemMeta -> itemMeta.addEnchant(enchantment, level, true));
++        return this;
++    }
++
++    public ItemStackBuilder consumeItemStack(Consumer<ItemStack> itemStackConsumer) {
++        itemStackConsumer.accept(itemStack);
++        return this;
++    }
++
++    public ItemStackBuilder consumeItemMeta(Consumer<ItemMeta> itemMetaConsumer) {
++        ItemMeta itemMeta = itemStack.getItemMeta();
++        if (itemMeta != null) {
++            itemMetaConsumer.accept(itemMeta);
++            itemStack.setItemMeta(itemMeta);
++        }
++        return this;
++    }
++
++    public ItemStackBuilder setColor(Color color) {
++        return consumeItemMeta(itemMeta -> ((LeatherArmorMeta) itemStack.getItemMeta()).setColor(color));
++    }
++
++    public ItemStackBuilder setData(short data) {
++        itemStack.setDurability(data);
++        return this;
++    }
++
++    public ItemStackBuilder setMaterial(Material material) {
++        itemStack.setType(material);
++        return this;
++    }
++
++    public ItemStackBuilder setDyeColor(DyeColor dyeColor) {
++        itemStack.setDurability((itemStack.getType() == Material.WOOL || itemStack.getType() == Material.STAINED_GLASS_PANE || itemStack.getType() == Material.STAINED_GLASS) ? dyeColor.getWoolData() : dyeColor.getDyeData());
++        return this;
++    }
++
++    public ItemStackBuilder setDisplayName(String displayName) {
++        consumeItemMeta(itemMeta -> itemMeta.setDisplayName(ChatColor.translateAlternateColorCodes('&', displayName)));
++        return this;
++    }
++
++    public ItemStackBuilder setLore(Collection<String> strings) {
++        consumeItemMeta(itemMeta -> itemMeta.setLore(strings.stream().map(s -> ChatColor.translateAlternateColorCodes('&', s)).collect(Collectors.toList())));
++        return this;
++    }
++
++    public ItemStackBuilder addItemFlags(ItemFlag... itemFlags) {
++        consumeItemMeta(itemMeta -> itemMeta.addItemFlags(itemFlags));
++        return this;
++    }
++
++    public ItemStack build() {
++        return itemStack;
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index ac82840dd..87a94591c 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -1157,7 +1157,7 @@ public abstract class EntityLiving extends Entity {
+     }
+ 
+     private int n() {
+-        return this.hasEffect(MobEffectList.FASTER_DIG) ? 6 - (1 + this.getEffect(MobEffectList.FASTER_DIG).getAmplifier()) * 1 : (this.hasEffect(MobEffectList.SLOWER_DIG) ? 6 + (1 + this.getEffect(MobEffectList.SLOWER_DIG).getAmplifier()) * 2 : 6);
++        return this.hasEffect(MobEffectList.FASTER_DIG) ? 6 - (1 + this.getEffect(MobEffectList.FASTER_DIG).getAmplifier()) : (this.hasEffect(MobEffectList.SLOWER_DIG) ? 6 + (1 + this.getEffect(MobEffectList.SLOWER_DIG).getAmplifier()) * 2 : 6);
+     }
+ 
+     public void bw() {
+diff --git a/src/main/java/net/techcable/tacospigot/HopperHelper.java b/src/main/java/net/techcable/tacospigot/HopperHelper.java
+index 630a81bea..178525492 100644
+--- a/src/main/java/net/techcable/tacospigot/HopperHelper.java
++++ b/src/main/java/net/techcable/tacospigot/HopperHelper.java
+@@ -1,15 +1,6 @@
+ package net.techcable.tacospigot;
+ 
+-import net.minecraft.server.Block;
+-import net.minecraft.server.BlockChest;
+-import net.minecraft.server.BlockPosition;
+-import net.minecraft.server.Blocks;
+-import net.minecraft.server.IHopper;
+-import net.minecraft.server.IInventory;
+-import net.minecraft.server.TileEntity;
+-import net.minecraft.server.TileEntityHopper;
+-import net.minecraft.server.World;
+-
++import net.minecraft.server.*;
+ import org.bukkit.event.inventory.InventoryMoveItemEvent;
+ 
+ public class HopperHelper {
+@@ -17,10 +8,7 @@ public class HopperHelper {
+     public static TileEntityHopper getHopper(World world, BlockPosition pos) {
+         if (world.getType(pos).getBlock() != Blocks.HOPPER) return null;
+         TileEntity tileEntity = world.getTileEntity(pos);
+-        if (tileEntity instanceof TileEntityHopper) {
+-            return (TileEntityHopper) tileEntity;
+-        }
+-        return null;
++        return tileEntity instanceof TileEntityHopper ? (TileEntityHopper) tileEntity : null;
+     }
+ 
+     public static IInventory getInventory(World world, BlockPosition position) {
+diff --git a/src/main/java/net/techcable/tacospigot/HopperPusher.java b/src/main/java/net/techcable/tacospigot/HopperPusher.java
+index 21d5a11c4..99d8aaee1 100644
+--- a/src/main/java/net/techcable/tacospigot/HopperPusher.java
++++ b/src/main/java/net/techcable/tacospigot/HopperPusher.java
+@@ -1,34 +1,41 @@
+ package net.techcable.tacospigot;
+ 
+-import net.minecraft.server.AxisAlignedBB;
+-import net.minecraft.server.BlockPosition;
+-import net.minecraft.server.Entity;
+-import net.minecraft.server.IHopper;
+-import net.minecraft.server.TileEntityHopper;
+-import net.minecraft.server.World;
++import dev.lockedthread.LockedSpigotConfig;
++import net.minecraft.server.*;
+ 
+ public interface HopperPusher {
+ 
+     public default TileEntityHopper findHopper() {
+         BlockPosition pos = new BlockPosition(getX(), getY(), getZ());
+-        int startX = pos.getX() - 1;
+-        int endX = pos.getX() + 1;
+-        int startY = Math.max(0, pos.getY() - 1);
+-        int endY = Math.min(255, pos.getY() + 1);
+-        int startZ = pos.getZ() - 1;
+-        int endZ = pos.getZ() + 1;
+-        for (int x = startX; x <= endX; x++) {
+-            for (int y = startY; y <= endY; y++) {
+-                for (int z = startZ; z <= endZ; z++) {
+-                    BlockPosition adjacentPos = new BlockPosition(x, y, z);
+-                    TileEntityHopper hopper = HopperHelper.getHopper(getWorld(), adjacentPos);
+-                    if (hopper == null) continue; // Avoid playing with the bounding boxes, if at all possible
+-                    /**
+-                     * We add one to getY(), just like {@link TileEntityHopper#b(IHopper)}
+-                     */
+-                    AxisAlignedBB hopperBoundingBox = hopper.getHopperLookupBoundingBox();
+-                    if (hopperBoundingBox.b(this.getBoundingBox())) { // AxisAlignedBB.b(AxisAlignedBB) -> isIntersect()
+-                        return hopper;
++        if (LockedSpigotConfig.isHopperEfficientSearch()) {
++            int y = pos.getY();
++            BlockPosition position;
++            while (y > pos.getY() - 2) {
++                position = new BlockPosition(pos.getX(), y, pos.getZ());
++                TileEntityHopper hopper = HopperHelper.getHopper(this.getWorld(), position);
++                if (hopper != null && this.getY() - y < 2.0) return hopper;
++                y--;
++            }
++        } else {
++            int startX = pos.getX() - 1;
++            int endX = pos.getX() + 1;
++            int startY = Math.max(0, pos.getY() - 1);
++            int endY = Math.min(255, pos.getY() + 1);
++            int startZ = pos.getZ() - 1;
++            int endZ = pos.getZ() + 1;
++            for (int x = startX; x <= endX; x++) {
++                for (int y = startY; y <= endY; y++) {
++                    for (int z = startZ; z <= endZ; z++) {
++                        BlockPosition adjacentPos = new BlockPosition(x, y, z);
++                        TileEntityHopper hopper = HopperHelper.getHopper(getWorld(), adjacentPos);
++                        if (hopper == null) continue; // Avoid playing with the bounding boxes, if at all possible
++                        /**
++                         * We add one to getY(), just like {@link TileEntityHopper#b(IHopper)}
++                         */
++                        AxisAlignedBB hopperBoundingBox = hopper.getHopperLookupBoundingBox();
++                        if (hopperBoundingBox.b(this.getBoundingBox())) { // AxisAlignedBB.b(AxisAlignedBB) -> isIntersect()
++                            return hopper;
++                        }
+                     }
+                 }
+             }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 68ab91fc6..b1a0cfdad 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -4,48 +4,24 @@ import com.google.common.base.Preconditions;
+ import com.google.common.collect.ImmutableSet;
+ import com.mojang.authlib.GameProfile;
+ import io.netty.buffer.Unpooled;
+-
+-import java.io.ByteArrayOutputStream;
+-import java.io.IOException;
+-import java.lang.Override;
+-import java.net.InetSocketAddress;
+-import java.net.SocketAddress;
+-import java.nio.charset.StandardCharsets;
+-import java.util.ArrayList;
+-import java.util.Collection;
+-import java.util.HashSet;
+-import java.util.LinkedHashMap;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Set;
+-import java.util.UUID;
+-import java.util.logging.Level;
+-import java.util.logging.Logger;
+ import net.md_5.bungee.api.chat.BaseComponent;
+-
+ import net.minecraft.server.*;
+ import net.minecraft.server.PacketPlayOutTitle.EnumTitleAction;
+-
+-import org.apache.commons.lang.Validate;
+ import org.apache.commons.lang.NotImplementedException;
+-import org.bukkit.*;
++import org.apache.commons.lang.Validate;
+ import org.bukkit.Achievement;
+-import org.bukkit.Statistic;
+ import org.bukkit.Material;
+-import org.bukkit.Statistic.Type;
++import org.bukkit.Statistic;
++import org.bukkit.*;
+ import org.bukkit.World;
++import org.bukkit.Statistic.Type;
+ import org.bukkit.configuration.serialization.DelegateDeserialization;
+ import org.bukkit.conversations.Conversation;
+ import org.bukkit.conversations.ConversationAbandonedEvent;
+ import org.bukkit.conversations.ManuallyAbandonedConversationCanceller;
++import org.bukkit.craftbukkit.*;
+ import org.bukkit.craftbukkit.block.CraftSign;
+ import org.bukkit.craftbukkit.conversations.ConversationTracker;
+-import org.bukkit.craftbukkit.CraftEffect;
+-import org.bukkit.craftbukkit.CraftOfflinePlayer;
+-import org.bukkit.craftbukkit.CraftServer;
+-import org.bukkit.craftbukkit.CraftSound;
+-import org.bukkit.craftbukkit.CraftStatistic;
+-import org.bukkit.craftbukkit.CraftWorld;
+ import org.bukkit.craftbukkit.map.CraftMapView;
+ import org.bukkit.craftbukkit.map.RenderData;
+ import org.bukkit.craftbukkit.scoreboard.CraftScoreboard;
+@@ -64,8 +40,20 @@ import org.bukkit.metadata.MetadataValue;
+ import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.messaging.StandardMessenger;
+ import org.bukkit.scoreboard.Scoreboard;
+-// PaperSpigot start
+ import org.github.paperspigot.Title;
++
++import java.io.ByteArrayOutputStream;
++import java.io.IOException;
++import java.net.InetSocketAddress;
++import java.net.SocketAddress;
++import java.nio.charset.StandardCharsets;
++import java.util.*;
++import java.util.logging.Level;
++import java.util.logging.Logger;
++
++// PaperSpigot start
++
++// PaperSpigot start
+ // PaperSpigot end
+ 
+ @DelegateDeserialization(CraftOfflinePlayer.class)
+@@ -80,6 +68,136 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     private double health = 20;
+     private boolean scaledHealth = false;
+     private double healthScale = 20;
++    // Spigot start
++    private final Player.Spigot spigot = new Player.Spigot() {
++
++        @Override
++        public InetSocketAddress getRawAddress() {
++            return (InetSocketAddress) getHandle().playerConnection.networkManager.getRawAddress();
++        }
++
++        @Override
++        public boolean getCollidesWithEntities() {
++            return getHandle().collidesWithEntities;
++        }
++
++        @Override
++        public void setCollidesWithEntities(boolean collides) {
++            getHandle().collidesWithEntities = collides;
++            getHandle().k = collides; // First boolean of Entity
++        }
++
++        @Override
++        public void respawn() {
++            if (getHealth() <= 0 && isOnline()) {
++                server.getServer().getPlayerList().moveToWorld(getHandle(), 0, false);
++            }
++        }
++
++        @Override
++        public void playEffect(Location location, Effect effect, int id, int data, float offsetX, float offsetY, float offsetZ, float speed, int particleCount, int radius) {
++            Validate.notNull(location, "Location cannot be null");
++            Validate.notNull(effect, "Effect cannot be null");
++            Validate.notNull(location.getWorld(), "World cannot be null");
++            Packet packet;
++            if (effect.getType() != Effect.Type.PARTICLE) {
++                int packetData = effect.getId();
++                packet = new PacketPlayOutWorldEvent(packetData, new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ()), id, false);
++            } else {
++                net.minecraft.server.EnumParticle particle = null;
++                int[] extra = null;
++                for (net.minecraft.server.EnumParticle p : net.minecraft.server.EnumParticle.values()) {
++                    if (effect.getName().startsWith(p.b().replace("_", ""))) {
++                        particle = p;
++                        if (effect.getData() != null) {
++                            if (effect.getData().equals(org.bukkit.Material.class)) {
++                                extra = new int[]{id};
++                            } else {
++                                extra = new int[]{(data << 12) | (id & 0xFFF)};
++                            }
++                        }
++                        break;
++                    }
++                }
++                if (extra == null) {
++                    extra = new int[0];
++                }
++                packet = new PacketPlayOutWorldParticles(particle, true, (float) location.getX(), (float) location.getY(), (float) location.getZ(), offsetX, offsetY, offsetZ, speed, particleCount, extra);
++            }
++            int distance;
++            radius *= radius;
++            if (getHandle().playerConnection == null) {
++                return;
++            }
++            if (!location.getWorld().equals(getWorld())) {
++                return;
++            }
++
++            distance = (int) getLocation().distanceSquared(location);
++            if (distance <= radius) {
++                getHandle().playerConnection.sendPacket(packet);
++            }
++        }
++
++        @Override
++        public String getLocale() {
++            return getHandle().locale;
++        }
++
++        @Override
++        public Set<Player> getHiddenPlayers() {
++            Set<Player> ret = new HashSet<>();
++            for (UUID u : hiddenPlayers) {
++                ret.add(getServer().getPlayer(u));
++            }
++
++            return java.util.Collections.unmodifiableSet(ret);
++        }
++
++        @Override
++        public void sendMessage(BaseComponent component) {
++            sendMessage(new BaseComponent[]{component});
++        }
++
++        @Override
++        public void sendMessage(BaseComponent... components) {
++            if (getHandle().playerConnection == null) return;
++
++            PacketPlayOutChat packet = new PacketPlayOutChat();
++            packet.components = components;
++            getHandle().playerConnection.sendPacket(packet);
++        }
++
++        // PaperSpigot start - Implement affects spawning API
++        @Override
++        public boolean getAffectsSpawning() {
++            return getHandle().affectsSpawning;
++        }
++
++        @Override
++        public void setAffectsSpawning(boolean affects) {
++            getHandle().affectsSpawning = affects;
++        }
++        // PaperSpigot end
++
++        // PaperSpigot start - Player view distance API
++        @Override
++        public int getViewDistance() {
++            return getHandle().viewDistance;
++        }
++
++        @Override
++        public void setViewDistance(int viewDistance) {
++            ((WorldServer) getHandle().world).getPlayerChunkMap().updateViewDistance(getHandle(), viewDistance);
++        }
++        // PaperSpigot end
++
++        @Override
++        public int getPing() {
++            return getHandle().ping;
++        }
++    };
++    private boolean canSeeTNT = true;
+ 
+     public CraftPlayer(CraftServer server, EntityPlayer entity) {
+         super(server, entity);
+@@ -87,6 +205,24 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         firstPlayed = System.currentTimeMillis();
+     }
+ 
++    private boolean canSeeFallingBlocks = true;
++
++    @Override
++    public boolean canSeeTNT() {
++        return this.canSeeTNT;
++    }
++
++    @Override
++    public void setCanSeeTNT(boolean canSeeTNT) {
++        this.canSeeTNT = canSeeTNT;
++    }
++
++    @Override
++    public boolean canSeeFallingBlocks() {
++        return this.canSeeFallingBlocks;
++    }
++
++
+     public GameProfile getProfile() {
+         return getHandle().getProfile();
+     }
+@@ -130,16 +266,8 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     }
+ 
+     @Override
+-    public double getEyeHeight(boolean ignoreSneaking) {
+-        if (ignoreSneaking) {
+-            return 1.62D;
+-        } else {
+-            if (isSneaking()) {
+-                return 1.54D;
+-            } else {
+-                return 1.62D;
+-            }
+-        }
++    public void setCanSeeFallingBlocks(boolean canSeeFallingBlocks) {
++        this.canSeeFallingBlocks = canSeeFallingBlocks;
+     }
+ 
+     @Override
+@@ -307,11 +435,14 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     }
+ 
+     @Override
+-    public void kickPlayer(String message) {
+-        org.spigotmc.AsyncCatcher.catchOp( "player kick"); // Spigot
+-        if (getHandle().playerConnection == null) return;
+-
+-        getHandle().playerConnection.disconnect(message == null ? "" : message);
++    public double getEyeHeight(boolean ignoreSneaking) {
++        if (ignoreSneaking) {
++            return 1.62D;
++        } else if (isSneaking()) {
++            return 1.54D;
++        } else {
++            return 1.62D;
++        }
+     }
+ 
+     @Override
+@@ -340,38 +471,19 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     }
+ 
+     @Override
+-    public void playNote(Location loc, byte instrument, byte note) {
++    public void kickPlayer(String message) {
++        org.spigotmc.AsyncCatcher.catchOp("player kick"); // Spigot
+         if (getHandle().playerConnection == null) return;
+ 
+-        String instrumentName = null;
+-        switch (instrument) {
+-        case 0:
+-            instrumentName = "harp";
+-            break;
+-        case 1:
+-            instrumentName = "bd";
+-            break;
+-        case 2:
+-            instrumentName = "snare";
+-            break;
+-        case 3:
+-            instrumentName = "hat";
+-            break;
+-        case 4:
+-            instrumentName = "bassattack";
+-            break;
+-        }
+-
+-        float f = (float) Math.pow(2.0D, (note - 12.0D) / 12.0D);
+-        getHandle().playerConnection.sendPacket(new PacketPlayOutNamedSoundEffect("note."+instrumentName, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(), 3.0f, f));
++        getHandle().playerConnection.disconnect(message == null ? "" : message);
+     }
+ 
+     @Override
+-    public void playNote(Location loc, Instrument instrument, Note note) {
++    public void playNote(Location loc, byte instrument, byte note) {
+         if (getHandle().playerConnection == null) return;
+ 
+         String instrumentName = null;
+-        switch (instrument.ordinal()) {
++        switch (instrument) {
+             case 0:
+                 instrumentName = "harp";
+                 break;
+@@ -388,8 +500,9 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+                 instrumentName = "bassattack";
+                 break;
+         }
+-        float f = (float) Math.pow(2.0D, (note.getId() - 12.0D) / 12.0D);
+-        getHandle().playerConnection.sendPacket(new PacketPlayOutNamedSoundEffect("note."+instrumentName, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(), 3.0f, f));
++
++        float f = (float) Math.pow(2.0D, (note - 12.0D) / 12.0D);
++        getHandle().playerConnection.sendPacket(new PacketPlayOutNamedSoundEffect("note." + instrumentName, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(), 3.0f, f));
+     }
+ 
+     @Override
+@@ -517,57 +630,29 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     }
+ 
+     @Override
+-    public boolean teleport(Location location, PlayerTeleportEvent.TeleportCause cause) {
+-        EntityPlayer entity = getHandle();
+-
+-        if (getHealth() == 0 || entity.dead) {
+-            return false;
+-        }
+-
+-        if (entity.playerConnection == null || entity.playerConnection.isDisconnected()) {
+-           return false;
+-        }
+-
+-        if (entity.passenger != null) {
+-            return false;
+-        }
+-
+-        // From = Players current Location
+-        Location from = this.getLocation();
+-        // To = Players new Location if Teleport is Successful
+-        Location to = location;
+-        // Create & Call the Teleport Event.
+-        PlayerTeleportEvent event = new PlayerTeleportEvent(this, from, to, cause);
+-        server.getPluginManager().callEvent(event);
+-
+-        // Return False to inform the Plugin that the Teleport was unsuccessful/cancelled.
+-        if (event.isCancelled()) {
+-            return false;
+-        }
+-
+-        // If this player is riding another entity, we must dismount before teleporting.
+-        entity.mount(null);
+-
+-        // Update the From Location
+-        from = event.getFrom();
+-        // Grab the new To Location dependent on whether the event was cancelled.
+-        to = event.getTo();
+-        // Grab the To and From World Handles.
+-        WorldServer fromWorld = ((CraftWorld) from.getWorld()).getHandle();
+-        WorldServer toWorld = ((CraftWorld) to.getWorld()).getHandle();
+-
+-        // Close any foreign inventory
+-        if (getHandle().activeContainer != getHandle().defaultContainer) {
+-            getHandle().closeInventory();
+-        }
++    public void playNote(Location loc, Instrument instrument, Note note) {
++        if (getHandle().playerConnection == null) return;
+ 
+-        // Check if the fromWorld and toWorld are the same.
+-        if (fromWorld == toWorld) {
+-            entity.playerConnection.teleport(to);
+-        } else {
+-            server.getHandle().moveToWorld(entity, toWorld.dimension, true, to, true);
++        String instrumentName = null;
++        switch (instrument.ordinal()) {
++            case 0:
++                instrumentName = "harp";
++                break;
++            case 1:
++                instrumentName = "bd";
++                break;
++            case 2:
++                instrumentName = "snare";
++                break;
++            case 3:
++                instrumentName = "hat";
++                break;
++            case 4:
++                instrumentName = "bassattack";
++                break;
+         }
+-        return true;
++        float f = (float) Math.pow(2.0D, (note.getId() - 12.0D) / 12.0D);
++        getHandle().playerConnection.sendPacket(new PacketPlayOutNamedSoundEffect("note." + instrumentName, loc.getBlockX(), loc.getBlockY(), loc.getBlockZ(), 3.0f, f));
+     }
+ 
+     @Override
+@@ -838,25 +923,57 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     }
+ 
+     @Override
+-    public void setGameMode(GameMode mode) {
+-        if (getHandle().playerConnection == null) return;
++    public boolean teleport(Location location, PlayerTeleportEvent.TeleportCause cause) {
++        EntityPlayer entity = getHandle();
+ 
+-        if (mode == null) {
+-            throw new IllegalArgumentException("Mode cannot be null");
++        if (getHealth() == 0 || entity.dead) {
++            return false;
+         }
+ 
+-        if (mode != getGameMode()) {
+-            PlayerGameModeChangeEvent event = new PlayerGameModeChangeEvent(this, mode);
+-            server.getPluginManager().callEvent(event);
+-            if (event.isCancelled()) {
+-                return;
+-            }
+-            
+-            getHandle().setSpectatorTarget(getHandle());
+-            getHandle().playerInteractManager.setGameMode(WorldSettings.EnumGamemode.getById(mode.getValue()));
+-            getHandle().fallDistance = 0;
+-            getHandle().playerConnection.sendPacket(new PacketPlayOutGameStateChange(3, mode.getValue()));
++        if (entity.playerConnection == null || entity.playerConnection.isDisconnected()) {
++            return false;
++        }
++
++        if (entity.passenger != null) {
++            return false;
++        }
++
++        // From = Players current Location
++        Location from = this.getLocation();
++        // To = Players new Location if Teleport is Successful
++        Location to = location;
++        // Create & Call the Teleport Event.
++        PlayerTeleportEvent event = new PlayerTeleportEvent(this, from, to, cause);
++        server.getPluginManager().callEvent(event);
++
++        // Return False to inform the Plugin that the Teleport was unsuccessful/cancelled.
++        if (event.isCancelled()) {
++            return false;
++        }
++
++        // If this player is riding another entity, we must dismount before teleporting.
++        entity.mount(null);
++
++        // Update the From Location
++        from = event.getFrom();
++        // Grab the new To Location dependent on whether the event was cancelled.
++        to = event.getTo();
++        // Grab the To and From World Handles.
++        WorldServer fromWorld = ((CraftWorld) from.getWorld()).getHandle();
++        WorldServer toWorld = ((CraftWorld) to.getWorld()).getHandle();
++
++        // Close any foreign inventory
++        if (getHandle().activeContainer != getHandle().defaultContainer) {
++            getHandle().closeInventory();
+         }
++
++        // Check if the fromWorld and toWorld are the same.
++        if (fromWorld == toWorld) {
++            entity.playerConnection.teleport(to);
++        } else {
++            server.getHandle().moveToWorld(entity, toWorld.dimension, true, to, true);
++        }
++        return true;
+     }
+ 
+     @Override
+@@ -1154,10 +1271,25 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         getHandle().setResourcePack(url, "null");
+     }
+ 
+-    public void addChannel(String channel) {
+-       com.google.common.base.Preconditions.checkState( channels.size() < 128, "Too many channels registered" ); // Spigot
+-        if (channels.add(channel)) {
+-            server.getPluginManager().callEvent(new PlayerRegisterChannelEvent(this, channel));
++    @Override
++    public void setGameMode(GameMode mode) {
++        if (getHandle().playerConnection == null) return;
++
++        if (mode == null) {
++            throw new IllegalArgumentException("Mode cannot be null");
++        }
++
++        if (mode != getGameMode()) {
++            PlayerGameModeChangeEvent event = new PlayerGameModeChangeEvent(this, mode);
++            server.getPluginManager().callEvent(event);
++            if (event.isCancelled()) {
++                return;
++            }
++
++            getHandle().setSpectatorTarget(getHandle());
++            getHandle().playerInteractManager.setGameMode(WorldSettings.EnumGamemode.getById(mode.getValue()));
++            getHandle().fallDistance = 0;
++            getHandle().playerConnection.sendPacket(new PacketPlayOutGameStateChange(3, mode.getValue()));
+         }
+     }
+ 
+@@ -1272,21 +1404,20 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         }
+     }
+ 
+-    @Override
+-    public void setFlySpeed(float value) {
+-        validateSpeed(value);
+-        EntityPlayer player = getHandle();
+-        player.abilities.flySpeed = Math.max( value, 0.0001f ) / 2f; // Spigot
+-        player.updateAbilities();
+-
++    public void addChannel(String channel) {
++        com.google.common.base.Preconditions.checkState(channels.size() < 128, "Too many channels registered"); // Spigot
++        if (channels.add(channel)) {
++            server.getPluginManager().callEvent(new PlayerRegisterChannelEvent(this, channel));
++        }
+     }
+ 
+     @Override
+-    public void setWalkSpeed(float value) {
++    public void setFlySpeed(float value) {
+         validateSpeed(value);
+         EntityPlayer player = getHandle();
+-        player.abilities.walkSpeed = Math.max( value, 0.0001f ) / 2f; // Spigot
++        player.abilities.flySpeed = Math.max(value, 0.0001f) / 2f; // Spigot
+         player.updateAbilities();
++
+     }
+ 
+     @Override
+@@ -1395,26 +1526,12 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         getHandle().maxHealthCache = getMaxHealth();
+     }
+ 
+-    public void injectScaledMaxHealth(Collection collection, boolean force) {
+-        if (!scaledHealth && !force) {
+-            return;
+-        }
+-        for (Object genericInstance : collection) {
+-            IAttribute attribute = ((AttributeInstance) genericInstance).getAttribute();
+-            if (attribute.getName().equals("generic.maxHealth")) {
+-                collection.remove(genericInstance);
+-                break;
+-            }
+-        }
+-        // Spigot start
+-        double healthMod = scaledHealth ? healthScale : getMaxHealth();
+-        if ( healthMod >= Float.MAX_VALUE || healthMod <= 0 )
+-        {
+-            healthMod = 20; // Reset health
+-            getServer().getLogger().warning( getName() + " tried to crash the server with a large health attribute" );
+-        }
+-        collection.add(new AttributeModifiable(getHandle().getAttributeMap(), (new AttributeRanged(null, "generic.maxHealth", healthMod, 0.0D, Float.MAX_VALUE)).a("Max Health").a(true)));
+-        // Spigot end
++    @Override
++    public void setWalkSpeed(float value) {
++        validateSpeed(value);
++        EntityPlayer player = getHandle();
++        player.abilities.walkSpeed = Math.max(value, 0.0001f) / 2f; // Spigot
++        player.updateAbilities();
+     }
+ 
+     @Override
+@@ -1448,157 +1565,26 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         getHandle().playerConnection.sendPacket(packetReset);
+     }
+ 
+-    // Spigot start
+-    private final Player.Spigot spigot = new Player.Spigot()
+-    {
+-
+-        @Override
+-        public InetSocketAddress getRawAddress()
+-        {
+-            return (InetSocketAddress) getHandle().playerConnection.networkManager.getRawAddress();
+-        }
+-
+-        @Override
+-        public boolean getCollidesWithEntities()
+-        {
+-            return getHandle().collidesWithEntities;
+-        }
+-
+-        @Override
+-        public void setCollidesWithEntities(boolean collides)
+-        {
+-            getHandle().collidesWithEntities = collides;
+-            getHandle().k = collides; // First boolean of Entity
+-        }
+-
+-        @Override
+-        public void respawn()
+-        {
+-            if ( getHealth() <= 0 && isOnline() )
+-            {
+-                server.getServer().getPlayerList().moveToWorld( getHandle(), 0, false );
+-            }
+-        }
+-
+-        @Override
+-        public void playEffect( Location location, Effect effect, int id, int data, float offsetX, float offsetY, float offsetZ, float speed, int particleCount, int radius )
+-        {
+-            Validate.notNull( location, "Location cannot be null" );
+-            Validate.notNull( effect, "Effect cannot be null" );
+-            Validate.notNull( location.getWorld(), "World cannot be null" );
+-            Packet packet;
+-            if ( effect.getType() != Effect.Type.PARTICLE )
+-            {
+-                int packetData = effect.getId();
+-                packet = new PacketPlayOutWorldEvent( packetData, new BlockPosition(location.getBlockX(), location.getBlockY(), location.getBlockZ() ), id, false );
+-            } else
+-            {
+-                net.minecraft.server.EnumParticle particle = null;
+-                int[] extra = null;
+-                for ( net.minecraft.server.EnumParticle p : net.minecraft.server.EnumParticle.values() )
+-                {
+-                    if ( effect.getName().startsWith( p.b().replace("_", "") ) )
+-                    {
+-                        particle = p;
+-                        if ( effect.getData() != null ) 
+-                        {
+-                            if ( effect.getData().equals( org.bukkit.Material.class ) )
+-                            {
+-                                extra = new int[]{ id };
+-                            } else 
+-                            {
+-                                extra = new int[]{ (data << 12) | (id & 0xFFF) };
+-                            }
+-                        }
+-                        break;
+-                    }
+-                }
+-                if ( extra == null )
+-                {
+-                    extra = new int[0];
+-                }
+-                packet = new PacketPlayOutWorldParticles( particle, true, (float) location.getX(), (float) location.getY(), (float) location.getZ(), offsetX, offsetY, offsetZ, speed, particleCount, extra );
+-            }
+-            int distance;
+-            radius *= radius;
+-            if ( getHandle().playerConnection == null )
+-            {
+-                return;
+-            }
+-            if ( !location.getWorld().equals( getWorld() ) )
+-            {
+-                return;
+-            }
+-
+-            distance = (int) getLocation().distanceSquared( location );
+-            if ( distance <= radius )
+-            {
+-                getHandle().playerConnection.sendPacket( packet );
+-            }
+-        }
+-
+-        @Override
+-        public String getLocale()
+-        {
+-           return getHandle().locale;
++    public void injectScaledMaxHealth(Collection collection, boolean force) {
++        if (!scaledHealth && !force) {
++            return;
+         }
+-
+-        @Override
+-        public Set<Player> getHiddenPlayers()
+-        {
+-            Set<Player> ret = new HashSet<>();
+-            for ( UUID u : hiddenPlayers )
+-            {
+-                ret.add( getServer().getPlayer( u ) );
++        for (Object genericInstance : collection) {
++            IAttribute attribute = ((AttributeInstance) genericInstance).getAttribute();
++            if (attribute.getName().equals("generic.maxHealth")) {
++                collection.remove(genericInstance);
++                break;
+             }
+-
+-            return java.util.Collections.unmodifiableSet( ret );
+-        }
+-
+-        @Override
+-        public void sendMessage(BaseComponent component) {
+-          sendMessage( new BaseComponent[] { component } );
+-        }
+-
+-        @Override
+-        public void sendMessage(BaseComponent... components) {
+-           if ( getHandle().playerConnection == null ) return;
+-
+-            PacketPlayOutChat packet = new PacketPlayOutChat();
+-            packet.components = components;
+-            getHandle().playerConnection.sendPacket(packet);
+-        }
+-
+-        // PaperSpigot start - Implement affects spawning API
+-        @Override
+-        public boolean getAffectsSpawning() {
+-            return getHandle().affectsSpawning;
+         }
+-
+-        @Override
+-        public void setAffectsSpawning(boolean affects) {
+-            getHandle().affectsSpawning = affects;
+-        }
+-        // PaperSpigot end
+-
+-        // PaperSpigot start - Player view distance API
+-        @Override
+-        public int getViewDistance() {
+-            return getHandle().viewDistance;
+-        }
+-
+-        @Override
+-        public void setViewDistance(int viewDistance) {
+-            ((WorldServer) getHandle().world).getPlayerChunkMap().updateViewDistance(getHandle(), viewDistance);
+-        }
+-        // PaperSpigot end
+-
+-        @Override
+-        public int getPing()
+-        {
+-            return getHandle().ping;
++        // Spigot start
++        double healthMod = scaledHealth ? healthScale : getMaxHealth();
++        if (healthMod >= Float.MAX_VALUE || healthMod <= 0) {
++            healthMod = 20; // Reset health
++            getServer().getLogger().warning(getName() + " tried to crash the server with a large health attribute");
+         }
+-    };
++        collection.add(new AttributeModifiable(getHandle().getAttributeMap(), (new AttributeRanged(null, "generic.maxHealth", healthMod, 0.0D, Float.MAX_VALUE)).a("Max Health").a(true)));
++        // Spigot end
++    }
+ 
+     // TacoSpigot start
+     private org.bukkit.event.player.PlayerResourcePackStatusEvent.Status resourcePackStatus;
+@@ -1632,8 +1618,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     }
+     // TacoSpigot end
+ 
+-    public Player.Spigot spigot()
+-    {
++    public Player.Spigot spigot() {
+         return spigot;
+     }
+     // Spigot end
+-- 
+2.21.0.windows.1
+

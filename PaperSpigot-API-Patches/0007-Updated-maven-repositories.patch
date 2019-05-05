@@ -1,0 +1,22 @@
+From 4c887d30f4459854aa954d615b1a196e16ee9453 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Fri, 3 May 2019 23:48:51 -0400
+Subject: [PATCH] Updated maven repositories
+
+
+diff --git a/pom.xml b/pom.xml
+index b61d116d..dbc3161d 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -89,7 +89,7 @@
+         <dependency>
+             <groupId>org.yaml</groupId>
+             <artifactId>snakeyaml</artifactId>
+-            <version>1.15</version>
++            <version>1.24</version>
+             <scope>compile</scope>
+         </dependency>
+         <dependency>
+-- 
+2.21.0.windows.1
+

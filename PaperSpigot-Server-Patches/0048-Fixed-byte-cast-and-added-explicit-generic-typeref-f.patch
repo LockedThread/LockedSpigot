@@ -1,0 +1,65 @@
+From 9353471fa49aca62a3db613311e0bf3d5c880648 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 01:04:52 -0400
+Subject: [PATCH] Fixed byte cast and added explicit generic typeref for the
+ datawatcher dataValues
+
+
+diff --git a/src/main/java/net/minecraft/server/DataWatcher.java b/src/main/java/net/minecraft/server/DataWatcher.java
+index 12b5e9066..24152d219 100644
+--- a/src/main/java/net/minecraft/server/DataWatcher.java
++++ b/src/main/java/net/minecraft/server/DataWatcher.java
+@@ -1,20 +1,20 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
++import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
++import it.unimi.dsi.fastutil.objects.Object2IntMap;
++import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
++import org.apache.commons.lang3.ObjectUtils;
+ 
+ import java.io.IOException;
+ import java.util.ArrayList;
+-import java.util.Iterator;
+ import java.util.List;
+ import java.util.Map;
+ import java.util.concurrent.locks.ReadWriteLock;
+ import java.util.concurrent.locks.ReentrantReadWriteLock;
+-import org.apache.commons.lang3.ObjectUtils;
++
+ // TacoSpigot start
+-import it.unimi.dsi.fastutil.objects.Object2IntMap;
+-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+-import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+-import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+ // TacoSpigot end
+ 
+ public class DataWatcher {
+@@ -23,8 +23,8 @@ public class DataWatcher {
+     private boolean b = true;
+     // Spigot Start
+     // TacoSpigot start - use fastutil instead of trove
+-    private static final Object2IntMap<Class<?>> classToId = new Object2IntOpenHashMap(10, 0.5f);
+-    private final Int2ObjectMap dataValues = new Int2ObjectOpenHashMap(10, 0.5f);
++    private static final Object2IntMap<Class<?>> classToId = new Object2IntOpenHashMap<>(10, 0.5f);
++    private final Int2ObjectMap<WatchableObject> dataValues = new Int2ObjectOpenHashMap<>(10, 0.5f);
+     // These exist as an attempt at backwards compatability for (broken) NMS plugins
+     private static final Map<Class<?>, Integer> c = classToId;
+     private final Map<Integer, DataWatcher.WatchableObject> d = dataValues;
+diff --git a/src/main/java/net/minecraft/server/EntityWitch.java b/src/main/java/net/minecraft/server/EntityWitch.java
+index 49b3b14e2..a57b98ebe 100644
+--- a/src/main/java/net/minecraft/server/EntityWitch.java
++++ b/src/main/java/net/minecraft/server/EntityWitch.java
+@@ -25,7 +25,7 @@ public class EntityWitch extends EntityMonster implements IRangedEntity {
+     @Override
+     protected void h() {
+         super.h();
+-        this.getDataWatcher().a(21, 0);
++        this.getDataWatcher().a(21, (byte) 0);
+     }
+ 
+     @Override
+-- 
+2.21.0.windows.1
+

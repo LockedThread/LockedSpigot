@@ -1,0 +1,23 @@
+From 8d7047e3340ba48dcc8f947e063ee81004f5c7b9 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 18:04:31 -0400
+Subject: [PATCH] Fixed menu filling using the Inventory#setItem instead of
+ Menu#setItem
+
+
+diff --git a/src/main/java/dev/lockedthread/menu/MenuFPS.java b/src/main/java/dev/lockedthread/menu/MenuFPS.java
+index f1cbb939..15673ef5 100644
+--- a/src/main/java/dev/lockedthread/menu/MenuFPS.java
++++ b/src/main/java/dev/lockedthread/menu/MenuFPS.java
+@@ -26,7 +26,7 @@ public class MenuFPS extends Menu {
+                 .addItemFlags(ItemFlag.values())
+                 .build();
+         while (getInventory().firstEmpty() != -1) {
+-            getInventory().setItem(getInventory().firstEmpty(), itemStack);
++            setItem(getInventory().firstEmpty(), itemStack);
+         }
+     }
+ }
+-- 
+2.21.0.windows.1
+

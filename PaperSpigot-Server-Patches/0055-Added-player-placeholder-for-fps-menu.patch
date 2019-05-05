@@ -1,0 +1,22 @@
+From f99d62ef6530b462a290baf6e83c566a9e5aa35b Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 17:48:48 -0400
+Subject: [PATCH] Added player placeholder for fps menu
+
+
+diff --git a/src/main/java/dev/lockedthread/commands/CommandFPS.java b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+index 92aaab2b7..9d6aff612 100644
+--- a/src/main/java/dev/lockedthread/commands/CommandFPS.java
++++ b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+@@ -25,7 +25,7 @@ public class CommandFPS extends Command {
+         if (sender instanceof Player) {
+             if (sender.hasPermission(LockedSpigotConfig.getCommandFpsPermission())) {
+                 Player player = (Player) sender;
+-                MenuFPS menuFPS = new MenuFPS(LockedSpigotConfig.getFpsMenuTitle(), LockedSpigotConfig.getFpsMenuSize());
++                MenuFPS menuFPS = new MenuFPS(LockedSpigotConfig.getFpsMenuTitle().replace("{player}", player.getName()), LockedSpigotConfig.getFpsMenuSize());
+                 menuFPS.setItem(LockedSpigotConfig.getFpsMenuFallingBlockSlot(), setupFallingBlock(player));
+                 menuFPS.setItem(LockedSpigotConfig.getFpsMenuTNTSlot(), setupTNT(player));
+                 player.openInventory(menuFPS.getInventory());
+-- 
+2.21.0.windows.1
+

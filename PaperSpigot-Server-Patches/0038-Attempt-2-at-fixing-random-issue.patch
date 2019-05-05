@@ -1,0 +1,22 @@
+From 12da5c3868358fbde99b5276f27e95995ae7d9f4 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 17:13:30 -0400
+Subject: [PATCH] Attempt 2 at fixing random issue
+
+
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index d94972686..81e338b9e 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -2334,7 +2334,7 @@ public abstract class Entity implements ICommandListener {
+     }
+ 
+     public Random getRandom() {
+-        if (this.world.random != null) return world.random;
++        if (this.world != null && this.world.random != null) return world.random;
+         else if (random != null) return random;
+         else return random = new Random();
+     }
+-- 
+2.21.0.windows.1
+

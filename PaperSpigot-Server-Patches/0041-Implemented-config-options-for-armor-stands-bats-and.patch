@@ -1,0 +1,453 @@
+From bb413d336307ccf61684e7967a0e579084556aee Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 21:52:14 -0400
+Subject: [PATCH] Implemented config options for armor stands, bats, and
+ blazes.
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 2f2509de8..cc3c11299 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -28,9 +28,22 @@ public class LockedSpigotConfig {
+     private static boolean ironGolemCreeperCheck;
+     private static double ironGolemHealth;
+     private static double ironGolemMovementSpeed;
++
+     private static boolean arrowDropArrows;
+     private static boolean arrowWaterParticles;
+ 
++    private static boolean armorStandPlayerInteract;
++    private static boolean armorStandCollideCheck;
++
++    private static boolean batPlayerCheck;
++
++    private static double blazeMovementSpeed;
++    private static double blazeHealth;
++    private static boolean blazeParticlesSmoke;
++    private static boolean blazeDrown;
++    private static boolean blazeDropsDefinite;
++    private static int blazeDropsDefiniteAmount;
++
+     public static boolean isIronGolemCancelFallDamage() {
+         return ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
+     }
+@@ -67,6 +80,42 @@ public class LockedSpigotConfig {
+         return arrowWaterParticles = getBoolean("arrow.waterparticles", false);
+     }
+ 
++    public static boolean isArmorStandPlayerInteract() {
++        return armorStandPlayerInteract = getBoolean("armorstand.player-interact", false);
++    }
++
++    public static boolean isArmorStandCollideCheck() {
++        return armorStandCollideCheck = getBoolean("armorstand.checks.collide-check", false);
++    }
++
++    public static boolean isBatPlayerCheck() {
++        return batPlayerCheck = getBoolean("bat.checks.collide-check", false);
++    }
++
++    public static boolean isBlazeDropsDefinite() {
++        return blazeDropsDefinite = getBoolean("blaze.drops.definite", false);
++    }
++
++    public static int getBlazeDropsDefiniteAmount() {
++        return blazeDropsDefiniteAmount = getInt("blaze.drops.definite-amount", 2);
++    }
++
++    public static boolean isBlazeDrown() {
++        return blazeDrown = getBoolean("blaze.drown", true);
++    }
++
++    public static double getBlazeHealth() {
++        return blazeHealth = getDouble("blaze.health", 10.0);
++    }
++
++    public static double getBlazeMovementSpeed() {
++        return blazeMovementSpeed = getDouble("blaze.movement-speed", 0.23000000417232513);
++    }
++
++    public static boolean isBlazeParticlesSmoke() {
++        return blazeParticlesSmoke = getBoolean("blaze.particles.smoke", false);
++    }
++
+ 
+     public static void init(File configFile) {
+         CONFIG_FILE = configFile;
+diff --git a/src/main/java/net/minecraft/server/EntityArmorStand.java b/src/main/java/net/minecraft/server/EntityArmorStand.java
+index bdb9a2ad9..8818f765a 100644
+--- a/src/main/java/net/minecraft/server/EntityArmorStand.java
++++ b/src/main/java/net/minecraft/server/EntityArmorStand.java
+@@ -1,14 +1,18 @@
+ package net.minecraft.server;
+ 
+-import java.util.List;
+-
+-// CraftBukkit start
+-import org.bukkit.inventory.EquipmentSlot;
++import dev.lockedthread.LockedSpigotConfig;
+ import org.bukkit.craftbukkit.CraftEquipmentSlot;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.entity.ArmorStand;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.player.PlayerArmorStandManipulateEvent;
++import org.bukkit.inventory.EquipmentSlot;
++
++import java.util.List;
++
++// CraftBukkit start
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public class EntityArmorStand extends EntityLiving {
+@@ -242,135 +246,139 @@ public class EntityArmorStand extends EntityLiving {
+         return false;
+     }
+ 
+-    protected void s(Entity entity) {}
++    protected void s(Entity entity) {
++    }
+ 
+     protected void bL() {
+-        List list = this.world.getEntities(this, this.getBoundingBox());
+-
+-        if (list != null && !list.isEmpty()) {
+-            for (Object o : list) {
+-                Entity entity = (Entity) o;
++        if (LockedSpigotConfig.isArmorStandCollideCheck()) {
++            List<Entity> list = this.world.getEntities(this, this.getBoundingBox());
+ 
+-                if (entity instanceof EntityMinecartAbstract && ((EntityMinecartAbstract) entity).s() == EntityMinecartAbstract.EnumMinecartType.RIDEABLE && this.h(entity) <= 0.2D) {
+-                    entity.collide(this);
++            if (list != null && !list.isEmpty()) {
++                for (Entity entity : list) {
++                    if (entity instanceof EntityMinecartAbstract && ((EntityMinecartAbstract) entity).s() == EntityMinecartAbstract.EnumMinecartType.RIDEABLE && this.h(entity) <= 0.2D) {
++                        entity.collide(this);
++                    }
+                 }
+             }
+         }
+-
+     }
+ 
+     public boolean a(EntityHuman entityhuman, Vec3D vec3d) {
+-        if (this.s()) {
+-            return false;
+-        } else if (!this.world.isClientSide && !entityhuman.isSpectator()) {
+-            byte b0 = 0;
+-            ItemStack itemstack = entityhuman.bZ();
+-            boolean flag = itemstack != null;
+-
+-            if (flag && itemstack.getItem() instanceof ItemArmor) {
+-                ItemArmor itemarmor = (ItemArmor) itemstack.getItem();
+-
+-                if (itemarmor.b == 3) {
+-                    b0 = 1;
+-                } else if (itemarmor.b == 2) {
+-                    b0 = 2;
+-                } else if (itemarmor.b == 1) {
+-                    b0 = 3;
+-                } else if (itemarmor.b == 0) {
++        if (LockedSpigotConfig.isArmorStandPlayerInteract()) {
++            if (this.s()) {
++                return false;
++            } else if (!this.world.isClientSide && !entityhuman.isSpectator()) {
++                byte b0 = 0;
++                ItemStack itemstack = entityhuman.bZ();
++                boolean flag = itemstack != null;
++
++                if (flag && itemstack.getItem() instanceof ItemArmor) {
++                    ItemArmor itemarmor = (ItemArmor) itemstack.getItem();
++
++                    if (itemarmor.b == 3) {
++                        b0 = 1;
++                    } else if (itemarmor.b == 2) {
++                        b0 = 2;
++                    } else if (itemarmor.b == 1) {
++                        b0 = 3;
++                    } else if (itemarmor.b == 0) {
++                        b0 = 4;
++                    }
++                }
++
++                if (flag && (itemstack.getItem() == Items.SKULL || itemstack.getItem() == Item.getItemOf(Blocks.PUMPKIN))) {
+                     b0 = 4;
+                 }
+-            }
+ 
+-            if (flag && (itemstack.getItem() == Items.SKULL || itemstack.getItem() == Item.getItemOf(Blocks.PUMPKIN))) {
+-                b0 = 4;
+-            }
++                double d0 = 0.1D;
++                double d1 = 0.9D;
++                double d2 = 0.4D;
++                double d3 = 1.6D;
++                byte b1 = 0;
++                boolean flag1 = this.isSmall();
++                double d4 = flag1 ? vec3d.b * 2.0D : vec3d.b;
++
++                if (d4 >= 0.1D && d4 < 0.1D + (flag1 ? 0.8D : 0.45D) && this.items[1] != null) {
++                    b1 = 1;
++                } else if (d4 >= 0.9D + (flag1 ? 0.3D : 0.0D) && d4 < 0.9D + (flag1 ? 1.0D : 0.7D) && this.items[3] != null) {
++                    b1 = 3;
++                } else if (d4 >= 0.4D && d4 < 0.4D + (flag1 ? 1.0D : 0.8D) && this.items[2] != null) {
++                    b1 = 2;
++                } else if (d4 >= 1.6D && this.items[4] != null) {
++                    b1 = 4;
++                }
+ 
+-            double d0 = 0.1D;
+-            double d1 = 0.9D;
+-            double d2 = 0.4D;
+-            double d3 = 1.6D;
+-            byte b1 = 0;
+-            boolean flag1 = this.isSmall();
+-            double d4 = flag1 ? vec3d.b * 2.0D : vec3d.b;
+-
+-            if (d4 >= 0.1D && d4 < 0.1D + (flag1 ? 0.8D : 0.45D) && this.items[1] != null) {
+-                b1 = 1;
+-            } else if (d4 >= 0.9D + (flag1 ? 0.3D : 0.0D) && d4 < 0.9D + (flag1 ? 1.0D : 0.7D) && this.items[3] != null) {
+-                b1 = 3;
+-            } else if (d4 >= 0.4D && d4 < 0.4D + (flag1 ? 1.0D : 0.8D) && this.items[2] != null) {
+-                b1 = 2;
+-            } else if (d4 >= 1.6D && this.items[4] != null) {
+-                b1 = 4;
+-            }
++                boolean flag2 = this.items[b1] != null;
+ 
+-            boolean flag2 = this.items[b1] != null;
++                if ((this.bi & 1 << b1) != 0 || (this.bi & 1 << b0) != 0) {
++                    b1 = b0;
++                    if ((this.bi & 1 << b0) != 0) {
++                        if ((this.bi & 1) != 0) {
++                            return true;
++                        }
+ 
+-            if ((this.bi & 1 << b1) != 0 || (this.bi & 1 << b0) != 0) {
+-                b1 = b0;
+-                if ((this.bi & 1 << b0) != 0) {
+-                    if ((this.bi & 1) != 0) {
+-                        return true;
++                        b1 = 0;
+                     }
+-
+-                    b1 = 0;
+                 }
+-            }
+ 
+-            if (flag && b0 == 0 && !this.hasArms()) {
+-                return true;
+-            } else {
++                if (flag && b0 == 0 && !this.hasArms()) {
++                    return true;
++                }
+                 if (flag) {
+                     this.a(entityhuman, b0);
+                 } else if (flag2) {
+                     this.a(entityhuman, b1);
+                 }
+ 
++                return true;
++            } else {
+                 return true;
+             }
+-        } else {
+-            return true;
+         }
++        return true;
+     }
+ 
+     private void a(EntityHuman entityhuman, int i) {
+-        ItemStack itemstack = this.items[i];
++        if (LockedSpigotConfig.isArmorStandPlayerInteract()) {
++            ItemStack itemstack = this.items[i];
+ 
+-        if (itemstack == null || (this.bi & 1 << i + 8) == 0) {
+-            if (itemstack != null || (this.bi & 1 << i + 16) == 0) {
+-                int j = entityhuman.inventory.itemInHandIndex;
+-                ItemStack itemstack1 = entityhuman.inventory.getItem(j);
+-                ItemStack itemstack2;
++            if (itemstack == null || (this.bi & 1 << i + 8) == 0) {
++                if (itemstack != null || (this.bi & 1 << i + 16) == 0) {
++                    int j = entityhuman.inventory.itemInHandIndex;
++                    ItemStack itemstack1 = entityhuman.inventory.getItem(j);
++                    ItemStack itemstack2;
+ 
+-                // CraftBukkit start
+-                org.bukkit.inventory.ItemStack armorStandItem = CraftItemStack.asCraftMirror(itemstack);
+-                org.bukkit.inventory.ItemStack playerHeldItem = CraftItemStack.asCraftMirror(itemstack1);
++                    // CraftBukkit start
++                    org.bukkit.inventory.ItemStack armorStandItem = CraftItemStack.asCraftMirror(itemstack);
++                    org.bukkit.inventory.ItemStack playerHeldItem = CraftItemStack.asCraftMirror(itemstack1);
+ 
+-                Player player = (Player) entityhuman.getBukkitEntity();
+-                ArmorStand self = (ArmorStand) this.getBukkitEntity();
++                    Player player = (Player) entityhuman.getBukkitEntity();
++                    ArmorStand self = (ArmorStand) this.getBukkitEntity();
+ 
+-                EquipmentSlot slot = CraftEquipmentSlot.getSlot(i);
+-                PlayerArmorStandManipulateEvent armorStandManipulateEvent = new PlayerArmorStandManipulateEvent(player,self,playerHeldItem,armorStandItem,slot);
+-                this.world.getServer().getPluginManager().callEvent(armorStandManipulateEvent);
++                    EquipmentSlot slot = CraftEquipmentSlot.getSlot(i);
++                    PlayerArmorStandManipulateEvent armorStandManipulateEvent = new PlayerArmorStandManipulateEvent(player, self, playerHeldItem, armorStandItem, slot);
++                    this.world.getServer().getPluginManager().callEvent(armorStandManipulateEvent);
+ 
+-                if (armorStandManipulateEvent.isCancelled()) {
+-                    return;
+-                }
+-                // CraftBukkit end
+-
+-                if (entityhuman.abilities.canInstantlyBuild && (itemstack == null || itemstack.getItem() == Item.getItemOf(Blocks.AIR)) && itemstack1 != null) {
+-                    itemstack2 = itemstack1.cloneItemStack();
+-                    itemstack2.count = 1;
+-                    this.setEquipment(i, itemstack2);
+-                } else if (itemstack1 != null && itemstack1.count > 1) {
+-                    if (itemstack == null) {
++                    if (armorStandManipulateEvent.isCancelled()) {
++                        return;
++                    }
++                    // CraftBukkit end
++
++                    if (entityhuman.abilities.canInstantlyBuild && (itemstack == null || itemstack.getItem() == Item.getItemOf(Blocks.AIR)) && itemstack1 != null) {
+                         itemstack2 = itemstack1.cloneItemStack();
+                         itemstack2.count = 1;
+                         this.setEquipment(i, itemstack2);
+-                        --itemstack1.count;
++                    } else if (itemstack1 != null && itemstack1.count > 1) {
++                        if (itemstack == null) {
++                            itemstack2 = itemstack1.cloneItemStack();
++                            itemstack2.count = 1;
++                            this.setEquipment(i, itemstack2);
++                            --itemstack1.count;
++                        }
++                    } else {
++                        this.setEquipment(i, itemstack1);
++                        entityhuman.inventory.setItem(j, itemstack);
+                     }
+-                } else {
+-                    this.setEquipment(i, itemstack1);
+-                    entityhuman.inventory.setItem(j, itemstack);
+                 }
+             }
+         }
+diff --git a/src/main/java/net/minecraft/server/EntityBat.java b/src/main/java/net/minecraft/server/EntityBat.java
+index fbf5eb155..ec8c3a5c9 100644
+--- a/src/main/java/net/minecraft/server/EntityBat.java
++++ b/src/main/java/net/minecraft/server/EntityBat.java
+@@ -5,6 +5,8 @@
+ 
+ package net.minecraft.server;
+ 
++import dev.lockedthread.LockedSpigotConfig;
++
+ import java.util.Calendar;
+ 
+ public class EntityBat extends EntityAmbient {
+@@ -94,9 +96,11 @@ public class EntityBat extends EntityAmbient {
+                     this.aK = (float) this.getRandom().nextInt(360);
+                 }
+ 
+-                if (this.world.findNearbyPlayer(this, 4.0D) != null) {
+-                    this.setAsleep(false);
+-                    this.world.a(null, 1015, var1, 0);
++                if (LockedSpigotConfig.isBatPlayerCheck()) {
++                    if (this.world.findNearbyPlayer(this, 4.0D) != null) {
++                        this.setAsleep(false);
++                        this.world.a(null, 1015, var1, 0);
++                    }
+                 }
+             }
+         } else {
+@@ -122,7 +126,6 @@ public class EntityBat extends EntityAmbient {
+                 this.setAsleep(true);
+             }
+         }
+-
+     }
+ 
+     protected boolean s_() {
+diff --git a/src/main/java/net/minecraft/server/EntityBlaze.java b/src/main/java/net/minecraft/server/EntityBlaze.java
+index 4f3168058..0d6785779 100644
+--- a/src/main/java/net/minecraft/server/EntityBlaze.java
++++ b/src/main/java/net/minecraft/server/EntityBlaze.java
+@@ -5,6 +5,8 @@
+ 
+ package net.minecraft.server;
+ 
++import dev.lockedthread.LockedSpigotConfig;
++
+ public class EntityBlaze extends EntityMonster {
+     private float a = 0.5F;
+     private int b;
+@@ -19,19 +21,20 @@ public class EntityBlaze extends EntityMonster {
+         this.goalSelector.a(8, new PathfinderGoalLookAtPlayer(this, EntityHuman.class, 8.0F));
+         this.goalSelector.a(8, new PathfinderGoalRandomLookaround(this));
+         this.targetSelector.a(1, new PathfinderGoalHurtByTarget(this, true));
+-        this.targetSelector.a(2, new PathfinderGoalNearestAttackableTarget(this, EntityHuman.class, true));
++        this.targetSelector.a(2, new PathfinderGoalNearestAttackableTarget<>(this, EntityHuman.class, true));
+     }
+ 
+     protected void initAttributes() {
+         super.initAttributes();
++        this.getAttributeInstance(GenericAttributes.maxHealth).setValue(LockedSpigotConfig.getBlazeHealth());
+         this.getAttributeInstance(GenericAttributes.ATTACK_DAMAGE).setValue(6.0D);
+-        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(0.23000000417232513D);
++        this.getAttributeInstance(GenericAttributes.MOVEMENT_SPEED).setValue(LockedSpigotConfig.getBlazeMovementSpeed());
+         this.getAttributeInstance(GenericAttributes.FOLLOW_RANGE).setValue(48.0D);
+     }
+ 
+     protected void h() {
+         super.h();
+-        this.datawatcher.a(16, new Byte((byte) 0));
++        this.datawatcher.a(16, (byte) 0);
+     }
+ 
+     protected String z() {
+@@ -60,8 +63,10 @@ public class EntityBlaze extends EntityMonster {
+                 this.world.a(this.locX + 0.5D, this.locY + 0.5D, this.locZ + 0.5D, "fire.fire", 1.0F + this.getRandom().nextFloat(), this.getRandom().nextFloat() * 0.7F + 0.3F, false);
+             }
+ 
+-            for (int var1 = 0; var1 < 2; ++var1) {
+-                this.world.addParticle(EnumParticle.SMOKE_LARGE, this.locX + (this.getRandom().nextDouble() - 0.5D) * (double) this.width, this.locY + this.getRandom().nextDouble() * (double) this.length, this.locZ + (this.getRandom().nextDouble() - 0.5D) * (double) this.width, 0.0D, 0.0D, 0.0D);
++            if (LockedSpigotConfig.isBlazeParticlesSmoke()) {
++                for (int var1 = 0; var1 < 2; ++var1) {
++                    this.world.addParticle(EnumParticle.SMOKE_LARGE, this.locX + (this.getRandom().nextDouble() - 0.5D) * (double) this.width, this.locY + this.getRandom().nextDouble() * (double) this.length, this.locZ + (this.getRandom().nextDouble() - 0.5D) * (double) this.width, 0.0D, 0.0D, 0.0D);
++                }
+             }
+         }
+ 
+@@ -69,7 +74,7 @@ public class EntityBlaze extends EntityMonster {
+     }
+ 
+     protected void E() {
+-        if (this.U()) {
++        if (LockedSpigotConfig.isBlazeDrown() && this.U()) {
+             this.damageEntity(DamageSource.DROWN, 1.0F);
+         }
+ 
+@@ -101,13 +106,16 @@ public class EntityBlaze extends EntityMonster {
+ 
+     protected void dropDeathLoot(boolean var1, int var2) {
+         if (var1) {
+-            int var3 = this.getRandom().nextInt(2 + var2);
++            if (LockedSpigotConfig.isBlazeDropsDefinite()) {
++                this.a(Items.BLAZE_ROD, LockedSpigotConfig.getBlazeDropsDefiniteAmount());
++            } else {
++                int var3 = this.getRandom().nextInt(2 + var2);
+ 
+-            for (int var4 = 0; var4 < var3; ++var4) {
+-                this.a(Items.BLAZE_ROD, 1);
++                for (int var4 = 0; var4 < var3; ++var4) {
++                    this.a(Items.BLAZE_ROD, 1);
++                }
+             }
+         }
+-
+     }
+ 
+     public boolean n() {
+-- 
+2.21.0.windows.1
+

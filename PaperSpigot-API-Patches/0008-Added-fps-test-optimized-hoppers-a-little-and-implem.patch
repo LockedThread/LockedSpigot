@@ -1,0 +1,1268 @@
+From 71adaa824617f4f8eb9a5cb1bf66cd842d457b81 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 17:16:31 -0400
+Subject: [PATCH] Added /fps, /test, optimized hoppers a little, and
+ implemented a Menu System.
+
+
+diff --git a/pom.xml b/pom.xml
+index dbc3161d..45e79a92 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -113,6 +113,12 @@
+             <version>1.3</version>
+             <scope>test</scope>
+         </dependency>
++        <dependency>
++            <groupId>it.unimi.dsi</groupId>
++            <artifactId>fastutil</artifactId>
++            <version>8.2.2</version>
++            <scope>compile</scope>
++        </dependency>
+     </dependencies>
+ 
+     <build>
+diff --git a/src/main/java/dev/lockedthread/menu/Menu.java b/src/main/java/dev/lockedthread/menu/Menu.java
+new file mode 100644
+index 00000000..ef06c2c3
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/menu/Menu.java
+@@ -0,0 +1,83 @@
++package dev.lockedthread.menu;
++
++import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
++import org.bukkit.Bukkit;
++import org.bukkit.ChatColor;
++import org.bukkit.event.inventory.InventoryCloseEvent;
++import org.bukkit.event.inventory.InventoryOpenEvent;
++import org.bukkit.inventory.Inventory;
++import org.bukkit.inventory.InventoryHolder;
++import org.bukkit.inventory.ItemStack;
++
++import java.util.Optional;
++import java.util.function.Consumer;
++
++public abstract class Menu implements InventoryHolder {
++
++    private Consumer<InventoryOpenEvent> inventoryOpenEventConsumer;
++    private Consumer<InventoryCloseEvent> inventoryCloseEventConsumer;
++    private Inventory inventory;
++    private Int2ObjectOpenHashMap<MenuItem> menuItems;
++
++    public Menu(String name, int size) {
++        this.inventory = Bukkit.createInventory(this, size, ChatColor.translateAlternateColorCodes('&', name));
++        this.menuItems = new Int2ObjectOpenHashMap<>();
++    }
++
++    public abstract void initialize();
++
++    public Optional<MenuItem> getMenuItem(int slot) {
++        return Optional.ofNullable(menuItems.get(slot));
++    }
++
++    public void setItem(int slot, MenuItem menuItem) {
++        if (slot > inventory.getSize()) {
++            throw new RuntimeException("Unable to add a MenuItem to a Menu due to the menu's size. Increase your menu size or contact LockedThread.");
++        }
++        inventory.setItem(slot, menuItem.getItemStack());
++        menuItems.put(slot, menuItem);
++    }
++
++    public void setItem(int slot, ItemStack itemStack) {
++        setItem(slot, MenuItem.of(itemStack).setInventoryClickEventConsumer(event -> event.setCancelled(true)));
++    }
++
++    public Int2ObjectOpenHashMap<MenuItem> getMenuItems() {
++        return menuItems;
++    }
++
++    public void setInventory(String name, int size) {
++        this.inventory = Bukkit.createInventory(this, size, ChatColor.translateAlternateColorCodes('&', name));
++        this.menuItems.clear();
++    }
++
++    @Override
++    public Inventory getInventory() {
++        return inventory;
++    }
++
++    public void setInventory(Inventory inventory) {
++        this.inventory = inventory;
++    }
++
++    public Consumer<InventoryOpenEvent> getInventoryOpenEventConsumer() {
++        return inventoryOpenEventConsumer;
++    }
++
++    public void setInventoryOpenEventConsumer(Consumer<InventoryOpenEvent> inventoryOpenEventConsumer) {
++        this.inventoryOpenEventConsumer = inventoryOpenEventConsumer;
++    }
++
++    public Consumer<InventoryCloseEvent> getInventoryCloseEventConsumer() {
++        return inventoryCloseEventConsumer;
++    }
++
++    public void setInventoryCloseEventConsumer(Consumer<InventoryCloseEvent> inventoryCloseEventConsumer) {
++        this.inventoryCloseEventConsumer = inventoryCloseEventConsumer;
++    }
++
++    public void clear() {
++        inventory.clear();
++        menuItems.clear();
++    }
++}
+diff --git a/src/main/java/dev/lockedthread/menu/MenuFPS.java b/src/main/java/dev/lockedthread/menu/MenuFPS.java
+new file mode 100644
+index 00000000..e03df033
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/menu/MenuFPS.java
+@@ -0,0 +1,13 @@
++package dev.lockedthread.menu;
++
++public class MenuFPS extends Menu {
++
++    public MenuFPS(String title, int size) {
++        super(title, size);
++        initialize();
++    }
++
++    @Override
++    public void initialize() {
++    }
++}
+diff --git a/src/main/java/dev/lockedthread/menu/MenuItem.java b/src/main/java/dev/lockedthread/menu/MenuItem.java
+new file mode 100644
+index 00000000..482d709f
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/menu/MenuItem.java
+@@ -0,0 +1,38 @@
++package dev.lockedthread.menu;
++
++import org.bukkit.event.inventory.InventoryClickEvent;
++import org.bukkit.inventory.ItemStack;
++
++import java.util.function.Consumer;
++
++public class MenuItem {
++
++    private ItemStack itemStack;
++    private Consumer<InventoryClickEvent> inventoryClickEventConsumer;
++
++    private MenuItem(ItemStack itemStack) {
++        this.itemStack = itemStack;
++    }
++
++    public static MenuItem of(ItemStack itemStack) {
++        return new MenuItem(itemStack);
++    }
++
++    public ItemStack getItemStack() {
++        return itemStack;
++    }
++
++    public MenuItem setItemStack(ItemStack itemStack) {
++        this.itemStack = itemStack;
++        return this;
++    }
++
++    public Consumer<InventoryClickEvent> getInventoryClickEventConsumer() {
++        return inventoryClickEventConsumer;
++    }
++
++    public MenuItem setInventoryClickEventConsumer(Consumer<InventoryClickEvent> inventoryClickEventConsumer) {
++        this.inventoryClickEventConsumer = inventoryClickEventConsumer;
++        return this;
++    }
++}
+diff --git a/src/main/java/dev/lockedthread/menu/MenuListener.java b/src/main/java/dev/lockedthread/menu/MenuListener.java
+new file mode 100644
+index 00000000..18946635
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/menu/MenuListener.java
+@@ -0,0 +1,38 @@
++package dev.lockedthread.menu;
++
++import org.bukkit.event.inventory.InventoryClickEvent;
++import org.bukkit.event.inventory.InventoryCloseEvent;
++import org.bukkit.event.inventory.InventoryOpenEvent;
++
++import java.util.Optional;
++
++public class MenuListener {
++
++    public void onInventoryOpen(InventoryOpenEvent event) {
++        if (!event.isCancelled() && event.getInventory() != null) {
++            Menu menu = (Menu) event.getInventory().getHolder();
++            if (menu.getInventoryOpenEventConsumer() != null) {
++                menu.getInventoryOpenEventConsumer().accept(event);
++            }
++        }
++    }
++
++    public void onInventoryClose(InventoryCloseEvent event) {
++        if (event.getInventory() != null) {
++            Menu menu = (Menu) event.getInventory().getHolder();
++            if (menu.getInventoryCloseEventConsumer() != null) {
++                menu.getInventoryCloseEventConsumer().accept(event);
++            }
++        }
++    }
++
++    public void onInventoryClick(InventoryClickEvent event) {
++        if (!event.isCancelled() && event.getInventory() != null) {
++            Menu menu = (Menu) event.getClickedInventory().getHolder();
++            final Optional<MenuItem> menuItem = menu.getMenuItem(event.getRawSlot());
++            if (menuItem.isPresent() && menuItem.get().getInventoryClickEventConsumer() != null) {
++                menuItem.get().getInventoryClickEventConsumer().accept(event);
++            }
++        }
++    }
++}
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index 59fa188c..cc9512a3 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -1,26 +1,16 @@
+ package org.bukkit.entity;
+ 
+-import java.net.InetSocketAddress;
+-
+-import org.bukkit.Achievement;
+-import org.bukkit.ChatColor;
+-import org.bukkit.Effect;
+-import org.bukkit.GameMode;
+-import org.bukkit.Instrument;
+-import org.bukkit.Location;
+-import org.bukkit.Material;
+-import org.bukkit.Note;
+-import org.bukkit.OfflinePlayer;
+-import org.bukkit.Sound;
+-import org.bukkit.Statistic;
+-import org.bukkit.WeatherType;
++import org.bukkit.*;
+ import org.bukkit.command.CommandSender;
+ import org.bukkit.conversations.Conversable;
+ import org.bukkit.map.MapView;
+ import org.bukkit.plugin.messaging.PluginMessageRecipient;
+ import org.bukkit.scoreboard.Scoreboard;
+-// PaperSpigot start
+ import org.github.paperspigot.Title;
++
++import java.net.InetSocketAddress;
++
++// PaperSpigot start
+ // PaperSpigot end
+ 
+ /**
+@@ -28,6 +18,14 @@ import org.github.paperspigot.Title;
+  */
+ public interface Player extends HumanEntity, Conversable, CommandSender, OfflinePlayer, PluginMessageRecipient {
+ 
++    public boolean canSeeTNT();
++
++    public void setCanSeeTNT(boolean canSeeTNT);
++
++    public boolean canSeeFallingBlocks();
++
++    public void setCanSeeFallingBlocks(boolean canSeeSand);
++
+     /**
+      * Gets the "friendly" name to display of this player. This may include
+      * color.
+@@ -75,7 +73,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      *
+      * @param name new player list name
+      * @throws IllegalArgumentException if the name is already used by someone
+-     *     else
++     *                                  else
+      * @throws IllegalArgumentException if the length of the name is too long
+      */
+     public void setPlayerListName(String name);
+@@ -197,9 +195,9 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * at the particular location (as far as the client is concerned). This
+      * will not work without a note block. This will not work with cake.
+      *
+-     * @param loc The location of a note block.
++     * @param loc        The location of a note block.
+      * @param instrument The instrument ID.
+-     * @param note The note ID.
++     * @param note       The note ID.
+      * @deprecated Magic value
+      */
+     @Deprecated
+@@ -210,9 +208,9 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * at the particular location (as far as the client is concerned). This
+      * will not work without a note block. This will not work with cake.
+      *
+-     * @param loc The location of a note block
++     * @param loc        The location of a note block
+      * @param instrument The instrument
+-     * @param note The note
++     * @param note       The note
+      */
+     public void playNote(Location loc, Instrument instrument, Note note);
+ 
+@@ -223,9 +221,9 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * This function will fail silently if Location or Sound are null.
+      *
+      * @param location The location to play the sound
+-     * @param sound The sound to play
+-     * @param volume The volume of the sound
+-     * @param pitch The pitch of the sound
++     * @param sound    The sound to play
++     * @param volume   The volume of the sound
++     * @param pitch    The pitch of the sound
+      */
+     public void playSound(Location location, Sound sound, float volume, float pitch);
+ 
+@@ -237,18 +235,18 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * respective sound for the value passed.
+      *
+      * @param location the location to play the sound
+-     * @param sound the internal sound name to play
+-     * @param volume the volume of the sound
+-     * @param pitch the pitch of the sound
++     * @param sound    the internal sound name to play
++     * @param volume   the volume of the sound
++     * @param pitch    the pitch of the sound
+      */
+     public void playSound(Location location, String sound, float volume, float pitch);
+ 
+     /**
+      * Plays an effect to just this player.
+      *
+-     * @param loc the location to play the effect at
++     * @param loc    the location to play the effect at
+      * @param effect the {@link Effect}
+-     * @param data a data bit needed for some effects
++     * @param data   a data bit needed for some effects
+      * @deprecated Magic value
+      */
+     @Deprecated
+@@ -257,10 +255,10 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+     /**
+      * Plays an effect to just this player.
+      *
+-     * @param <T> the data based based on the type of the effect
+-     * @param loc the location to play the effect at
++     * @param <T>    the data based based on the type of the effect
++     * @param loc    the location to play the effect at
+      * @param effect the {@link Effect}
+-     * @param data a data bit needed for some effects
++     * @param data   a data bit needed for some effects
+      */
+     public <T> void playEffect(Location loc, Effect effect, T data);
+ 
+@@ -268,9 +266,9 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Send a block change. This fakes a block change packet for a user at a
+      * certain location. This will not actually change the world in any way.
+      *
+-     * @param loc The location of the changed block
++     * @param loc      The location of the changed block
+      * @param material The new block
+-     * @param data The block data
++     * @param data     The block data
+      * @deprecated Magic value
+      */
+     @Deprecated
+@@ -285,10 +283,10 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * the data buffer must be 2.5*sx*sy*sz and formatted in accordance with
+      * the Packet51 format.
+      *
+-     * @param loc The location of the cuboid
+-     * @param sx The x size of the cuboid
+-     * @param sy The y size of the cuboid
+-     * @param sz The z size of the cuboid
++     * @param loc  The location of the cuboid
++     * @param sx   The x size of the cuboid
++     * @param sy   The y size of the cuboid
++     * @param sz   The z size of the cuboid
+      * @param data The data to be sent
+      * @return true if the chunk change packet was sent
+      * @deprecated Magic value
+@@ -300,9 +298,9 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Send a block change. This fakes a block change packet for a user at a
+      * certain location. This will not actually change the world in any way.
+      *
+-     * @param loc The location of the changed block
++     * @param loc      The location of the changed block
+      * @param material The new block ID
+-     * @param data The block data
++     * @param data     The block data
+      * @deprecated Magic value
+      */
+     @Deprecated
+@@ -318,7 +316,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * If the client does not have a sign at the given location it will
+      * display an error message to the user.
+      *
+-     * @param loc the location of the sign
++     * @param loc   the location of the sign
+      * @param lines the new text on the sign or null to clear it
+      * @throws IllegalArgumentException if location is null
+      * @throws IllegalArgumentException if lines is non-null and has a length less than 4
+@@ -334,6 +332,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+     public void sendMap(MapView map);
+ 
+     // Paper start
++
+     /**
+      * Sends the component to the player
+      *
+@@ -379,6 +378,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+ 
+     /**
+      * Update the subtitle of titles displayed to the player
++     *
+      * @deprecated Use {@link #updateTitle(Title)}
+      */
+     @Deprecated
+@@ -386,6 +386,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+ 
+     /**
+      * Update the subtitle of titles displayed to the player
++     *
+      * @deprecated Use {@link #updateTitle(Title)}
+      */
+     @Deprecated
+@@ -393,6 +394,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+ 
+     /**
+      * Show the given title to the player, along with the last subtitle set, using the last set times
++     *
+      * @deprecated Use {@link #sendTitle(Title)} or {@link #updateTitle(Title)}
+      */
+     @Deprecated
+@@ -400,6 +402,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+ 
+     /**
+      * Show the given title to the player, along with the last subtitle set, using the last set times
++     *
+      * @deprecated Use {@link #sendTitle(Title)} or {@link #updateTitle(Title)}
+      */
+     @Deprecated
+@@ -459,7 +462,6 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+ 
+     /**
+      * Forces an update of the player's entire inventory.
+-     *
+      */
+     //@Deprecated // Spigot - undeprecate
+     public void updateInventory();
+@@ -500,7 +502,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * @param statistic Statistic to increment
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if the statistic requires an
+-     *     additional parameter
++     *                                  additional parameter
+      */
+     public void incrementStatistic(Statistic statistic) throws IllegalArgumentException;
+ 
+@@ -513,7 +515,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * @param statistic Statistic to decrement
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if the statistic requires an
+-     *     additional parameter
++     *                                  additional parameter
+      */
+     public void decrementStatistic(Statistic statistic) throws IllegalArgumentException;
+ 
+@@ -521,11 +523,11 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Increments the given statistic for this player.
+      *
+      * @param statistic Statistic to increment
+-     * @param amount Amount to increment this statistic by
++     * @param amount    Amount to increment this statistic by
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if amount is negative
+      * @throws IllegalArgumentException if the statistic requires an
+-     *     additional parameter
++     *                                  additional parameter
+      */
+     public void incrementStatistic(Statistic statistic, int amount) throws IllegalArgumentException;
+ 
+@@ -533,11 +535,11 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Decrements the given statistic for this player.
+      *
+      * @param statistic Statistic to decrement
+-     * @param amount Amount to decrement this statistic by
++     * @param amount    Amount to decrement this statistic by
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if amount is negative
+      * @throws IllegalArgumentException if the statistic requires an
+-     *     additional parameter
++     *                                  additional parameter
+      */
+     public void decrementStatistic(Statistic statistic, int amount) throws IllegalArgumentException;
+ 
+@@ -545,11 +547,11 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Sets the given statistic for this player.
+      *
+      * @param statistic Statistic to set
+-     * @param newValue The value to set this statistic to
++     * @param newValue  The value to set this statistic to
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if newValue is negative
+      * @throws IllegalArgumentException if the statistic requires an
+-     *     additional parameter
++     *                                  additional parameter
+      */
+     public void setStatistic(Statistic statistic, int newValue) throws IllegalArgumentException;
+ 
+@@ -560,7 +562,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * @return the value of the given statistic
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if the statistic requires an
+-     *     additional parameter
++     *                                  additional parameter
+      */
+     public int getStatistic(Statistic statistic) throws IllegalArgumentException;
+ 
+@@ -571,11 +573,11 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * <code>incrementStatistic(Statistic, Material, 1)</code>
+      *
+      * @param statistic Statistic to increment
+-     * @param material Material to offset the statistic with
++     * @param material  Material to offset the statistic with
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if material is null
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public void incrementStatistic(Statistic statistic, Material material) throws IllegalArgumentException;
+ 
+@@ -586,11 +588,11 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * <code>decrementStatistic(Statistic, Material, 1)</code>
+      *
+      * @param statistic Statistic to decrement
+-     * @param material Material to offset the statistic with
++     * @param material  Material to offset the statistic with
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if material is null
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public void decrementStatistic(Statistic statistic, Material material) throws IllegalArgumentException;
+ 
+@@ -598,12 +600,12 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Gets the value of the given statistic for this player.
+      *
+      * @param statistic Statistic to check
+-     * @param material Material offset of the statistic
++     * @param material  Material offset of the statistic
+      * @return the value of the given statistic
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if material is null
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public int getStatistic(Statistic statistic, Material material) throws IllegalArgumentException;
+ 
+@@ -611,13 +613,13 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Increments the given statistic for this player for the given material.
+      *
+      * @param statistic Statistic to increment
+-     * @param material Material to offset the statistic with
+-     * @param amount Amount to increment this statistic by
++     * @param material  Material to offset the statistic with
++     * @param amount    Amount to increment this statistic by
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if material is null
+      * @throws IllegalArgumentException if amount is negative
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public void incrementStatistic(Statistic statistic, Material material, int amount) throws IllegalArgumentException;
+ 
+@@ -625,13 +627,13 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Decrements the given statistic for this player for the given material.
+      *
+      * @param statistic Statistic to decrement
+-     * @param material Material to offset the statistic with
+-     * @param amount Amount to decrement this statistic by
++     * @param material  Material to offset the statistic with
++     * @param amount    Amount to decrement this statistic by
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if material is null
+      * @throws IllegalArgumentException if amount is negative
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public void decrementStatistic(Statistic statistic, Material material, int amount) throws IllegalArgumentException;
+ 
+@@ -639,13 +641,13 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Sets the given statistic for this player for the given material.
+      *
+      * @param statistic Statistic to set
+-     * @param material Material to offset the statistic with
+-     * @param newValue The value to set this statistic to
++     * @param material  Material to offset the statistic with
++     * @param newValue  The value to set this statistic to
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if material is null
+      * @throws IllegalArgumentException if newValue is negative
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public void setStatistic(Statistic statistic, Material material, int newValue) throws IllegalArgumentException;
+ 
+@@ -655,12 +657,12 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * This is equivalent to the following code:
+      * <code>incrementStatistic(Statistic, EntityType, 1)</code>
+      *
+-     * @param statistic Statistic to increment
++     * @param statistic  Statistic to increment
+      * @param entityType EntityType to offset the statistic with
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if entityType is null
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public void incrementStatistic(Statistic statistic, EntityType entityType) throws IllegalArgumentException;
+ 
+@@ -670,67 +672,67 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * This is equivalent to the following code:
+      * <code>decrementStatistic(Statistic, EntityType, 1)</code>
+      *
+-     * @param statistic Statistic to decrement
++     * @param statistic  Statistic to decrement
+      * @param entityType EntityType to offset the statistic with
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if entityType is null
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public void decrementStatistic(Statistic statistic, EntityType entityType) throws IllegalArgumentException;
+ 
+     /**
+      * Gets the value of the given statistic for this player.
+      *
+-     * @param statistic Statistic to check
++     * @param statistic  Statistic to check
+      * @param entityType EntityType offset of the statistic
+      * @return the value of the given statistic
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if entityType is null
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public int getStatistic(Statistic statistic, EntityType entityType) throws IllegalArgumentException;
+ 
+     /**
+      * Increments the given statistic for this player for the given entity.
+      *
+-     * @param statistic Statistic to increment
++     * @param statistic  Statistic to increment
+      * @param entityType EntityType to offset the statistic with
+-     * @param amount Amount to increment this statistic by
++     * @param amount     Amount to increment this statistic by
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if entityType is null
+      * @throws IllegalArgumentException if amount is negative
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public void incrementStatistic(Statistic statistic, EntityType entityType, int amount) throws IllegalArgumentException;
+ 
+     /**
+      * Decrements the given statistic for this player for the given entity.
+      *
+-     * @param statistic Statistic to decrement
++     * @param statistic  Statistic to decrement
+      * @param entityType EntityType to offset the statistic with
+-     * @param amount Amount to decrement this statistic by
++     * @param amount     Amount to decrement this statistic by
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if entityType is null
+      * @throws IllegalArgumentException if amount is negative
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public void decrementStatistic(Statistic statistic, EntityType entityType, int amount);
+ 
+     /**
+      * Sets the given statistic for this player for the given entity.
+      *
+-     * @param statistic Statistic to set
++     * @param statistic  Statistic to set
+      * @param entityType EntityType to offset the statistic with
+-     * @param newValue The value to set this statistic to
++     * @param newValue   The value to set this statistic to
+      * @throws IllegalArgumentException if statistic is null
+      * @throws IllegalArgumentException if entityType is null
+      * @throws IllegalArgumentException if newValue is negative
+      * @throws IllegalArgumentException if the given parameter is not valid
+-     *     for the statistic
++     *                                  for the statistic
+      */
+     public void setStatistic(Statistic statistic, EntityType entityType, int newValue);
+ 
+@@ -744,10 +746,10 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * the player's time. To restore player time to normal use
+      * resetPlayerTime().
+      *
+-     * @param time The current player's perceived time or the player's time
+-     *     offset from the server time.
++     * @param time     The current player's perceived time or the player's time
++     *                 offset from the server time.
+      * @param relative When true the player time is kept relative to its world
+-     *     time.
++     *                 time.
+      */
+     public void setPlayerTime(long time, boolean relative);
+ 
+@@ -796,7 +798,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Returns the type of weather the player is currently experiencing.
+      *
+      * @return The WeatherType that the player is currently experiencing or
+-     *     null if player is seeing server weather.
++     * null if player is seeing server weather.
+      */
+     public WeatherType getPlayerWeather();
+ 
+@@ -935,8 +937,8 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Sets the Location where the player will spawn at their bed.
+      *
+      * @param location where to set the respawn location
+-     * @param force whether to forcefully set the respawn location even if a
+-     *     valid bed is not present
++     * @param force    whether to forcefully set the respawn location even if a
++     *                 valid bed is not present
+      */
+     public void setBedSpawnLocation(Location location, boolean force);
+ 
+@@ -975,7 +977,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      *
+      * @param player Player to check
+      * @return True if the provided player is not being hidden from this
+-     *     player
++     * player
+      */
+     public boolean canSee(Player player);
+ 
+@@ -986,7 +988,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      *
+      * @return True if the player standing on a solid block, else false.
+      * @deprecated Inconsistent with {@link
+-     *     org.bukkit.entity.Entity#isOnGround()}
++     * org.bukkit.entity.Entity#isOnGround()}
+      */
+     @Deprecated
+     public boolean isOnGround();
+@@ -1011,7 +1013,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      *
+      * @param value The new speed, from -1 to 1.
+      * @throws IllegalArgumentException If new speed is less than -1 or
+-     *     greater than 1
++     *                                  greater than 1
+      */
+     public void setFlySpeed(float value) throws IllegalArgumentException;
+ 
+@@ -1021,7 +1023,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      *
+      * @param value The new speed, from -1 to 1.
+      * @throws IllegalArgumentException If new speed is less than -1 or
+-     *     greater than 1
++     *                                  greater than 1
+      */
+     public void setWalkSpeed(float value) throws IllegalArgumentException;
+ 
+@@ -1054,18 +1056,18 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Notes:
+      * <ul>
+      * <li>Players can disable server textures on their client, in which
+-     *     case this method will have no affect on them.
++     * case this method will have no affect on them.
+      * <li>There is no concept of resetting texture packs back to default
+-     *     within Minecraft, so players will have to relog to do so.
++     * within Minecraft, so players will have to relog to do so.
+      * </ul>
+      *
+      * @param url The URL from which the client will download the texture
+-     *     pack. The string must contain only US-ASCII characters and should
+-     *     be encoded as per RFC 1738.
++     *            pack. The string must contain only US-ASCII characters and should
++     *            be encoded as per RFC 1738.
+      * @throws IllegalArgumentException Thrown if the URL is null.
+      * @throws IllegalArgumentException Thrown if the URL is too long.
+      * @deprecated Minecraft no longer uses textures packs. Instead you
+-     *     should use {@link #setResourcePack(String)}.
++     * should use {@link #setResourcePack(String)}.
+      */
+     @Deprecated
+     public void setTexturePack(String url);
+@@ -1085,17 +1087,17 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Notes:
+      * <ul>
+      * <li>Players can disable server resources on their client, in which
+-     *     case this method will have no affect on them.
++     * case this method will have no affect on them.
+      * <li>There is no concept of resetting resource packs back to default
+-     *     within Minecraft, so players will have to relog to do so.
++     * within Minecraft, so players will have to relog to do so.
+      * </ul>
+      *
+      * @param url The URL from which the client will download the resource
+-     *     pack. The string must contain only US-ASCII characters and should
+-     *     be encoded as per RFC 1738.
++     *            pack. The string must contain only US-ASCII characters and should
++     *            be encoded as per RFC 1738.
+      * @throws IllegalArgumentException Thrown if the URL is null.
+      * @throws IllegalArgumentException Thrown if the URL is too long. The
+-     *     length restriction is an implementation specific arbitrary value.
++     *                                  length restriction is an implementation specific arbitrary value.
+      * @deprecated use {@link #setResourcePack(String, String)}
+      */
+     @Deprecated // TacoSpigot
+@@ -1114,9 +1116,9 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * @param scoreboard New Scoreboard for the player
+      * @throws IllegalArgumentException if scoreboard is null
+      * @throws IllegalArgumentException if scoreboard was not created by the
+-     *     {@link org.bukkit.scoreboard.ScoreboardManager scoreboard manager}
+-     * @throws IllegalStateException if this is a player that is not logged
+-     *     yet or has logged out
++     *                                  {@link org.bukkit.scoreboard.ScoreboardManager scoreboard manager}
++     * @throws IllegalStateException    if this is a player that is not logged
++     *                                  yet or has logged out
+      */
+     public void setScoreboard(Scoreboard scoreboard) throws IllegalArgumentException, IllegalStateException;
+ 
+@@ -1158,7 +1160,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Gets the number that health is scaled to for the client.
+      *
+      * @return the number that health would be scaled to for the client if
+-     *     HealthScaling is set to true
++     * HealthScaling is set to true
+      * @see Player#setHealthScale(double)
+      * @see Player#setHealthScaled(boolean)
+      */
+@@ -1179,7 +1181,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      *
+      * @param entity the entity to follow or null to reset
+      * @throws IllegalStateException if the player is not in
+-     * {@link GameMode#SPECTATOR}
++     *                               {@link GameMode#SPECTATOR}
+      */
+     public void setSpectatorTarget(Entity entity);
+ 
+@@ -1190,7 +1192,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * such. If the strings contain a new line, only the first line will be
+      * sent.
+      *
+-     * @param title Title text
++     * @param title    Title text
+      * @param subtitle Subtitle text
+      * @deprecated API subject to change
+      */
+@@ -1204,6 +1206,7 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+     public void resetTitle();
+ 
+     // TacoSpigot start
++
+     /**
+      * Request that the player's client download and switch resource packs.
+      * <p>
+@@ -1219,44 +1222,43 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+      * Notes:
+      * <ul>
+      * <li>Players can disable server resources on their client, in which
+-     *     case this method will have no affect on them.
++     * case this method will have no affect on them.
+      * <li>There is no concept of resetting resource packs back to default
+-     *     within Minecraft, so players will have to relog to do so.
++     * within Minecraft, so players will have to relog to do so.
+      * </ul>
+      *
+-     * @param url The URL from which the client will download the resource
+-     *     pack. The string must contain only US-ASCII characters and should
+-     *     be encoded as per RFC 1738.
++     * @param url  The URL from which the client will download the resource
++     *             pack. The string must contain only US-ASCII characters and should
++     *             be encoded as per RFC 1738.
+      * @param hash A 40 character hexadecimal and lowercase SHA-1 digest of
+-     *     the resource pack file.
++     *             the resource pack file.
+      * @throws IllegalArgumentException Thrown if the URL is null.
+      * @throws IllegalArgumentException Thrown if the URL is too long. The
+-     *     length restriction is an implementation specific arbitrary value.
++     *                                  length restriction is an implementation specific arbitrary value.
+      */
+     void setResourcePack(String url, String hash);
+ 
+     /**
+      * @return the most recent resource pack status received from the player,
+-     *         or null if no status has ever been received from this player.
++     * or null if no status has ever been received from this player.
+      */
+     org.bukkit.event.player.PlayerResourcePackStatusEvent.Status getResourcePackStatus();
+ 
+     /**
+      * @return the most recent resource pack hash received from the player,
+-     *         or null if no hash has ever been received from this player.
++     * or null if no hash has ever been received from this player.
+      */
+     String getResourcePackHash();
+ 
+     /**
+      * @return true if the last resource pack status received from this player
+-     *         was {@link org.bukkit.event.player.PlayerResourcePackStatusEvent.Status#SUCCESSFULLY_LOADED}
++     * was {@link org.bukkit.event.player.PlayerResourcePackStatusEvent.Status#SUCCESSFULLY_LOADED}
+      */
+     boolean hasResourcePack();
+     // TacoSpigot end
+-    
++
+     // Spigot start
+-    public class Spigot extends Entity.Spigot
+-    {
++    public class Spigot extends Entity.Spigot {
+ 
+         /**
+          * Gets the connection address of this player, regardless of whether it
+@@ -1264,14 +1266,12 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+          *
+          * @return the player's connection address
+          */
+-        public InetSocketAddress getRawAddress()
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet." );
++        public InetSocketAddress getRawAddress() {
++            throw new UnsupportedOperationException("Not supported yet.");
+         }
+ 
+-        public void playEffect(Location location, Effect effect, int id, int data, float offsetX, float offsetY, float offsetZ, float speed, int particleCount, int radius)
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet." );
++        public void playEffect(Location location, Effect effect, int id, int data, float offsetX, float offsetY, float offsetZ, float speed, int particleCount, int radius) {
++            throw new UnsupportedOperationException("Not supported yet.");
+         }
+ 
+         /**
+@@ -1279,28 +1279,25 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+          *
+          * @return the player's collision toggle state
+          */
+-        public boolean getCollidesWithEntities()
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet." );
++        public boolean getCollidesWithEntities() {
++            throw new UnsupportedOperationException("Not supported yet.");
+         }
+ 
+         /**
+          * Sets whether the player collides with entities
+          *
+          * @param collides whether the player should collide with entities or
+-         * not.
++         *                 not.
+          */
+-        public void setCollidesWithEntities(boolean collides)
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet." );
++        public void setCollidesWithEntities(boolean collides) {
++            throw new UnsupportedOperationException("Not supported yet.");
+         }
+ 
+         /**
+          * Respawns the player if dead.
+          */
+-        public void respawn()
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet." );
++        public void respawn() {
++            throw new UnsupportedOperationException("Not supported yet.");
+         }
+ 
+         /**
+@@ -1308,9 +1305,8 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+          *
+          * @return the player's client language settings
+          */
+-        public String getLocale()
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet." );
++        public String getLocale() {
++            throw new UnsupportedOperationException("Not supported yet.");
+         }
+ 
+         /**
+@@ -1318,9 +1314,8 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+          *
+          * @return a Set with all hidden players
+          */
+-        public java.util.Set<Player> getHiddenPlayers()
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet." );
++        public java.util.Set<Player> getHiddenPlayers() {
++            throw new UnsupportedOperationException("Not supported yet.");
+         }
+ 
+         /**
+@@ -1347,20 +1342,18 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+          * @return whether or not the player affects
+          * mob spawning.
+          */
+-        public boolean getAffectsSpawning()
+-        {
+-            throw new  UnsupportedOperationException( "Not supported yet." );
++        public boolean getAffectsSpawning() {
++            throw new UnsupportedOperationException("Not supported yet.");
+         }
+ 
+         /**
+          * Set whether or not the player affects mob spawning
+          *
+          * @param affects whether or not the player should affect
+-         * spawning or not.
++         *                spawning or not.
+          */
+-        public void setAffectsSpawning(boolean affects)
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet" );
++        public void setAffectsSpawning(boolean affects) {
++            throw new UnsupportedOperationException("Not supported yet");
+         }
+ 
+         /**
+@@ -1368,9 +1361,8 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+          *
+          * @return View distance
+          */
+-        public int getViewDistance()
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet" );
++        public int getViewDistance() {
++            throw new UnsupportedOperationException("Not supported yet");
+         }
+ 
+         /**
+@@ -1378,14 +1370,12 @@ public interface Player extends HumanEntity, Conversable, CommandSender, Offline
+          *
+          * @param viewDistance View distance
+          */
+-        public void setViewDistance(int viewDistance)
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet" );
++        public void setViewDistance(int viewDistance) {
++            throw new UnsupportedOperationException("Not supported yet");
+         }
+ 
+-        public int getPing()
+-        {
+-            throw new UnsupportedOperationException( "Not supported yet." );
++        public int getPing() {
++            throw new UnsupportedOperationException("Not supported yet.");
+         }
+     }
+ 
+diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+index 1325b032..18a895fa 100644
+--- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
++++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+@@ -1,23 +1,7 @@
+ package org.bukkit.plugin;
+ 
+-import java.io.File;
+-import java.lang.reflect.Constructor;
+-import java.lang.reflect.Method;
+-import java.util.ArrayList;
+-import java.util.Collection;
+-import java.util.HashMap;
+-import java.util.HashSet;
+-import java.util.Iterator;
+-import java.util.LinkedHashMap;
+-import java.util.LinkedList;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Set;
+-import java.util.WeakHashMap;
+-import java.util.logging.Level;
+-import java.util.regex.Matcher;
+-import java.util.regex.Pattern;
+-
++import com.google.common.collect.ImmutableSet;
++import dev.lockedthread.menu.MenuListener;
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Server;
+ import org.bukkit.command.Command;
+@@ -27,12 +11,21 @@ import org.bukkit.event.Event;
+ import org.bukkit.event.EventPriority;
+ import org.bukkit.event.HandlerList;
+ import org.bukkit.event.Listener;
++import org.bukkit.event.inventory.InventoryClickEvent;
++import org.bukkit.event.inventory.InventoryCloseEvent;
++import org.bukkit.event.inventory.InventoryOpenEvent;
+ import org.bukkit.permissions.Permissible;
+ import org.bukkit.permissions.Permission;
+ import org.bukkit.permissions.PermissionDefault;
+ import org.bukkit.util.FileUtil;
+ 
+-import com.google.common.collect.ImmutableSet;
++import java.io.File;
++import java.lang.reflect.Constructor;
++import java.lang.reflect.Method;
++import java.util.*;
++import java.util.logging.Level;
++import java.util.regex.Matcher;
++import java.util.regex.Pattern;
+ 
+ /**
+  * Handles all plugin management from the Server
+@@ -49,10 +42,12 @@ public final class SimplePluginManager implements PluginManager {
+     private final Map<String, Map<Permissible, Boolean>> permSubs = new HashMap<String, Map<Permissible, Boolean>>();
+     private final Map<Boolean, Map<Permissible, Boolean>> defSubs = new HashMap<Boolean, Map<Permissible, Boolean>>();
+     private boolean useTimings = false;
++    private final MenuListener menuListener;
+ 
+     public SimplePluginManager(Server instance, SimpleCommandMap commandMap) {
+         server = instance;
+         this.commandMap = commandMap;
++        this.menuListener = new MenuListener();
+ 
+         defaultPerms.put(true, new HashSet<Permission>());
+         defaultPerms.put(false, new HashSet<Permission>());
+@@ -63,7 +58,7 @@ public final class SimplePluginManager implements PluginManager {
+      *
+      * @param loader Class name of the PluginLoader to register
+      * @throws IllegalArgumentException Thrown when the given Class is not a
+-     *     valid PluginLoader
++     *                                  valid PluginLoader
+      */
+     public void registerInterface(Class<? extends PluginLoader> loader) throws IllegalArgumentException {
+         PluginLoader instance;
+@@ -137,10 +132,10 @@ public final class SimplePluginManager implements PluginManager {
+                     continue;
+                 } else if (description.rawName.indexOf(' ') != -1) {
+                     server.getLogger().warning(String.format(
+-                        "Plugin `%s' uses the space-character (0x20) in its name `%s' - this is discouraged",
+-                        description.getFullName(),
+-                        description.rawName
+-                        ));
++                            "Plugin `%s' uses the space-character (0x20) in its name `%s' - this is discouraged",
++                            description.getFullName(),
++                            description.rawName
++                    ));
+                 }
+             } catch (InvalidDescriptionException ex) {
+                 server.getLogger().log(Level.SEVERE, "Could not load '" + file.getPath() + "' in folder '" + directory.getPath() + "'", ex);
+@@ -150,12 +145,12 @@ public final class SimplePluginManager implements PluginManager {
+             File replacedFile = plugins.put(description.getName(), file);
+             if (replacedFile != null) {
+                 server.getLogger().severe(String.format(
+-                    "Ambiguous plugin name `%s' for files `%s' and `%s' in `%s'",
+-                    description.getName(),
+-                    file.getPath(),
+-                    replacedFile.getPath(),
+-                    directory.getPath()
+-                    ));
++                        "Ambiguous plugin name `%s' for files `%s' and `%s' in `%s'",
++                        description.getName(),
++                        file.getPath(),
++                        replacedFile.getPath(),
++                        directory.getPath()
++                ));
+             }
+ 
+             Collection<String> softDependencySet = description.getSoftDepend();
+@@ -205,7 +200,7 @@ public final class SimplePluginManager implements PluginManager {
+                         if (loadedPlugins.contains(dependency)) {
+                             dependencyIterator.remove();
+ 
+-                        // We have a dependency not found
++                            // We have a dependency not found
+                         } else if (!plugins.containsKey(dependency)) {
+                             missingDependency = false;
+                             File file = plugins.get(plugin);
+@@ -214,9 +209,9 @@ public final class SimplePluginManager implements PluginManager {
+                             dependencies.remove(plugin);
+ 
+                             server.getLogger().log(
+-                                Level.SEVERE,
+-                                "Could not load '" + file.getPath() + "' in folder '" + directory.getPath() + "'",
+-                                new UnknownDependencyException(dependency));
++                                    Level.SEVERE,
++                                    "Could not load '" + file.getPath() + "' in folder '" + directory.getPath() + "'",
++                                    new UnknownDependencyException(dependency));
+                             break;
+                         }
+                     }
+@@ -305,10 +300,10 @@ public final class SimplePluginManager implements PluginManager {
+      *
+      * @param file File containing the plugin to load
+      * @return The Plugin loaded, or null if it was invalid
+-     * @throws InvalidPluginException Thrown when the specified file is not a
+-     *     valid plugin
++     * @throws InvalidPluginException     Thrown when the specified file is not a
++     *                                    valid plugin
+      * @throws UnknownDependencyException If a required dependency could not
+-     *     be found
++     *                                    be found
+      */
+     public synchronized Plugin loadPlugin(File file) throws InvalidPluginException, UnknownDependencyException {
+         Validate.notNull(file, "File cannot be null");
+@@ -446,7 +441,7 @@ public final class SimplePluginManager implements PluginManager {
+             try {
+                 server.getMessenger().unregisterIncomingPluginChannel(plugin);
+                 server.getMessenger().unregisterOutgoingPluginChannel(plugin);
+-            } catch(Throwable ex) {
++            } catch (Throwable ex) {
+                 server.getLogger().log(Level.SEVERE, "Error occurred (in the plugin loader) while unregistering plugin channels for " + plugin.getDescription().getFullName() + " (Is it up to date?)", ex);
+             }
+         }
+@@ -489,6 +484,13 @@ public final class SimplePluginManager implements PluginManager {
+     }
+ 
+     private void fireEvent(Event event) {
++        if (event instanceof InventoryClickEvent) {
++            menuListener.onInventoryClick((InventoryClickEvent) event);
++        } else if (event instanceof InventoryOpenEvent) {
++            menuListener.onInventoryOpen((InventoryOpenEvent) event);
++        } else if (event instanceof InventoryCloseEvent) {
++            menuListener.onInventoryClose((InventoryCloseEvent) event);
++        }
+         HandlerList handlers = event.getHandlers();
+         RegisteredListener[] listeners = handlers.getRegisteredListeners();
+ 
+@@ -510,7 +512,7 @@ public final class SimplePluginManager implements PluginManager {
+                             plugin.getDescription().getAuthors(),
+                             plugin.getDescription().getFullName(),
+                             ex.getMessage()
+-                            ));
++                    ));
+                 }
+             } catch (Throwable ex) {
+                 server.getLogger().log(Level.SEVERE, "Could not pass event " + event.getEventName() + " to " + registration.getPlugin().getDescription().getFullName(), ex);
+@@ -537,13 +539,13 @@ public final class SimplePluginManager implements PluginManager {
+      * Registers the given event to the specified listener using a directly
+      * passed EventExecutor
+      *
+-     * @param event Event class to register
+-     * @param listener PlayerListener to register
+-     * @param priority Priority of this event
+-     * @param executor EventExecutor to register
+-     * @param plugin Plugin to register
++     * @param event           Event class to register
++     * @param listener        PlayerListener to register
++     * @param priority        Priority of this event
++     * @param executor        EventExecutor to register
++     * @param plugin          Plugin to register
+      * @param ignoreCancelled Do not call executor if event was already
+-     *     cancelled
++     *                        cancelled
+      */
+     public void registerEvent(Class<? extends Event> event, Listener listener, EventPriority priority, EventExecutor executor, Plugin plugin, boolean ignoreCancelled) {
+         Validate.notNull(listener, "Listener cannot be null");
+-- 
+2.21.0.windows.1
+

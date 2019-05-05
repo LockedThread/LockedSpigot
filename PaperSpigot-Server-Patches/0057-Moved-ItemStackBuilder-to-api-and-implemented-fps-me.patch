@@ -1,0 +1,262 @@
+From 1dd0553188e0e0ead6dd7d49476650248d3e73ef Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 17:57:33 -0400
+Subject: [PATCH] Moved ItemStackBuilder to api and implemented fps menu
+ filling
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 410ed967c..b7e227484 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -6,6 +6,7 @@ import dev.lockedthread.commands.CommandTest;
+ import net.minecraft.server.MinecraftServer;
+ import org.apache.commons.lang3.tuple.Pair;
+ import org.bukkit.Bukkit;
++import org.bukkit.DyeColor;
+ import org.bukkit.Material;
+ import org.bukkit.configuration.InvalidConfigurationException;
+ import org.bukkit.configuration.file.YamlConfiguration;
+@@ -52,10 +53,13 @@ public class LockedSpigotConfig {
+     private static String fpsMenuTitle;
+     private static int fpsMenuSize;
+     private static boolean fpsMenuFill;
++    private static DyeColor fpsMenuFillColor;
++
+     private static int fpsMenuTNTSlot;
+     private static String fpsMenuTNTName;
+     private static List<String> fpsMenuTNTLore;
+     private static Material fpsMenuTNTMaterial;
++
+     private static int fpsMenuFallingBlockSlot;
+     private static String fpsMenuFallingBlockName;
+     private static List<String> fpsMenuFallingBlockLore;
+@@ -92,6 +96,7 @@ public class LockedSpigotConfig {
+         fpsMenuTitle = getString("fps-menu.title", "&c{player}'s FPS Settings");
+         fpsMenuSize = getInt("fps-menu.size", 5);
+         fpsMenuFill = getBoolean("fps-menu.fill.enabled", true);
++        fpsMenuFillColor = getDyeColor("fps-menu.fill.dye-color", DyeColor.BLACK);
+ 
+         fpsMenuTNTSlot = getInt("fps-menu.tnt.slot", 1);
+         fpsMenuTNTName = getString("fps-menu.tnt.name", "&c&lTNT &f&lVisibility");
+@@ -303,7 +308,16 @@ public class LockedSpigotConfig {
+         return Material.valueOf(config.getString(path, config.getString(path)));
+     }
+ 
++    private static DyeColor getDyeColor(String path, DyeColor def) {
++        config.addDefault(path, def.name());
++        return DyeColor.valueOf(config.getString(path, config.getString(path)));
++    }
++
+     public static boolean isHopperEfficientSearch() {
+         return hopperEfficientSearch;
+     }
++
++    public static DyeColor getFpsMenuFillColor() {
++        return fpsMenuFillColor;
++    }
+ }
+diff --git a/src/main/java/dev/lockedthread/commands/CommandFPS.java b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+index 60c0dfed3..cd4b5898f 100644
+--- a/src/main/java/dev/lockedthread/commands/CommandFPS.java
++++ b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+@@ -25,7 +25,7 @@ public class CommandFPS extends Command {
+         if (sender instanceof Player) {
+             if (sender.hasPermission(LockedSpigotConfig.getCommandFpsPermission())) {
+                 Player player = (Player) sender;
+-                MenuFPS menuFPS = new MenuFPS(LockedSpigotConfig.getFpsMenuTitle().replace("{player}", player.getName()), LockedSpigotConfig.getFpsMenuSize());
++                MenuFPS menuFPS = new MenuFPS(LockedSpigotConfig.getFpsMenuTitle().replace("{player}", player.getName()), LockedSpigotConfig.getFpsMenuSize(), LockedSpigotConfig.isFpsMenuFill(), LockedSpigotConfig.getFpsMenuFillColor());
+                 menuFPS.setItem(LockedSpigotConfig.getFpsMenuFallingBlockSlot(), setupFallingBlock(player));
+                 menuFPS.setItem(LockedSpigotConfig.getFpsMenuTNTSlot(), setupTNT(player));
+                 player.openInventory(menuFPS.getInventory());
+diff --git a/src/main/java/dev/lockedthread/items/ItemStackBuilder.java b/src/main/java/dev/lockedthread/items/ItemStackBuilder.java
+deleted file mode 100644
+index a37405cb9..000000000
+--- a/src/main/java/dev/lockedthread/items/ItemStackBuilder.java
++++ /dev/null
+@@ -1,182 +0,0 @@
+-package dev.lockedthread.items;
+-
+-
+-import org.bukkit.ChatColor;
+-import org.bukkit.Color;
+-import org.bukkit.DyeColor;
+-import org.bukkit.Material;
+-import org.bukkit.configuration.ConfigurationSection;
+-import org.bukkit.enchantments.Enchantment;
+-import org.bukkit.inventory.ItemFlag;
+-import org.bukkit.inventory.ItemStack;
+-import org.bukkit.inventory.meta.ItemMeta;
+-import org.bukkit.inventory.meta.LeatherArmorMeta;
+-
+-import java.util.Collection;
+-import java.util.function.Consumer;
+-import java.util.stream.Collectors;
+-
+-public class ItemStackBuilder {
+-
+-    private ItemStack itemStack;
+-
+-    private ItemStackBuilder() {
+-        this.itemStack = new ItemStack(Material.WOOD, 1);
+-    }
+-
+-    private ItemStackBuilder(Material material) {
+-        this.itemStack = new ItemStack(material, 1);
+-    }
+-
+-    private ItemStackBuilder(Material material, int amount) {
+-        this.itemStack = new ItemStack(material, amount);
+-    }
+-
+-    private ItemStackBuilder(Material material, DyeColor dyeColor) {
+-        this.itemStack = new ItemStack(material, material == Material.WOOL ? dyeColor.getWoolData() : dyeColor.getDyeData());
+-    }
+-
+-    private ItemStackBuilder(ItemStack itemStack) {
+-        this.itemStack = itemStack;
+-    }
+-
+-    public static ItemStackBuilder of(ItemStack itemStack) {
+-        return new ItemStackBuilder(itemStack);
+-    }
+-
+-    public static ItemStackBuilder of(ConfigurationSection section) {
+-        ItemStackBuilder itemStackBuilder = section.isSet("material") ? ItemStackBuilder.of(Material.matchMaterial(section.getString("material"))) : new ItemStackBuilder();
+-        if (section.isSet("amount")) {
+-            if (section.isInt("amount")) {
+-                itemStackBuilder.setAmount(section.getInt("amount"));
+-            } else {
+-                throw new RuntimeException(section.getCurrentPath() + ".amount can't be parsed as an integer");
+-            }
+-        }
+-        if (section.isSet("data")) {
+-            if (section.isString("data")) {
+-                final DyeColor dyeColor = parseDyeColor(section.getString("data"));
+-                if (dyeColor != null) {
+-                    itemStackBuilder.setDyeColor(dyeColor);
+-                } else {
+-                    itemStackBuilder.setData(Short.parseShort(section.getString("data")));
+-                }
+-            } else {
+-                itemStackBuilder.setData((short) section.getInt("data"));
+-            }
+-        }
+-        if (section.isSet("color")) {
+-            if (section.isColor("color")) {
+-                itemStackBuilder.setColor(section.getColor("color"));
+-            } else {
+-                throw new RuntimeException(section.getCurrentPath() + ".color can't be parsed as a org.bukkit.Color");
+-            }
+-        }
+-        if (section.isSet("name") && section.isString("name")) {
+-            itemStackBuilder.setDisplayName(section.getString("name"));
+-        }
+-        if (section.isSet("lore") && section.isList("lore")) {
+-            itemStackBuilder.setLore(section.getStringList("lore"));
+-        }
+-        if (section.isSet("itemflags") && section.isList("itemflags")) {
+-            itemStackBuilder.addItemFlags(section.getStringList("itemflags").stream().map(ItemStackBuilder::parseItemFlag).toArray(ItemFlag[]::new));
+-        }
+-        if (section.isSet("enchants") && section.isList("enchants")) {
+-            for (String enchants : section.getStringList("enchants")) {
+-                String[] split = enchants.split(":");
+-                itemStackBuilder.addEnchant(Enchantment.getByName(split[0]), Integer.parseInt(split[1]));
+-            }
+-        }
+-        if (section.isSet("unbreakable") && section.isBoolean("unbreakable")) {
+-            itemStackBuilder.setUnbreakable(section.getBoolean("unbreakable"));
+-        }
+-        return itemStackBuilder;
+-    }
+-
+-    public static ItemStackBuilder of(Material material) {
+-        return new ItemStackBuilder(material);
+-    }
+-
+-    private static DyeColor parseDyeColor(String s) {
+-        try {
+-            return DyeColor.valueOf(s.toUpperCase());
+-        } catch (IllegalArgumentException e) {
+-            throw new RuntimeException("Unable to parse " + s + " as a Bukkit DyeColor", e);
+-        }
+-    }
+-
+-    private static ItemFlag parseItemFlag(String s) {
+-        try {
+-            return ItemFlag.valueOf(s.toUpperCase());
+-        } catch (IllegalArgumentException e) {
+-            throw new RuntimeException("Unable to parse " + s + " as a Bukkit DyeColor", e);
+-        }
+-    }
+-
+-    public ItemStackBuilder setUnbreakable(boolean b) {
+-        itemStack.getItemMeta().spigot().setUnbreakable(b);
+-        return this;
+-    }
+-
+-    public ItemStackBuilder setAmount(int amount) {
+-        itemStack.setAmount(amount);
+-        return this;
+-    }
+-
+-    public ItemStackBuilder addEnchant(Enchantment enchantment, int level) {
+-        consumeItemMeta(itemMeta -> itemMeta.addEnchant(enchantment, level, true));
+-        return this;
+-    }
+-
+-    public ItemStackBuilder consumeItemStack(Consumer<ItemStack> itemStackConsumer) {
+-        itemStackConsumer.accept(itemStack);
+-        return this;
+-    }
+-
+-    public ItemStackBuilder consumeItemMeta(Consumer<ItemMeta> itemMetaConsumer) {
+-        ItemMeta itemMeta = itemStack.getItemMeta();
+-        if (itemMeta != null) {
+-            itemMetaConsumer.accept(itemMeta);
+-            itemStack.setItemMeta(itemMeta);
+-        }
+-        return this;
+-    }
+-
+-    public ItemStackBuilder setColor(Color color) {
+-        return consumeItemMeta(itemMeta -> ((LeatherArmorMeta) itemStack.getItemMeta()).setColor(color));
+-    }
+-
+-    public ItemStackBuilder setData(short data) {
+-        itemStack.setDurability(data);
+-        return this;
+-    }
+-
+-    public ItemStackBuilder setMaterial(Material material) {
+-        itemStack.setType(material);
+-        return this;
+-    }
+-
+-    public ItemStackBuilder setDyeColor(DyeColor dyeColor) {
+-        itemStack.setDurability((itemStack.getType() == Material.WOOL || itemStack.getType() == Material.STAINED_GLASS_PANE || itemStack.getType() == Material.STAINED_GLASS) ? dyeColor.getWoolData() : dyeColor.getDyeData());
+-        return this;
+-    }
+-
+-    public ItemStackBuilder setDisplayName(String displayName) {
+-        consumeItemMeta(itemMeta -> itemMeta.setDisplayName(ChatColor.translateAlternateColorCodes('&', displayName)));
+-        return this;
+-    }
+-
+-    public ItemStackBuilder setLore(Collection<String> strings) {
+-        consumeItemMeta(itemMeta -> itemMeta.setLore(strings.stream().map(s -> ChatColor.translateAlternateColorCodes('&', s)).collect(Collectors.toList())));
+-        return this;
+-    }
+-
+-    public ItemStackBuilder addItemFlags(ItemFlag... itemFlags) {
+-        consumeItemMeta(itemMeta -> itemMeta.addItemFlags(itemFlags));
+-        return this;
+-    }
+-
+-    public ItemStack build() {
+-        return itemStack;
+-    }
+-}
+-- 
+2.21.0.windows.1
+

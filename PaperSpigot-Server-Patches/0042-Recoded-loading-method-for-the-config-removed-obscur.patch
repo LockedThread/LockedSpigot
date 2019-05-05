@@ -1,0 +1,193 @@
+From 294ebf93343a7d093965f31fcb864eef9006471f Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 4 May 2019 22:05:09 -0400
+Subject: [PATCH] Recoded loading method for the config, removed obscure paper
+ loading.
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index cc3c11299..fd7a450e3 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -7,9 +7,6 @@ import org.bukkit.configuration.file.YamlConfiguration;
+ 
+ import java.io.File;
+ import java.io.IOException;
+-import java.lang.reflect.InvocationTargetException;
+-import java.lang.reflect.Method;
+-import java.lang.reflect.Modifier;
+ import java.util.List;
+ import java.util.logging.Level;
+ 
+@@ -17,8 +14,7 @@ public class LockedSpigotConfig {
+ 
+     private static File CONFIG_FILE;
+     /*========================================================================*/
+-    static YamlConfiguration config;
+-    static int version;
++    private static YamlConfiguration config;
+     /*========================================================================*/
+ 
+     private static boolean ironGolemCancelFallDamage;
+@@ -44,76 +40,105 @@ public class LockedSpigotConfig {
+     private static boolean blazeDropsDefinite;
+     private static int blazeDropsDefiniteAmount;
+ 
++    private static void load() {
++        ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
++        ironGolemDropPoppies = getBoolean("irongolem.drop-poppies", false);
++        ironGolemVillageCheck = getBoolean("irongolem.checks.village", false);
++        ironGolemBlockCrackEffect = getBoolean("irongolem.block-crack-effect", false);
++        ironGolemCreeperCheck = getBoolean("irongolem.checks.creeper", false);
++        ironGolemHealth = getDouble("irongolem.health", 2.0);
++        ironGolemMovementSpeed = getDouble("irongolem.movement-speed", 0.25);
++
++        arrowDropArrows = getBoolean("arrow.drop-arrow", false);
++        arrowWaterParticles = getBoolean("arrow.waterparticles", false);
++        armorStandPlayerInteract = getBoolean("armorstand.player-interact", false);
++        armorStandCollideCheck = getBoolean("armorstand.checks.collide-check", false);
++
++        batPlayerCheck = getBoolean("bat.checks.collide-check", false);
++
++        blazeDropsDefinite = getBoolean("blaze.drops.definite", false);
++        blazeDropsDefiniteAmount = getInt("blaze.drops.definite-amount", 2);
++        blazeDrown = getBoolean("blaze.drown", true);
++        blazeHealth = getDouble("blaze.health", 10.0);
++        blazeMovementSpeed = getDouble("blaze.movement-speed", 0.23000000417232513);
++        blazeParticlesSmoke = getBoolean("blaze.particles.smoke", false);
++        try {
++            config.save(CONFIG_FILE);
++        } catch (IOException e) {
++            e.printStackTrace();
++        }
++    }
++
+     public static boolean isIronGolemCancelFallDamage() {
+-        return ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
++        return ironGolemCancelFallDamage;
+     }
+ 
+     public static boolean isIronGolemDropPoppies() {
+-        return ironGolemDropPoppies = getBoolean("irongolem.drop-poppies", false);
++        return ironGolemDropPoppies;
+     }
+ 
+     public static boolean isIronGolemVillageCheck() {
+-        return ironGolemVillageCheck = getBoolean("irongolem.checks.village", false);
++        return ironGolemVillageCheck;
+     }
+ 
+     public static boolean isIronGolemBlockCrackEffect() {
+-        return ironGolemBlockCrackEffect = getBoolean("irongolem.block-crack-effect", false);
++        return ironGolemBlockCrackEffect;
+     }
+ 
+     public static boolean isIronGolemCreeperCheck() {
+-        return ironGolemCreeperCheck = getBoolean("irongolem.checks.creeper", false);
++        return ironGolemCreeperCheck;
+     }
+ 
+     public static double getIronGolemHealth() {
+-        return ironGolemHealth = getDouble("irongolem.health", 2.0);
++        return ironGolemHealth;
+     }
+ 
+     public static double getIronGolemMovementSpeed() {
+-        return ironGolemMovementSpeed = getDouble("irongolem.movement-speed", 0.25);
++        return ironGolemMovementSpeed;
+     }
+ 
+     public static boolean isArrowDropArrows() {
+-        return arrowDropArrows = getBoolean("arrow.drop-arrow", false);
++        return arrowDropArrows;
+     }
+ 
+     public static boolean isArrowWaterParticles() {
+-        return arrowWaterParticles = getBoolean("arrow.waterparticles", false);
++        return arrowWaterParticles;
+     }
+ 
+     public static boolean isArmorStandPlayerInteract() {
+-        return armorStandPlayerInteract = getBoolean("armorstand.player-interact", false);
++        return armorStandPlayerInteract;
+     }
+ 
+     public static boolean isArmorStandCollideCheck() {
+-        return armorStandCollideCheck = getBoolean("armorstand.checks.collide-check", false);
++        return armorStandCollideCheck;
+     }
+ 
+     public static boolean isBatPlayerCheck() {
+-        return batPlayerCheck = getBoolean("bat.checks.collide-check", false);
++        return batPlayerCheck;
+     }
+ 
+     public static boolean isBlazeDropsDefinite() {
+-        return blazeDropsDefinite = getBoolean("blaze.drops.definite", false);
++        return blazeDropsDefinite;
+     }
+ 
+     public static int getBlazeDropsDefiniteAmount() {
+-        return blazeDropsDefiniteAmount = getInt("blaze.drops.definite-amount", 2);
++        return blazeDropsDefiniteAmount;
+     }
+ 
+     public static boolean isBlazeDrown() {
+-        return blazeDrown = getBoolean("blaze.drown", true);
++        return blazeDrown;
+     }
+ 
+     public static double getBlazeHealth() {
+-        return blazeHealth = getDouble("blaze.health", 10.0);
++        return blazeHealth;
+     }
+ 
+     public static double getBlazeMovementSpeed() {
+-        return blazeMovementSpeed = getDouble("blaze.movement-speed", 0.23000000417232513);
++        return blazeMovementSpeed;
+     }
+ 
+     public static boolean isBlazeParticlesSmoke() {
+-        return blazeParticlesSmoke = getBoolean("blaze.particles.smoke", false);
++        return blazeParticlesSmoke;
+     }
+ 
+ 
+@@ -129,33 +154,7 @@ public class LockedSpigotConfig {
+             throw Throwables.propagate(ex);
+         }
+         config.options().copyDefaults(true);
+-
+-        version = getInt("config-version", 1);
+-        set("config-version", 1);
+-        readConfig(LockedSpigotConfig.class, null);
+-    }
+-
+-    static void readConfig(Class<?> clazz, Object instance) {
+-        for (Method method : clazz.getDeclaredMethods()) {
+-            if (Modifier.isPrivate(method.getModifiers())) {
+-                if (method.getParameterTypes().length == 0 && method.getReturnType() == Void.TYPE) {
+-                    try {
+-                        method.setAccessible(true);
+-                        method.invoke(instance);
+-                    } catch (InvocationTargetException ex) {
+-                        throw Throwables.propagate(ex.getCause());
+-                    } catch (Exception ex) {
+-                        Bukkit.getLogger().log(Level.SEVERE, "Error invoking " + method, ex);
+-                    }
+-                }
+-            }
+-        }
+-
+-        try {
+-            config.save(CONFIG_FILE);
+-        } catch (IOException ex) {
+-            Bukkit.getLogger().log(Level.SEVERE, "Could not save " + CONFIG_FILE, ex);
+-        }
++        load();
+     }
+ 
+     private static void set(String path, Object val) {
+-- 
+2.21.0.windows.1
+
