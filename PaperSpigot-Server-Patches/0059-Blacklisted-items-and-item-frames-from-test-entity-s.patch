@@ -1,0 +1,22 @@
+From ead2455e7e86a6396d131cc734880ccfe83d6a5d Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 18:56:29 -0400
+Subject: [PATCH] Blacklisted items and item frames from /test entity-spawn
+
+
+diff --git a/src/main/java/dev/lockedthread/commands/CommandTest.java b/src/main/java/dev/lockedthread/commands/CommandTest.java
+index 9fa9071fb..2194cc327 100644
+--- a/src/main/java/dev/lockedthread/commands/CommandTest.java
++++ b/src/main/java/dev/lockedthread/commands/CommandTest.java
+@@ -26,6 +26,8 @@ public class CommandTest extends Command {
+                     case "entity-spawn":
+                         if (sender instanceof Player) {
+                             for (EntityType entityType : EntityType.values()) {
++                                if (entityType == EntityType.DROPPED_ITEM || entityType == EntityType.ITEM_FRAME)
++                                    continue;
+                                 ((Player) sender).getWorld().spawnEntity(((Player) sender).getLocation(), entityType);
+                             }
+                             sender.sendMessage(ChatColor.GREEN + "Spawned Entities: " + Joiner.on(", ").skipNulls().join(EntityType.values()));
+-- 
+2.21.0.windows.1
+

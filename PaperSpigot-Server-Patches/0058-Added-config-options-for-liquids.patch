@@ -1,0 +1,585 @@
+From 26e34794d9732aa3aa6f1cd2a2bdc766c9af38c6 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 18:48:45 -0400
+Subject: [PATCH] Added config options for liquids
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index b7e227484..c15828740 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -65,6 +65,15 @@ public class LockedSpigotConfig {
+     private static List<String> fpsMenuFallingBlockLore;
+     private static Material fpsMenuFallingBlockMaterial;
+ 
++    private static boolean liquidsCreateObsidian;
++    private static boolean liquidsCreateCobblestone;
++    private static boolean liquidsCreateStone;
++    private static boolean liquidsParticlesEnabled;
++    private static boolean liquidsSoundFizz;
++    private static double liquidsParticlesOffset;
++    private static boolean liquidsParticlesOffsetEnabled;
++    private static boolean liquidsBreakRedstone;
++
+     private static boolean hopperEfficientSearch;
+ 
+     private static void load() {
+@@ -108,6 +117,15 @@ public class LockedSpigotConfig {
+         fpsMenuFallingBlockLore = getList("fps-menu.fallingblock.lore", Arrays.asList("", "&eClick to {mode} &efalling block visibility", ""));
+         fpsMenuFallingBlockMaterial = getMaterial("fps-menu.fallingblock.material", Material.TNT);
+ 
++        liquidsCreateObsidian = getBoolean("liquids.create.obsidian", false);
++        liquidsCreateCobblestone = getBoolean("liquids.create.cobblestone", false);
++        liquidsCreateStone = getBoolean("liquids.create.stone", false);
++        liquidsParticlesEnabled = getBoolean("liquids.particles.enabled", false);
++        liquidsSoundFizz = getBoolean("liquids.soun.fizz", false);
++        liquidsParticlesOffset = getDouble("liquids.particles.offset", 0.5);
++        liquidsParticlesOffsetEnabled = getBoolean("liquids.particles.offset-enabled", true);
++        liquidsBreakRedstone = getBoolean("liquids.break-redstone", false);
++
+         hopperEfficientSearch = getBoolean("hopper.efficient-search", true);
+ 
+         try {
+@@ -244,6 +262,22 @@ public class LockedSpigotConfig {
+         return fpsMenuTNTMaterial;
+     }
+ 
++    public static boolean isLiquidsCreateObsidian() {
++        return liquidsCreateObsidian;
++    }
++
++    public static boolean isLiquidsCreateCobblestone() {
++        return liquidsCreateCobblestone;
++    }
++
++    public static boolean isLiquidsParticlesEnabled() {
++        return liquidsParticlesEnabled;
++    }
++
++    public static boolean isLiquidsSoundFizz() {
++        return liquidsSoundFizz;
++    }
++
+     public static void init(File configFile) {
+         CONFIG_FILE = configFile;
+         config = new YamlConfiguration();
+@@ -320,4 +354,20 @@ public class LockedSpigotConfig {
+     public static DyeColor getFpsMenuFillColor() {
+         return fpsMenuFillColor;
+     }
++
++    public static double getLiquidsParticlesOffset() {
++        return liquidsParticlesOffset;
++    }
++
++    public static boolean isLiquidsParticlesOffsetEnabled() {
++        return liquidsParticlesOffsetEnabled;
++    }
++
++    public static boolean isLiquidsBreakRedstone() {
++        return liquidsBreakRedstone;
++    }
++
++    public static boolean isLiquidsCreateStone() {
++        return liquidsCreateStone;
++    }
+ }
+diff --git a/src/main/java/net/minecraft/server/BlockFlowing.java b/src/main/java/net/minecraft/server/BlockFlowing.java
+index 004448d94..0099598de 100644
+--- a/src/main/java/net/minecraft/server/BlockFlowing.java
++++ b/src/main/java/net/minecraft/server/BlockFlowing.java
+@@ -1,14 +1,18 @@
+ package net.minecraft.server;
+ 
++import dev.lockedthread.LockedSpigotConfig;
++import org.bukkit.block.BlockFace;
++import org.bukkit.craftbukkit.block.CraftBlock;
++import org.bukkit.event.block.BlockFromToEvent;
++
+ import java.util.EnumSet;
+ import java.util.Iterator;
+ import java.util.Random;
+ import java.util.Set;
+ 
+ // CraftBukkit start
+-import org.bukkit.block.BlockFace;
+-import org.bukkit.craftbukkit.block.CraftBlock;
+-import org.bukkit.event.block.BlockFromToEvent;
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public class BlockFlowing extends BlockFluids {
+@@ -29,7 +33,7 @@ public class BlockFlowing extends BlockFluids {
+         org.bukkit.Server server = world.getServer();
+         org.bukkit.block.Block source = bworld == null ? null : bworld.getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ());
+         // CraftBukkit end
+-        int i = (Integer) iblockdata.get(BlockFlowing.LEVEL);
++        int i = iblockdata.get(BlockFlowing.LEVEL);
+         byte b0 = 1;
+ 
+         if (this.material == Material.LAVA && !world.worldProvider.n()) {
+@@ -70,7 +74,7 @@ public class BlockFlowing extends BlockFluids {
+ 
+                 if (iblockdata1.getBlock().getMaterial().isBuildable()) {
+                     i1 = 0;
+-                } else if (iblockdata1.getBlock().getMaterial() == this.material && (Integer) iblockdata1.get(BlockFlowing.LEVEL) == 0) {
++                } else if (iblockdata1.getBlock().getMaterial() == this.material && iblockdata1.get(BlockFlowing.LEVEL) == 0) {
+                     i1 = 0;
+                 }
+             }
+@@ -103,7 +107,8 @@ public class BlockFlowing extends BlockFluids {
+             this.f(world, blockposition, iblockdata);
+         }
+ 
+-        if (world.getType(blockposition).getBlock().getMaterial() != material) return; // PaperSpigot - Stop updating flowing block if material has changed
++        if (world.getType(blockposition).getBlock().getMaterial() != material)
++            return; // PaperSpigot - Stop updating flowing block if material has changed
+         IBlockData iblockdata2 = world.getType(blockposition.down());
+ 
+         if (this.h(world, blockposition.down(), iblockdata2)) {
+@@ -113,17 +118,19 @@ public class BlockFlowing extends BlockFluids {
+                 server.getPluginManager().callEvent(event);
+             }
+             if (!event.isCancelled()) {
+-            if (this.material == Material.LAVA && world.getType(blockposition.down()).getBlock().getMaterial() == Material.WATER) {
+-                world.setTypeUpdate(blockposition.down(), Blocks.STONE.getBlockData());
+-                this.fizz(world, blockposition.down());
+-                return;
+-            }
++                if (this.material == Material.LAVA && world.getType(blockposition.down()).getBlock().getMaterial() == Material.WATER) {
++                    if (LockedSpigotConfig.isLiquidsCreateStone()) {
++                        world.setTypeUpdate(blockposition.down(), Blocks.STONE.getBlockData());
++                    }
++                    this.fizz(world, blockposition.down());
++                    return;
++                }
+ 
+-            if (i >= 8) {
+-                this.flow(world, blockposition.down(), iblockdata2, i);
+-            } else {
+-                this.flow(world, blockposition.down(), iblockdata2, i + 8);
+-            }
++                if (i >= 8) {
++                    this.flow(world, blockposition.down(), iblockdata2, i);
++                } else {
++                    this.flow(world, blockposition.down(), iblockdata2, i + 8);
++                }
+             }
+             // CraftBukkit end
+         } else if (i >= 0 && (i == 0 || this.g(world, blockposition.down(), iblockdata2))) {
+@@ -168,7 +175,6 @@ public class BlockFlowing extends BlockFluids {
+ 
+             world.setTypeAndData(blockposition, this.getBlockData().set(BlockFlowing.LEVEL, i), 3);
+         }
+-
+     }
+ 
+     private int a(World world, BlockPosition blockposition, int i, EnumDirection enumdirection) {
+@@ -179,7 +185,7 @@ public class BlockFlowing extends BlockFluids {
+                 BlockPosition blockposition1 = blockposition.shift(enumdirection1);
+                 IBlockData iblockdata = world.getType(blockposition1);
+ 
+-                if (!this.g(world, blockposition1, iblockdata) && (iblockdata.getBlock().getMaterial() != this.material || (Integer) iblockdata.get(BlockFlowing.LEVEL) > 0)) {
++                if (!this.g(world, blockposition1, iblockdata) && (iblockdata.getBlock().getMaterial() != this.material || iblockdata.get(BlockFlowing.LEVEL) > 0)) {
+                     if (!this.g(world, blockposition1.down(), iblockdata)) {
+                         return i;
+                     }
+@@ -206,7 +212,7 @@ public class BlockFlowing extends BlockFluids {
+             BlockPosition blockposition1 = blockposition.shift(enumdirection);
+             IBlockData iblockdata = world.getType(blockposition1);
+ 
+-            if (!this.g(world, blockposition1, iblockdata) && (iblockdata.getBlock().getMaterial() != this.material || (Integer) iblockdata.get(BlockFlowing.LEVEL) > 0)) {
++            if (!this.g(world, blockposition1, iblockdata) && (iblockdata.getBlock().getMaterial() != this.material || iblockdata.get(BlockFlowing.LEVEL) > 0)) {
+                 int j;
+ 
+                 if (this.g(world, blockposition1.down(), world.getType(blockposition1.down()))) {
+@@ -232,7 +238,12 @@ public class BlockFlowing extends BlockFluids {
+     private boolean g(World world, BlockPosition blockposition, IBlockData iblockdata) {
+         Block block = world.getType(blockposition).getBlock();
+ 
+-        return !(block instanceof BlockDoor) && block != Blocks.STANDING_SIGN && block != Blocks.LADDER && block != Blocks.REEDS ? (block.material == Material.PORTAL ? true : block.material.isSolid()) : true;
++        if (!LockedSpigotConfig.isLiquidsBreakRedstone()) {
++            return block instanceof BlockRedstoneWire || block instanceof BlockRedstoneTorch || block instanceof BlockRedstoneComparator;
++        }
++
++        return block instanceof BlockDoor || block == Blocks.STANDING_SIGN || block == Blocks.LADDER || block == Blocks.REEDS || (block.material == Material.PORTAL || block.material.isSolid());
++
+     }
+ 
+     protected int a(World world, BlockPosition blockposition, int i) {
+diff --git a/src/main/java/net/minecraft/server/BlockFluids.java b/src/main/java/net/minecraft/server/BlockFluids.java
+index 38546f263..406b41a40 100644
+--- a/src/main/java/net/minecraft/server/BlockFluids.java
++++ b/src/main/java/net/minecraft/server/BlockFluids.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.server;
+ 
++import dev.lockedthread.LockedSpigotConfig;
++
+ import java.util.Iterator;
+ import java.util.Random;
+ 
+@@ -27,7 +29,7 @@ public abstract class BlockFluids extends Block {
+     }
+ 
+     protected int e(IBlockAccess iblockaccess, BlockPosition blockposition) {
+-        return iblockaccess.getType(blockposition).getBlock().getMaterial() == this.material ? (Integer) iblockaccess.getType(blockposition).get(BlockFluids.LEVEL) : -1;
++        return iblockaccess.getType(blockposition).getBlock().getMaterial() == this.material ? iblockaccess.getType(blockposition).get(BlockFluids.LEVEL) : -1;
+     }
+ 
+     protected int f(IBlockAccess iblockaccess, BlockPosition blockposition) {
+@@ -45,13 +47,13 @@ public abstract class BlockFluids extends Block {
+     }
+ 
+     public boolean a(IBlockData iblockdata, boolean flag) {
+-        return flag && (Integer) iblockdata.get(BlockFluids.LEVEL) == 0;
++        return flag && iblockdata.get(BlockFluids.LEVEL) == 0;
+     }
+ 
+     public boolean b(IBlockAccess iblockaccess, BlockPosition blockposition, EnumDirection enumdirection) {
+         Material material = iblockaccess.getType(blockposition).getBlock().getMaterial();
+ 
+-        return material == this.material ? false : (enumdirection == EnumDirection.UP ? true : (material == Material.ICE ? false : super.b(iblockaccess, blockposition, enumdirection)));
++        return material != this.material && (enumdirection == EnumDirection.UP || (material != Material.ICE && super.b(iblockaccess, blockposition, enumdirection)));
+     }
+ 
+     public AxisAlignedBB a(World world, BlockPosition blockposition, IBlockData iblockdata) {
+@@ -92,13 +94,13 @@ public abstract class BlockFluids extends Block {
+                         vec3d = vec3d.add((double) ((blockposition1.getX() - blockposition.getX()) * k), (double) ((blockposition1.getY() - blockposition.getY()) * k), (double) ((blockposition1.getZ() - blockposition.getZ()) * k));
+                     }
+                 }
+-            } else if (j >= 0) {
++            } else {
+                 k = j - i;
+                 vec3d = vec3d.add((double) ((blockposition1.getX() - blockposition.getX()) * k), (double) ((blockposition1.getY() - blockposition.getY()) * k), (double) ((blockposition1.getZ() - blockposition.getZ()) * k));
+             }
+         }
+ 
+-        if ((Integer) iblockaccess.getType(blockposition).get(BlockFluids.LEVEL) >= 8) {
++        if (iblockaccess.getType(blockposition).get(BlockFluids.LEVEL) >= 8) {
+             iterator = EnumDirection.EnumDirectionLimit.HORIZONTAL.iterator();
+ 
+             while (iterator.hasNext()) {
+@@ -134,7 +136,6 @@ public abstract class BlockFluids extends Block {
+         if (this.material == Material.LAVA) {
+             boolean flag = false;
+             EnumDirection[] aenumdirection = EnumDirection.values();
+-            int i = aenumdirection.length;
+ 
+             for (EnumDirection enumdirection : aenumdirection) {
+                 if (enumdirection != EnumDirection.DOWN && world.getType(blockposition.shift(enumdirection)).getBlock().getMaterial() == Material.WATER) {
+@@ -146,16 +147,20 @@ public abstract class BlockFluids extends Block {
+             if (flag) {
+                 Integer integer = iblockdata.get(BlockFluids.LEVEL);
+ 
+-                if (integer == 0) {
+-                    world.setTypeUpdate(blockposition, Blocks.OBSIDIAN.getBlockData());
+-                    this.fizz(world, blockposition);
+-                    return true;
++                if (LockedSpigotConfig.isLiquidsCreateObsidian()) {
++                    if (integer == 0) {
++                        world.setTypeUpdate(blockposition, Blocks.OBSIDIAN.getBlockData());
++                        this.fizz(world, blockposition);
++                        return true;
++                    }
+                 }
+ 
+-                if (integer > 0) { // PaperSpigot
+-                    world.setTypeUpdate(blockposition, Blocks.COBBLESTONE.getBlockData());
+-                    this.fizz(world, blockposition);
+-                    return true;
++                if (LockedSpigotConfig.isLiquidsCreateCobblestone()) {
++                    if (integer > 0) { // PaperSpigot
++                        world.setTypeUpdate(blockposition, Blocks.COBBLESTONE.getBlockData());
++                        this.fizz(world, blockposition);
++                        return true;
++                    }
+                 }
+             }
+         }
+@@ -167,11 +172,13 @@ public abstract class BlockFluids extends Block {
+         double d0 = (double) blockposition.getX();
+         double d1 = (double) blockposition.getY();
+         double d2 = (double) blockposition.getZ();
+-
+-        world.makeSound(d0 + 0.5D, d1 + 0.5D, d2 + 0.5D, "random.fizz", 0.5F, 2.6F + (world.random.nextFloat() - world.random.nextFloat()) * 0.8F);
+-
+-        for (int i = 0; i < 8; ++i) {
+-            world.addParticle(EnumParticle.SMOKE_LARGE, d0 + Math.random(), d1 + 1.2D, d2 + Math.random(), 0.0D, 0.0D, 0.0D);
++        if (LockedSpigotConfig.isLiquidsSoundFizz()) {
++            world.makeSound(d0 + 0.5D, d1 + 0.5D, d2 + 0.5D, "random.fizz", 0.5F, 2.6F + (world.random.nextFloat() - world.random.nextFloat()) * 0.8F);
++        }
++        if (LockedSpigotConfig.isLiquidsParticlesEnabled()) {
++            for (int i = 0; i < 8; ++i) {
++                world.addParticle(EnumParticle.SMOKE_LARGE, d0 + (LockedSpigotConfig.isLiquidsParticlesOffsetEnabled() ? LockedSpigotConfig.getLiquidsParticlesOffset() : Math.random()), d1 + 1.2D, d2 + (LockedSpigotConfig.isLiquidsParticlesOffsetEnabled() ? LockedSpigotConfig.getLiquidsParticlesOffset() : Math.random()), 0.0D, 0.0D, 0.0D);
++            }
+         }
+ 
+     }
+@@ -181,7 +188,7 @@ public abstract class BlockFluids extends Block {
+     }
+ 
+     public int toLegacyData(IBlockData iblockdata) {
+-        return (Integer) iblockdata.get(BlockFluids.LEVEL);
++        return iblockdata.get(BlockFluids.LEVEL);
+     }
+ 
+     protected BlockStateList getStateList() {
+diff --git a/src/main/java/net/minecraft/server/BlockPiston.java b/src/main/java/net/minecraft/server/BlockPiston.java
+index e32fba983..243b626be 100644
+--- a/src/main/java/net/minecraft/server/BlockPiston.java
++++ b/src/main/java/net/minecraft/server/BlockPiston.java
+@@ -1,14 +1,14 @@
+ package net.minecraft.server;
+ 
+-import java.util.List;
+-
+-// CraftBukkit start
+-import java.util.AbstractList;
+-
+ import com.google.common.collect.ImmutableList;
+ import org.bukkit.craftbukkit.block.CraftBlock;
+-import org.bukkit.event.block.BlockPistonRetractEvent;
+ import org.bukkit.event.block.BlockPistonExtendEvent;
++import org.bukkit.event.block.BlockPistonRetractEvent;
++
++import java.util.AbstractList;
++import java.util.List;
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public class BlockPiston extends Block {
+@@ -56,30 +56,26 @@ public class BlockPiston extends Block {
+         return this.getBlockData().set(BlockPiston.FACING, a(world, blockposition, entityliving)).set(BlockPiston.EXTENDED, Boolean.FALSE);
+     }
+ 
+-    private void e(World world, BlockPosition blockposition, IBlockData iblockdata) {
+-        EnumDirection enumdirection = iblockdata.get(BlockPiston.FACING);
+-        boolean flag = this.a(world, blockposition, enumdirection);
+-
+-        if (flag && !(Boolean) iblockdata.get(BlockPiston.EXTENDED)) {
+-            if ((new PistonExtendsChecker(world, blockposition, enumdirection, true)).a()) {
+-                world.playBlockAction(blockposition, this, 0, enumdirection.a());
+-            }
+-        } else if (!flag && (Boolean) iblockdata.get(BlockPiston.EXTENDED)) {
+-            // CraftBukkit start
+-            if (!this.sticky) {
+-                org.bukkit.block.Block block = world.getWorld().getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ());
+-                BlockPistonRetractEvent event = new BlockPistonRetractEvent(block, ImmutableList.<org.bukkit.block.Block>of(), CraftBlock.notchToBlockFace(enumdirection));
+-                world.getServer().getPluginManager().callEvent(event);
+-
+-                if (event.isCancelled()) {
+-                    return;
++    public static boolean a(Block block, World world, BlockPosition blockposition, EnumDirection enumdirection, boolean flag) {
++        if (block == Blocks.OBSIDIAN || !world.getWorldBorder().a(blockposition)) {
++            return false;
++        } else if (blockposition.getY() >= 0 && (enumdirection != EnumDirection.DOWN || blockposition.getY() != 0)) {
++            if (blockposition.getY() <= world.getHeight() - 1 && (enumdirection != EnumDirection.UP || blockposition.getY() != world.getHeight() - 1)) {
++                if (block != Blocks.PISTON && block != Blocks.STICKY_PISTON) {
++                    if (block.g(world, blockposition) == -1.0F || block.k() == 2) {
++                        return false;
++                    }
++                    if (block.k() == 1) {
++                        return flag;
++                    }
++                } else if (world.getType(blockposition).get(BlockPiston.EXTENDED)) {
++                    return false;
+                 }
++                return !(block instanceof IContainer);
+             }
+-            // CraftBukkit end
+-            world.setTypeAndData(blockposition, iblockdata.set(BlockPiston.EXTENDED, Boolean.FALSE), 2);
+-            world.playBlockAction(blockposition, this, 1, enumdirection.a());
++            return false;
+         }
+-
++        return false;
+     }
+ 
+     private boolean a(World world, BlockPosition blockposition, EnumDirection enumdirection) {
+@@ -179,41 +175,28 @@ public class BlockPiston extends Block {
+         return true;
+     }
+ 
+-    public void updateShape(IBlockAccess iblockaccess, BlockPosition blockposition) {
+-        IBlockData iblockdata = iblockaccess.getType(blockposition);
+-
+-        if (iblockdata.getBlock() == this && (Boolean) iblockdata.get(BlockPiston.EXTENDED)) {
+-            float f = 0.25F;
+-            EnumDirection enumdirection = iblockdata.get(BlockPiston.FACING);
+-
+-            if (enumdirection != null) {
+-                switch (BlockPiston.SyntheticClass_1.a[enumdirection.ordinal()]) {
+-                case 1:
+-                    this.a(0.0F, 0.25F, 0.0F, 1.0F, 1.0F, 1.0F);
+-                    break;
+-
+-                case 2:
+-                    this.a(0.0F, 0.0F, 0.0F, 1.0F, 0.75F, 1.0F);
+-                    break;
+-
+-                case 3:
+-                    this.a(0.0F, 0.0F, 0.25F, 1.0F, 1.0F, 1.0F);
+-                    break;
+-
+-                case 4:
+-                    this.a(0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 0.75F);
+-                    break;
++    private void e(World world, BlockPosition blockposition, IBlockData iblockdata) {
++        EnumDirection enumdirection = iblockdata.get(BlockPiston.FACING);
++        boolean flag = this.a(world, blockposition, enumdirection);
+ 
+-                case 5:
+-                    this.a(0.25F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F);
+-                    break;
++        if (flag && !iblockdata.get(BlockPiston.EXTENDED)) {
++            if ((new PistonExtendsChecker(world, blockposition, enumdirection, true)).a()) {
++                world.playBlockAction(blockposition, this, 0, enumdirection.a());
++            }
++        } else if (!flag && iblockdata.get(BlockPiston.EXTENDED)) {
++            // CraftBukkit start
++            if (!this.sticky) {
++                org.bukkit.block.Block block = world.getWorld().getBlockAt(blockposition.getX(), blockposition.getY(), blockposition.getZ());
++                BlockPistonRetractEvent event = new BlockPistonRetractEvent(block, ImmutableList.of(), CraftBlock.notchToBlockFace(enumdirection));
++                world.getServer().getPluginManager().callEvent(event);
+ 
+-                case 6:
+-                    this.a(0.0F, 0.0F, 0.0F, 0.75F, 1.0F, 1.0F);
++                if (event.isCancelled()) {
++                    return;
+                 }
+             }
+-        } else {
+-            this.a(0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F);
++            // CraftBukkit end
++            world.setTypeAndData(blockposition, iblockdata.set(BlockPiston.EXTENDED, Boolean.FALSE), 2);
++            world.playBlockAction(blockposition, this, 1, enumdirection.a());
+         }
+ 
+     }
+@@ -258,37 +241,43 @@ public class BlockPiston extends Block {
+         return entityliving.getDirection().opposite();
+     }
+ 
+-    public static boolean a(Block block, World world, BlockPosition blockposition, EnumDirection enumdirection, boolean flag) {
+-        if (block == Blocks.OBSIDIAN) {
+-            return false;
+-        } else if (!world.getWorldBorder().a(blockposition)) {
+-            return false;
+-        } else if (blockposition.getY() >= 0 && (enumdirection != EnumDirection.DOWN || blockposition.getY() != 0)) {
+-            if (blockposition.getY() <= world.getHeight() - 1 && (enumdirection != EnumDirection.UP || blockposition.getY() != world.getHeight() - 1)) {
+-                if (block != Blocks.PISTON && block != Blocks.STICKY_PISTON) {
+-                    if (block.g(world, blockposition) == -1.0F) {
+-                        return false;
+-                    }
++    public void updateShape(IBlockAccess iblockaccess, BlockPosition blockposition) {
++        IBlockData iblockdata = iblockaccess.getType(blockposition);
+ 
+-                    if (block.k() == 2) {
+-                        return false;
+-                    }
++        if (iblockdata.getBlock() == this && iblockdata.get(BlockPiston.EXTENDED)) {
++            float f = 0.25F;
++            EnumDirection enumdirection = iblockdata.get(BlockPiston.FACING);
+ 
+-                    if (block.k() == 1) {
+-                        return flag;
++            if (enumdirection != null) {
++                switch (BlockPiston.SyntheticClass_1.a[enumdirection.ordinal()]) {
++                    case 1:
++                        this.a(0.0F, 0.25F, 0.0F, 1.0F, 1.0F, 1.0F);
++                        break;
+ 
+-                    }
+-                } else if ((Boolean) world.getType(blockposition).get(BlockPiston.EXTENDED)) {
+-                    return false;
+-                }
++                    case 2:
++                        this.a(0.0F, 0.0F, 0.0F, 1.0F, 0.75F, 1.0F);
++                        break;
+ 
+-                return !(block instanceof IContainer);
+-            } else {
+-                return false;
++                    case 3:
++                        this.a(0.0F, 0.0F, 0.25F, 1.0F, 1.0F, 1.0F);
++                        break;
++
++                    case 4:
++                        this.a(0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 0.75F);
++                        break;
++
++                    case 5:
++                        this.a(0.25F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F);
++                        break;
++
++                    case 6:
++                        this.a(0.0F, 0.0F, 0.0F, 0.75F, 1.0F, 1.0F);
++                }
+             }
+         } else {
+-            return false;
++            this.a(0.0F, 0.0F, 0.0F, 1.0F, 1.0F, 1.0F);
+         }
++
+     }
+ 
+     private boolean a(World world, BlockPosition blockposition, EnumDirection enumdirection, boolean flag) {
+@@ -418,7 +407,7 @@ public class BlockPiston extends Block {
+         byte b0 = 0;
+         int i = b0 | iblockdata.get(BlockPiston.FACING).a();
+ 
+-        if ((Boolean) iblockdata.get(BlockPiston.EXTENDED)) {
++        if (iblockdata.get(BlockPiston.EXTENDED)) {
+             i |= 8;
+         }
+ 
+diff --git a/src/main/java/net/minecraft/server/BlockStationary.java b/src/main/java/net/minecraft/server/BlockStationary.java
+index 5226996ef..56950b2fa 100644
+--- a/src/main/java/net/minecraft/server/BlockStationary.java
++++ b/src/main/java/net/minecraft/server/BlockStationary.java
+@@ -1,8 +1,8 @@
+ package net.minecraft.server;
+ 
+-import java.util.Random;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
+ 
+-import org.bukkit.craftbukkit.event.CraftEventFactory;  // CraftBukkit
++import java.util.Random;
+ 
+ public class BlockStationary extends BlockFluids {
+ 
+@@ -80,15 +80,11 @@ public class BlockStationary extends BlockFluids {
+     }
+ 
+     protected boolean f(World world, BlockPosition blockposition) {
+-        EnumDirection[] aenumdirection = EnumDirection.values();
+-        int i = aenumdirection.length;
+-
+-        for (EnumDirection enumdirection : aenumdirection) {
++        for (EnumDirection enumdirection : EnumDirection.values()) {
+             if (this.m(world, blockposition.shift(enumdirection))) {
+                 return true;
+             }
+         }
+-
+         return false;
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
+index d2caa17c2..a5550ef2d 100644
+--- a/src/main/java/net/minecraft/server/WorldServer.java
++++ b/src/main/java/net/minecraft/server/WorldServer.java
+@@ -465,7 +465,6 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+                 i1 = this.getGameRules().c("randomTickSpeed");
+                 if (i1 > 0) {
+                     ChunkSection[] achunksection = chunk.getSections();
+-                    int j1 = achunksection.length;
+ 
+                     for (ChunkSection chunksection : achunksection) {
+                         if (chunksection != null && chunksection.shouldTick()) {
+-- 
+2.21.0.windows.1
+

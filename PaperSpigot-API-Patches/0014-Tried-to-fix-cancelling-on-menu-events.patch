@@ -1,0 +1,40 @@
+From 29703cba8b9dfa7ebc1edf55a9e6f236c5e209ca Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 18:56:10 -0400
+Subject: [PATCH] Tried to fix cancelling on menu events
+
+
+diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+index 18a895fa..e6b066ea 100644
+--- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
++++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+@@ -7,10 +7,7 @@ import org.bukkit.Server;
+ import org.bukkit.command.Command;
+ import org.bukkit.command.PluginCommandYamlParser;
+ import org.bukkit.command.SimpleCommandMap;
+-import org.bukkit.event.Event;
+-import org.bukkit.event.EventPriority;
+-import org.bukkit.event.HandlerList;
+-import org.bukkit.event.Listener;
++import org.bukkit.event.*;
+ import org.bukkit.event.inventory.InventoryClickEvent;
+ import org.bukkit.event.inventory.InventoryCloseEvent;
+ import org.bukkit.event.inventory.InventoryOpenEvent;
+@@ -486,8 +483,14 @@ public final class SimplePluginManager implements PluginManager {
+     private void fireEvent(Event event) {
+         if (event instanceof InventoryClickEvent) {
+             menuListener.onInventoryClick((InventoryClickEvent) event);
++            if (((Cancellable) event).isCancelled()) {
++                return;
++            }
+         } else if (event instanceof InventoryOpenEvent) {
+             menuListener.onInventoryOpen((InventoryOpenEvent) event);
++            if (((Cancellable) event).isCancelled()) {
++                return;
++            }
+         } else if (event instanceof InventoryCloseEvent) {
+             menuListener.onInventoryClose((InventoryCloseEvent) event);
+         }
+-- 
+2.21.0.windows.1
+

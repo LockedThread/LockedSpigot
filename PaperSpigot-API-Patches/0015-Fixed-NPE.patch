@@ -1,0 +1,40 @@
+From c92d10d23bca22306a7c34497e07ad70bf547f9f Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 19:32:14 -0400
+Subject: [PATCH] Fixed NPE
+
+
+diff --git a/src/main/java/dev/lockedthread/menu/MenuListener.java b/src/main/java/dev/lockedthread/menu/MenuListener.java
+index ff41982f..39795590 100644
+--- a/src/main/java/dev/lockedthread/menu/MenuListener.java
++++ b/src/main/java/dev/lockedthread/menu/MenuListener.java
+@@ -12,7 +12,7 @@ public class MenuListener implements Listener {
+ 
+     @EventHandler
+     public void onInventoryOpen(InventoryOpenEvent event) {
+-        if (event.getInventory() != null && event.getInventory().getHolder() instanceof Menu) {
++        if (event.getInventory() != null && event.getInventory().getHolder() != null && event.getInventory().getHolder() instanceof Menu) {
+             Menu menu = (Menu) event.getInventory().getHolder();
+             if (menu.getInventoryOpenEventConsumer() != null) {
+                 menu.getInventoryOpenEventConsumer().accept(event);
+@@ -22,7 +22,7 @@ public class MenuListener implements Listener {
+ 
+     @EventHandler
+     public void onInventoryClose(InventoryCloseEvent event) {
+-        if (event.getInventory() != null && event.getInventory().getHolder() instanceof Menu) {
++        if (event.getInventory() != null && event.getInventory().getHolder() != null && event.getInventory().getHolder() instanceof Menu) {
+             Menu menu = (Menu) event.getInventory().getHolder();
+             if (menu.getInventoryCloseEventConsumer() != null) {
+                 menu.getInventoryCloseEventConsumer().accept(event);
+@@ -32,7 +32,7 @@ public class MenuListener implements Listener {
+ 
+     @EventHandler
+     public void onInventoryClick(InventoryClickEvent event) {
+-        if (event.getInventory() != null && event.getClickedInventory().getHolder() instanceof Menu) {
++        if (event.getInventory() != null && event.getClickedInventory().getHolder() != null && event.getClickedInventory().getHolder() instanceof Menu) {
+             Menu menu = (Menu) event.getClickedInventory().getHolder();
+             final Optional<MenuItem> menuItem = menu.getMenuItem(event.getRawSlot());
+             if (menuItem.isPresent() && menuItem.get().getInventoryClickEventConsumer() != null) {
+-- 
+2.21.0.windows.1
+

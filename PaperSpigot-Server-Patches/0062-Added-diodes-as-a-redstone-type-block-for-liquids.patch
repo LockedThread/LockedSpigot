@@ -1,0 +1,22 @@
+From a94b476d6559481808bf2ff27ea89de11b1ad977 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 20:42:30 -0400
+Subject: [PATCH] Added diodes as a redstone type block for liquids.
+
+
+diff --git a/src/main/java/net/minecraft/server/BlockFlowing.java b/src/main/java/net/minecraft/server/BlockFlowing.java
+index 49fc804d2..c9c217adf 100644
+--- a/src/main/java/net/minecraft/server/BlockFlowing.java
++++ b/src/main/java/net/minecraft/server/BlockFlowing.java
+@@ -239,7 +239,7 @@ public class BlockFlowing extends BlockFluids {
+         Block block = world.getType(blockposition).getBlock();
+ 
+         if (!LockedSpigotConfig.isLiquidsBreakRedstone()) {
+-            return block instanceof BlockRedstoneWire || block instanceof BlockRedstoneTorch || block instanceof BlockRedstoneComparator || block instanceof BlockDoor || block == Blocks.STANDING_SIGN || block == Blocks.LADDER || block == Blocks.REEDS || (block.material == Material.PORTAL || block.material.isSolid());
++            return block instanceof BlockDiodeAbstract || block instanceof BlockRedstoneWire || block instanceof BlockRedstoneTorch || block instanceof BlockRedstoneComparator || block instanceof BlockDoor || block == Blocks.STANDING_SIGN || block == Blocks.LADDER || block == Blocks.REEDS || (block.material == Material.PORTAL || block.material.isSolid());
+         }
+ 
+         return block instanceof BlockDoor || block == Blocks.STANDING_SIGN || block == Blocks.LADDER || block == Blocks.REEDS || (block.material == Material.PORTAL || block.material.isSolid());
+-- 
+2.21.0.windows.1
+

@@ -1,0 +1,33 @@
+From c086c827d95f170b09c7e6ad94dc964e66408b8d Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 19:08:43 -0400
+Subject: [PATCH] Got lazy, now closing inventory
+
+
+diff --git a/src/main/java/dev/lockedthread/commands/CommandFPS.java b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+index cd4b5898f..8d91ff6e0 100644
+--- a/src/main/java/dev/lockedthread/commands/CommandFPS.java
++++ b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+@@ -48,8 +48,7 @@ public class CommandFPS extends Command {
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+                     player.setCanSeeFallingBlocks(false);
+-                    event.setCancelled(true);
+-                    setupFallingBlock(player);
++                    event.getWhoClicked().closeInventory();
+                 }) : MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuFallingBlockMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuFallingBlockName())
+                 .setLore(LockedSpigotConfig.getFpsMenuFallingBlockLore().stream().map(s -> s.replace("{mode}", "&a&lENABLE")).collect(Collectors.toList()))
+@@ -58,8 +57,7 @@ public class CommandFPS extends Command {
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+                     player.setCanSeeFallingBlocks(true);
+-                    event.setCancelled(true);
+-                    setupFallingBlock(player);
++                    event.getWhoClicked().closeInventory();
+                 });
+     }
+ 
+-- 
+2.21.0.windows.1
+
