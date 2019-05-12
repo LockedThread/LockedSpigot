@@ -1,0 +1,46 @@
+From 825d5b352b609fbcd4c7782fe75ea2d800698ba9 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 11 May 2019 23:04:48 -0400
+Subject: [PATCH] Code cleanup and optimized tile entities
+
+
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index b92dce7eb..9f8ff6d0f 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -244,15 +244,7 @@ public abstract class World implements IBlockAccess {
+                 CrashReport crashreport = CrashReport.a(throwable, "Getting biome");
+                 CrashReportSystemDetails crashreportsystemdetails = crashreport.a("Coordinates of biome request");
+ 
+-                crashreportsystemdetails.a("Location", new Callable() {
+-                    public String a() {
+-                        return CrashReportSystemDetails.a(blockposition);
+-                    }
+-
+-                    public Object call() throws Exception {
+-                        return this.a();
+-                    }
+-                });
++                crashreportsystemdetails.a("Location", () -> CrashReportSystemDetails.a(blockposition));
+                 throw new ReportedException(crashreport);
+             }
+         } else {
+@@ -1939,12 +1931,12 @@ public abstract class World implements IBlockAccess {
+             return null;
+         } else {
+             // CraftBukkit start
+-            if (capturedTileEntities.containsKey(blockposition)) {
+-                return capturedTileEntities.get(blockposition);
++            TileEntity tileentity = null; // Paper
++            if (!capturedTileEntities.isEmpty() && (tileentity = capturedTileEntities.get(blockposition)) != null) { // Paper
++                return tileentity; // Paper
+             }
+             // CraftBukkit end
+ 
+-            TileEntity tileentity = null;
+             int i;
+             TileEntity tileentity1;
+ 
+-- 
+2.21.0.windows.1
+

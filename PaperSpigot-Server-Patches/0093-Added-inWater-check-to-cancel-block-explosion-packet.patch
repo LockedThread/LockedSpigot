@@ -1,0 +1,22 @@
+From 19f2b56fffef5c2ff5e1f4e04a169be19f06e21a Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 01:56:37 -0400
+Subject: [PATCH] Added inWater check to cancel block explosion packet
+
+
+diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
+index 9b7eda2ed..edf7b6e6e 100644
+--- a/src/main/java/net/minecraft/server/WorldServer.java
++++ b/src/main/java/net/minecraft/server/WorldServer.java
+@@ -822,7 +822,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+     @Override
+     public Explosion createExplosion(final Entity entity, final double d0, final double d1, final double d2, final float f, final boolean flag, final boolean flag1) {
+         Explosion explosion = super.createExplosion(entity, d0, d1, d2, f, flag, flag1);
+-        if (explosion.wasCanceled) {
++        if (explosion.wasCanceled || explosion.inWater) {
+             return explosion;
+         }
+         if (!flag1) {
+-- 
+2.21.0.windows.1
+

@@ -1,0 +1,230 @@
+From 998515aa6e3dc503100b9ef2111ae27b7f55df3b Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 6 May 2019 19:43:30 -0400
+Subject: [PATCH] Removed ChunkIO shit for dumbasses
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 12bf3b169..163b5e370 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -80,8 +80,6 @@ public class LockedSpigotConfig {
+     private static boolean serverChatDisconnectSpam;
+     private static boolean serverMobAi;
+     private static boolean serverUpdateTime;
+-    private static int serverChunkIOBaseThreads;
+-    private static int serverChunkIOPlayersPerThread;
+     private static boolean server40tpsEntities;
+     private static boolean server40tpsChunkIO;
+     private static boolean server40TpsProcessQueue;
+@@ -143,8 +141,6 @@ public class LockedSpigotConfig {
+         serverChatDisconnectSpam = getBoolean("server.chat-disconnect-spam", false);
+         serverMobAi = getBoolean("server.mob-ai", false);
+         serverUpdateTime = getBoolean("server.update-time", false);
+-        serverChunkIOBaseThreads = getInt("server.chunk-io.base-threads", 2);
+-        serverChunkIOPlayersPerThread = getInt("server.chunk-io.players-per-thread", 50);
+         server40tpsEntities = getBoolean("server.40-tps.entites", false);
+         server40tpsChunkIO = getBoolean("server.40-tps.chunk-io", true);
+         server40TpsProcessQueue = getBoolean("server.40-tps.process-queue", true);
+@@ -338,14 +334,6 @@ public class LockedSpigotConfig {
+         return serverMobAi;
+     }
+ 
+-    public static int getServerChunkIOBaseThreads() {
+-        return serverChunkIOBaseThreads;
+-    }
+-
+-    public static int getServerChunkIOPlayersPerThread() {
+-        return serverChunkIOPlayersPerThread;
+-    }
+-
+     public static boolean isServer40tpsEntities() {
+         return server40tpsEntities;
+     }
+diff --git a/src/main/java/net/minecraft/server/ChunkRegionLoader.java b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
+index 548cc31c9..dc5aafd8e 100644
+--- a/src/main/java/net/minecraft/server/ChunkRegionLoader.java
++++ b/src/main/java/net/minecraft/server/ChunkRegionLoader.java
+@@ -1,19 +1,12 @@
+ package net.minecraft.server;
+ 
+-import java.io.DataInputStream;
+-import java.io.DataOutput;
+-import java.io.DataOutputStream;
+-import java.io.File;
+-import java.io.IOException;
+-import java.util.Collections;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Set;
+-import java.util.concurrent.ConcurrentHashMap;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
++import java.io.*;
++import java.util.*;
++import java.util.concurrent.ConcurrentHashMap;
++
+ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+ 
+     private static final Logger a = LogManager.getLogger();
+@@ -59,7 +52,7 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+     public Object[] loadChunk(World world, int i, int j) throws IOException {
+         // CraftBukkit end
+         ChunkCoordIntPair chunkcoordintpair = new ChunkCoordIntPair(i, j);
+-        NBTTagCompound nbttagcompound = this.b.get(chunkcoordintpair);
++        NBTTagCompound nbttagcompound = (NBTTagCompound) this.b.get(chunkcoordintpair);
+ 
+         if (nbttagcompound == null) {
+             DataInputStream datainputstream = RegionFileCache.c(this.d, i, j);
+@@ -96,7 +89,7 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+                     NBTTagList tileEntities = nbttagcompound.getCompound("Level").getList("TileEntities", 10);
+                     if (tileEntities != null) {
+                         for (int te = 0; te < tileEntities.size(); te++) {
+-                            NBTTagCompound tileEntity = tileEntities.get(te);
++                            NBTTagCompound tileEntity = (NBTTagCompound) tileEntities.get(te);
+                             int x = tileEntity.getInt("x") - chunk.locX * 16;
+                             int z = tileEntity.getInt("z") - chunk.locZ * 16;
+                             tileEntity.setInt("x", i * 16 + x);
+@@ -117,7 +110,7 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+         }
+     }
+ 
+-    public void a(World world, Chunk chunk) throws ExceptionWorldConflict {
++    public void a(World world, Chunk chunk) throws IOException, ExceptionWorldConflict {
+         world.checkSession();
+ 
+         try {
+@@ -144,18 +137,18 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+     public boolean c() {
+         if (this.b.isEmpty()) {
+             if (this.e) {
+-                ChunkRegionLoader.a.info("ThreadedAnvilChunkStorage ({}): All chunks are saved", this.d.getName());
++                ChunkRegionLoader.a.info("ThreadedAnvilChunkStorage ({}): All chunks are saved", new Object[]{this.d.getName()});
+             }
+ 
+             return false;
+         } else {
+-            ChunkCoordIntPair chunkcoordintpair = this.b.keySet().iterator().next();
++            ChunkCoordIntPair chunkcoordintpair = (ChunkCoordIntPair) this.b.keySet().iterator().next();
+ 
+             boolean flag;
+ 
+             try {
+                 this.c.add(chunkcoordintpair);
+-                NBTTagCompound nbttagcompound = this.b.remove(chunkcoordintpair);
++                NBTTagCompound nbttagcompound = (NBTTagCompound) this.b.remove(chunkcoordintpair);
+ 
+                 if (nbttagcompound != null) {
+                     try {
+@@ -181,7 +174,8 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+         dataoutputstream.close();
+     }
+ 
+-    public void b(World world, Chunk chunk) {}
++    public void b(World world, Chunk chunk) throws IOException {
++    }
+ 
+     public void a() {}
+ 
+@@ -212,12 +206,13 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+         ChunkSection[] achunksection = chunk.getSections();
+         NBTTagList nbttaglist = new NBTTagList();
+         boolean flag = !world.worldProvider.o();
++        ChunkSection[] achunksection1 = achunksection;
+         int i = achunksection.length;
+ 
+         NBTTagCompound nbttagcompound1;
+ 
+         for (int j = 0; j < i; ++j) {
+-            ChunkSection chunksection = achunksection[j];
++            ChunkSection chunksection = achunksection1[j];
+ 
+             if (chunksection != null) {
+                 nbttagcompound1 = new NBTTagCompound();
+@@ -301,11 +296,12 @@ public class ChunkRegionLoader implements IChunkLoader, IAsyncChunkSaver {
+         if (list != null) {
+             long k1 = world.getTime();
+             NBTTagList nbttaglist3 = new NBTTagList();
++            Iterator iterator1 = list.iterator();
+ 
+-            for (Object o : list) {
+-                NextTickListEntry nextticklistentry = (NextTickListEntry) o;
++            while (iterator1.hasNext()) {
++                NextTickListEntry nextticklistentry = (NextTickListEntry) iterator1.next();
+                 NBTTagCompound nbttagcompound2 = new NBTTagCompound();
+-                MinecraftKey minecraftkey = Block.REGISTRY.c(nextticklistentry.a());
++                MinecraftKey minecraftkey = (MinecraftKey) Block.REGISTRY.c(nextticklistentry.a());
+ 
+                 nbttagcompound2.setString("i", minecraftkey == null ? "" : minecraftkey.toString());
+                 nbttagcompound2.setInt("x", nextticklistentry.a.getX());
+diff --git a/src/main/java/net/minecraft/server/FileIOThread.java b/src/main/java/net/minecraft/server/FileIOThread.java
+index dcc17dbeb..68f6a5a7a 100644
+--- a/src/main/java/net/minecraft/server/FileIOThread.java
++++ b/src/main/java/net/minecraft/server/FileIOThread.java
+@@ -1,13 +1,19 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
++
+ import java.util.Collections;
+ import java.util.List;
+ 
+ public class FileIOThread implements Runnable {
+ 
+     private static final FileIOThread a = new FileIOThread();
+-    private List<IAsyncChunkSaver> b = Collections.synchronizedList(Lists.<IAsyncChunkSaver>newArrayList());
++    private final List<IAsyncChunkSaver> b = Collections.synchronizedList(Lists.newArrayList());
++
++    private List<IAsyncChunkSaver> getThreadedIOQueue() {
++        return b;
++    } // Paper - OBFHELPER
++
+     private volatile long c;
+     private volatile long d;
+     private volatile boolean e;
+@@ -67,7 +73,7 @@ public class FileIOThread implements Runnable {
+     public void b() throws InterruptedException {
+         this.e = true;
+ 
+-        while (this.c != this.d) {
++        while (!this.getThreadedIOQueue().isEmpty()) { // Paper - check actual list size
+             Thread.sleep(10L);
+         }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOExecutor.java b/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOExecutor.java
+index 184375fca..69e5da4c6 100644
+--- a/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOExecutor.java
++++ b/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOExecutor.java
+@@ -1,6 +1,5 @@
+ package org.bukkit.craftbukkit.chunkio;
+ 
+-import dev.lockedthread.LockedSpigotConfig;
+ import net.minecraft.server.Chunk;
+ import net.minecraft.server.ChunkProviderServer;
+ import net.minecraft.server.ChunkRegionLoader;
+@@ -8,8 +7,10 @@ import net.minecraft.server.World;
+ import org.bukkit.craftbukkit.util.AsynchronousExecutor;
+ 
+ public class ChunkIOExecutor {
++    static final int BASE_THREADS = 2; // PaperSpigot - Bumped value
++    static final int PLAYERS_PER_THREAD = 50;
+ 
+-    private static final AsynchronousExecutor<QueuedChunk, Chunk, Runnable, RuntimeException> instance = new AsynchronousExecutor<>(new ChunkIOProvider(), LockedSpigotConfig.getServerChunkIOBaseThreads());
++    private static final AsynchronousExecutor<QueuedChunk, Chunk, Runnable, RuntimeException> instance = new AsynchronousExecutor<QueuedChunk, Chunk, Runnable, RuntimeException>(new ChunkIOProvider(), BASE_THREADS);
+ 
+     public static Chunk syncChunkLoad(World world, ChunkRegionLoader loader, ChunkProviderServer provider, int x, int z) {
+         return instance.getSkipQueue(new QueuedChunk(x, z, loader, world, provider));
+@@ -25,7 +26,7 @@ public class ChunkIOExecutor {
+     }
+ 
+     public static void adjustPoolSize(int players) {
+-        int size = Math.max(LockedSpigotConfig.getServerChunkIOBaseThreads(), (int) Math.ceil(players / LockedSpigotConfig.getServerChunkIOPlayersPerThread()));
++        int size = Math.max(BASE_THREADS, (int) Math.ceil(players / PLAYERS_PER_THREAD));
+         instance.setActiveThreads(size);
+     }
+ 
+-- 
+2.21.0.windows.1
+

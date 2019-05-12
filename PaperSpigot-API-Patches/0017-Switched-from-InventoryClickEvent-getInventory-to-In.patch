@@ -1,0 +1,23 @@
+From 435d18b2ac02450e30772235f41bb8446e28cd4c Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 22:15:49 -0400
+Subject: [PATCH] Switched from InventoryClickEvent#getInventory to
+ InventoryClickEvent#getClickedInventory
+
+
+diff --git a/src/main/java/dev/lockedthread/menu/MenuListener.java b/src/main/java/dev/lockedthread/menu/MenuListener.java
+index 39795590..e782b044 100644
+--- a/src/main/java/dev/lockedthread/menu/MenuListener.java
++++ b/src/main/java/dev/lockedthread/menu/MenuListener.java
+@@ -32,7 +32,7 @@ public class MenuListener implements Listener {
+ 
+     @EventHandler
+     public void onInventoryClick(InventoryClickEvent event) {
+-        if (event.getInventory() != null && event.getClickedInventory().getHolder() != null && event.getClickedInventory().getHolder() instanceof Menu) {
++        if (event.getClickedInventory() != null && event.getClickedInventory().getHolder() != null && event.getClickedInventory().getHolder() instanceof Menu) {
+             Menu menu = (Menu) event.getClickedInventory().getHolder();
+             final Optional<MenuItem> menuItem = menu.getMenuItem(event.getRawSlot());
+             if (menuItem.isPresent() && menuItem.get().getInventoryClickEventConsumer() != null) {
+-- 
+2.21.0.windows.1
+

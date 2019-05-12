@@ -1,0 +1,443 @@
+From 499afab9ad951805f84b0b2cffa856dd5af4d1cc Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 6 May 2019 13:40:57 -0400
+Subject: [PATCH] toggleable mob ai
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index acb8a6cd2..c410df609 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -78,6 +78,7 @@ public class LockedSpigotConfig {
+ 
+     private static int serverPacketDeserializerLimit;
+     private static boolean serverChatDisconnectSpam;
++    private static boolean serverMobAi;
+ 
+     private static void load() {
+         ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
+@@ -133,6 +134,7 @@ public class LockedSpigotConfig {
+ 
+         serverPacketDeserializerLimit = getInt("server.packet-deserializer-limit", Integer.MAX_VALUE);
+         serverChatDisconnectSpam = getBoolean("server.chat-disconnect-spam", false);
++        serverMobAi = getBoolean("server.mob-ai", false);
+ 
+         try {
+             config.save(CONFIG_FILE);
+@@ -316,6 +318,10 @@ public class LockedSpigotConfig {
+         return serverChatDisconnectSpam;
+     }
+ 
++    public static boolean isServerMobAi() {
++        return serverMobAi;
++    }
++
+     public static void init(File configFile) {
+         CONFIG_FILE = configFile;
+         config = new YamlConfiguration();
+diff --git a/src/main/java/net/minecraft/server/EntityInsentient.java b/src/main/java/net/minecraft/server/EntityInsentient.java
+index f2fa8e87d..c7918de16 100644
+--- a/src/main/java/net/minecraft/server/EntityInsentient.java
++++ b/src/main/java/net/minecraft/server/EntityInsentient.java
+@@ -1,16 +1,19 @@
+ package net.minecraft.server;
+ 
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.UUID;
+-
+-// CraftBukkit start
+-import org.bukkit.craftbukkit.event.CraftEventFactory;
++import dev.lockedthread.LockedSpigotConfig;
+ import org.bukkit.craftbukkit.entity.CraftLivingEntity;
+-import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.EntityTargetEvent;
++import org.bukkit.event.entity.EntityTargetLivingEntityEvent;
+ import org.bukkit.event.entity.EntityUnleashEvent;
+ import org.bukkit.event.entity.EntityUnleashEvent.UnleashReason;
++
++import java.util.List;
++import java.util.UUID;
++
++// CraftBukkit start
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public abstract class EntityInsentient extends EntityLiving {
+@@ -126,7 +129,29 @@ public abstract class EntityInsentient extends EntityLiving {
+         return oclass != EntityGhast.class;
+     }
+ 
+-    public void v() {}
++    public static int c(ItemStack itemstack) {
++        if (itemstack.getItem() != Item.getItemOf(Blocks.PUMPKIN) && itemstack.getItem() != Items.SKULL) {
++            if (itemstack.getItem() instanceof ItemArmor) {
++                switch (((ItemArmor) itemstack.getItem()).b) {
++                    case 0:
++                        return 4;
++
++                    case 1:
++                        return 3;
++
++                    case 2:
++                        return 2;
++
++                    case 3:
++                        return 1;
++                }
++            }
++
++            return 0;
++        } else {
++            return 4;
++        }
++    }
+ 
+     protected void h() {
+         super.h();
+@@ -212,6 +237,7 @@ public abstract class EntityInsentient extends EntityLiving {
+     }
+ 
+     protected ItemStack headDrop = null; // CraftBukkit
++
+     protected void dropDeathLoot(boolean flag, int i) {
+         Item item = this.getLoot();
+ 
+@@ -283,47 +309,63 @@ public abstract class EntityInsentient extends EntityLiving {
+ 
+     }
+ 
+-    public void a(NBTTagCompound nbttagcompound) {
+-        super.a(nbttagcompound);
+-        
+-        // CraftBukkit start - If looting or persistence is false only use it if it was set after we started using it
+-        if (nbttagcompound.hasKeyOfType("CanPickUpLoot", 1)) {
+-            boolean data = nbttagcompound.getBoolean("CanPickUpLoot");
+-            if (isLevelAtLeast(nbttagcompound, 1) || data) {
+-                this.j(data);
+-            }
+-        }
+-
+-        boolean data = nbttagcompound.getBoolean("PersistenceRequired");
+-        if (isLevelAtLeast(nbttagcompound, 1) || data) {
+-            this.persistent = data;
+-        }
+-        // CraftBukkit end
+-        NBTTagList nbttaglist;
+-        int i;
+-
+-        if (nbttagcompound.hasKeyOfType("Equipment", 9)) {
+-            nbttaglist = nbttagcompound.getList("Equipment", 10);
++    public static Item a(int i, int j) {
++        switch (i) {
++            case 4:
++                if (j == 0) {
++                    return Items.LEATHER_HELMET;
++                } else if (j == 1) {
++                    return Items.GOLDEN_HELMET;
++                } else if (j == 2) {
++                    return Items.CHAINMAIL_HELMET;
++                } else if (j == 3) {
++                    return Items.IRON_HELMET;
++                } else if (j == 4) {
++                    return Items.DIAMOND_HELMET;
++                }
+ 
+-            for (i = 0; i < this.equipment.length; ++i) {
+-                this.equipment[i] = ItemStack.createStack(nbttaglist.get(i));
+-            }
+-        }
++            case 3:
++                if (j == 0) {
++                    return Items.LEATHER_CHESTPLATE;
++                } else if (j == 1) {
++                    return Items.GOLDEN_CHESTPLATE;
++                } else if (j == 2) {
++                    return Items.CHAINMAIL_CHESTPLATE;
++                } else if (j == 3) {
++                    return Items.IRON_CHESTPLATE;
++                } else if (j == 4) {
++                    return Items.DIAMOND_CHESTPLATE;
++                }
+ 
+-        if (nbttagcompound.hasKeyOfType("DropChances", 9)) {
+-            nbttaglist = nbttagcompound.getList("DropChances", 5);
++            case 2:
++                if (j == 0) {
++                    return Items.LEATHER_LEGGINGS;
++                } else if (j == 1) {
++                    return Items.GOLDEN_LEGGINGS;
++                } else if (j == 2) {
++                    return Items.CHAINMAIL_LEGGINGS;
++                } else if (j == 3) {
++                    return Items.IRON_LEGGINGS;
++                } else if (j == 4) {
++                    return Items.DIAMOND_LEGGINGS;
++                }
+ 
+-            for (i = 0; i < nbttaglist.size(); ++i) {
+-                this.dropChances[i] = nbttaglist.e(i);
+-            }
+-        }
++            case 1:
++                if (j == 0) {
++                    return Items.LEATHER_BOOTS;
++                } else if (j == 1) {
++                    return Items.GOLDEN_BOOTS;
++                } else if (j == 2) {
++                    return Items.CHAINMAIL_BOOTS;
++                } else if (j == 3) {
++                    return Items.IRON_BOOTS;
++                } else if (j == 4) {
++                    return Items.DIAMOND_BOOTS;
++                }
+ 
+-        this.bo = nbttagcompound.getBoolean("Leashed");
+-        if (this.bo && nbttagcompound.hasKeyOfType("Leash", 10)) {
+-            this.bq = nbttagcompound.getCompound("Leash");
++            default:
++                return null;
+         }
+-
+-        this.k(nbttagcompound.getBoolean("NoAI"));
+     }
+ 
+     public void n(float f) {
+@@ -452,50 +494,51 @@ public abstract class EntityInsentient extends EntityLiving {
+         }
+     }
+ 
+-    protected final void doTick() {
+-        ++this.ticksFarFromPlayer;
+-        this.world.methodProfiler.a("checkDespawn");
+-        this.D();
+-        this.world.methodProfiler.b();
+-        // Spigot Start
+-        if ( this.fromMobSpawner )
+-        {
+-            // PaperSpigot start - Allow nerfed mobs to jump
+-            if (goalFloat != null) {
+-                if (goalFloat.a()) goalFloat.e();
+-                this.g.b();
++    public void v() {
++    }
++
++    public void a(NBTTagCompound nbttagcompound) {
++        super.a(nbttagcompound);
++
++        // CraftBukkit start - If looting or persistence is false only use it if it was set after we started using it
++        if (nbttagcompound.hasKeyOfType("CanPickUpLoot", 1)) {
++            boolean data = nbttagcompound.getBoolean("CanPickUpLoot");
++            if (isLevelAtLeast(nbttagcompound, 1) || data) {
++                this.j(data);
++            }
++        }
++
++        boolean data = nbttagcompound.getBoolean("PersistenceRequired");
++        if (isLevelAtLeast(nbttagcompound, 1) || data) {
++            this.persistent = data;
++        }
++        // CraftBukkit end
++        NBTTagList nbttaglist;
++        int i;
++
++        if (nbttagcompound.hasKeyOfType("Equipment", 9)) {
++            nbttaglist = nbttagcompound.getList("Equipment", 10);
++
++            for (i = 0; i < this.equipment.length; ++i) {
++                this.equipment[i] = ItemStack.createStack(nbttaglist.get(i));
++            }
++        }
++
++        if (nbttagcompound.hasKeyOfType("DropChances", 9)) {
++            nbttaglist = nbttagcompound.getList("DropChances", 5);
++
++            for (i = 0; i < nbttaglist.size(); ++i) {
++                this.dropChances[i] = nbttaglist.e(i);
+             }
+-            // PaperSpigot end
+-            return;
+         }
+-        // Spigot End
+-        this.world.methodProfiler.a("sensing");
+-        this.bk.a();
+-        this.world.methodProfiler.b();
+-        this.world.methodProfiler.a("targetSelector");
+-        this.targetSelector.a();
+-        this.world.methodProfiler.b();
+-        this.world.methodProfiler.a("goalSelector");
+-        this.goalSelector.a();
+-        this.world.methodProfiler.b();
+-        this.world.methodProfiler.a("navigation");
+-        this.navigation.k();
+-        this.world.methodProfiler.b();
+-        this.world.methodProfiler.a("mob tick");
+-        this.E();
+-        this.world.methodProfiler.b();
+-        this.world.methodProfiler.a("controls");
+-        this.world.methodProfiler.a("move");
+-        this.moveController.c();
+-        this.world.methodProfiler.c("look");
+-        this.lookController.a();
+-        this.world.methodProfiler.c("jump");
+-        this.g.b();
+-        this.world.methodProfiler.b();
+-        this.world.methodProfiler.b();
+-    }
+ 
+-    protected void E() {}
++        this.bo = nbttagcompound.getBoolean("Leashed");
++        if (this.bo && nbttagcompound.hasKeyOfType("Leash", 10)) {
++            this.bq = nbttagcompound.getCompound("Leash");
++        }
++
++        this.k(nbttagcompound.getBoolean("NoAI"));
++    }
+ 
+     public int bQ() {
+         return 40;
+@@ -646,87 +689,53 @@ public abstract class EntityInsentient extends EntityLiving {
+ 
+     }
+ 
+-    public static int c(ItemStack itemstack) {
+-        if (itemstack.getItem() != Item.getItemOf(Blocks.PUMPKIN) && itemstack.getItem() != Items.SKULL) {
+-            if (itemstack.getItem() instanceof ItemArmor) {
+-                switch (((ItemArmor) itemstack.getItem()).b) {
+-                case 0:
+-                    return 4;
+-
+-                case 1:
+-                    return 3;
+-
+-                case 2:
+-                    return 2;
+-
+-                case 3:
+-                    return 1;
+-                }
++    protected final void doTick() {
++        ++this.ticksFarFromPlayer;
++        this.world.methodProfiler.a("checkDespawn");
++        this.D();
++        this.world.methodProfiler.b();
++        // Spigot Start
++        if (this.fromMobSpawner) {
++            // PaperSpigot start - Allow nerfed mobs to jump
++            if (goalFloat != null) {
++                if (goalFloat.a()) goalFloat.e();
++                this.g.b();
+             }
+-
+-            return 0;
+-        } else {
+-            return 4;
++            // PaperSpigot end
++            return;
+         }
++        if (!LockedSpigotConfig.isServerMobAi()) {
++            return;
++        }
++
++        // Spigot End
++        this.world.methodProfiler.a("sensing");
++        this.bk.a();
++        this.world.methodProfiler.b();
++        this.world.methodProfiler.a("targetSelector");
++        this.targetSelector.a();
++        this.world.methodProfiler.b();
++        this.world.methodProfiler.a("goalSelector");
++        this.goalSelector.a();
++        this.world.methodProfiler.b();
++        this.world.methodProfiler.a("navigation");
++        this.navigation.k();
++        this.world.methodProfiler.b();
++        this.world.methodProfiler.a("mob tick");
++        this.E();
++        this.world.methodProfiler.b();
++        this.world.methodProfiler.a("controls");
++        this.world.methodProfiler.a("move");
++        this.moveController.c();
++        this.world.methodProfiler.c("look");
++        this.lookController.a();
++        this.world.methodProfiler.c("jump");
++        this.g.b();
++        this.world.methodProfiler.b();
++        this.world.methodProfiler.b();
+     }
+ 
+-    public static Item a(int i, int j) {
+-        switch (i) {
+-        case 4:
+-            if (j == 0) {
+-                return Items.LEATHER_HELMET;
+-            } else if (j == 1) {
+-                return Items.GOLDEN_HELMET;
+-            } else if (j == 2) {
+-                return Items.CHAINMAIL_HELMET;
+-            } else if (j == 3) {
+-                return Items.IRON_HELMET;
+-            } else if (j == 4) {
+-                return Items.DIAMOND_HELMET;
+-            }
+-
+-        case 3:
+-            if (j == 0) {
+-                return Items.LEATHER_CHESTPLATE;
+-            } else if (j == 1) {
+-                return Items.GOLDEN_CHESTPLATE;
+-            } else if (j == 2) {
+-                return Items.CHAINMAIL_CHESTPLATE;
+-            } else if (j == 3) {
+-                return Items.IRON_CHESTPLATE;
+-            } else if (j == 4) {
+-                return Items.DIAMOND_CHESTPLATE;
+-            }
+-
+-        case 2:
+-            if (j == 0) {
+-                return Items.LEATHER_LEGGINGS;
+-            } else if (j == 1) {
+-                return Items.GOLDEN_LEGGINGS;
+-            } else if (j == 2) {
+-                return Items.CHAINMAIL_LEGGINGS;
+-            } else if (j == 3) {
+-                return Items.IRON_LEGGINGS;
+-            } else if (j == 4) {
+-                return Items.DIAMOND_LEGGINGS;
+-            }
+-
+-        case 1:
+-            if (j == 0) {
+-                return Items.LEATHER_BOOTS;
+-            } else if (j == 1) {
+-                return Items.GOLDEN_BOOTS;
+-            } else if (j == 2) {
+-                return Items.CHAINMAIL_BOOTS;
+-            } else if (j == 3) {
+-                return Items.IRON_BOOTS;
+-            } else if (j == 4) {
+-                return Items.DIAMOND_BOOTS;
+-            }
+-
+-        default:
+-            return null;
+-        }
++    protected void E() {
+     }
+ 
+     protected void b(DifficultyDamageScaler difficultydamagescaler) {
+@@ -944,6 +953,7 @@ public abstract class EntityInsentient extends EntityLiving {
+ 
+         ON_GROUND, IN_AIR, IN_WATER;
+ 
+-        EnumEntityPositionType() {}
++        EnumEntityPositionType() {
++        }
+     }
+ }
+-- 
+2.21.0.windows.1
+

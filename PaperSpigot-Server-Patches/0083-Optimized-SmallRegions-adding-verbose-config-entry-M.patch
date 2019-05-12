@@ -1,0 +1,161 @@
+From 61aec4dff3255ee187e3f7f442e57d6d87954f5c Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 11 May 2019 20:46:52 -0400
+Subject: [PATCH] Optimized SmallRegions, adding verbose config entry,
+ MathHelper#floor now uses FastMath#floorToInt, and implemented a region cache
+ system
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 0183f367a..a31c0d410 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -85,6 +85,7 @@ public class LockedSpigotConfig {
+     private static boolean server40tpsChunkIO;
+     private static boolean server40TpsProcessQueue;
+     private static boolean server40TpsTimeUpdate;
++    private static boolean serverVerbose;
+ 
+     private static boolean explosionSounds;
+     private static boolean explosionParticles;
+@@ -153,13 +154,14 @@ public class LockedSpigotConfig {
+         server40tpsChunkIO = getBoolean("server.40-tps.chunk-io", true);
+         server40TpsProcessQueue = getBoolean("server.40-tps.process-queue", true);
+         server40TpsTimeUpdate = getBoolean("server.40-tps.time-update", false);
++        serverVerbose = getBoolean("server.verbose", false);
+ 
+         explosionSounds = getBoolean("explosions.sound", false);
+         explosionParticles = getBoolean("explosions.particles", false);
+         explosionDamageEntities = getBoolean("explosions.damage-entities", false);
+         explosionDropsBlocks = getBoolean("explosions.drops-blocks", false);
+         explosionCreatesFire = getBoolean("explosions.creates-fire", false);
+-        explosionRegionRadius = getInt("explosions.region-radius", 4);
++        explosionRegionRadius = getInt("explosions.region-radius", 3);
+ 
+         for (int k = 0; k < 16; ++k) {
+             for (int i = 0; i < 16; ++i) {
+@@ -403,6 +405,10 @@ public class LockedSpigotConfig {
+         return explosionDropsBlocks;
+     }
+ 
++    public static boolean isServerVerbose() {
++        return serverVerbose;
++    }
++
+     public static void init(File configFile) {
+         System.out.println("Initializing static fields for LockedSpigot");
+         CONFIG_FILE = configFile;
+diff --git a/src/main/java/dev/lockedthread/regions/SmallRegion.java b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+index 4316b1414..253c74909 100644
+--- a/src/main/java/dev/lockedthread/regions/SmallRegion.java
++++ b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+@@ -1,5 +1,6 @@
+ package dev.lockedthread.regions;
+ 
++import dev.lockedthread.LockedSpigotConfig;
+ import net.minecraft.server.*;
+ 
+ import java.util.HashMap;
+@@ -22,7 +23,8 @@ public class SmallRegion implements Region {
+         for (int x = centerX - radius; x <= centerX + radius; x++) {
+             for (int y = centerY - radius; y <= centerY + radius; y++) {
+                 for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+-                    iBlockDataMap.put(new BlockPosition(x, y, z), world.getType(new BlockPosition(x, y, z)));
++                    final BlockPosition key = new BlockPosition(x, y, z);
++                    iBlockDataMap.put(key, world.getType(key));
+                 }
+             }
+         }
+@@ -31,10 +33,13 @@ public class SmallRegion implements Region {
+     @Override
+     public IBlockData getIBlockDataAt(BlockPosition blockPosition) {
+         IBlockData iBlockData = iBlockDataMap.get(blockPosition);
+-        if (iBlockData != null) {
+-            return iBlockData;
++        if (iBlockData == null) {
++            iBlockDataMap.put(blockPosition, iBlockData = world.getType(blockPosition));
++            if (LockedSpigotConfig.isServerVerbose()) {
++                System.out.println("Couldn't find blockposition in map, getting from world. iBlockData=" + iBlockData);
++            }
+         }
+-        return world.getType(blockPosition);
++        return iBlockData;
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index e85187734..b73227c6e 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -12,6 +12,7 @@ import java.util.*;
+ 
+ public class Explosion {
+ 
++    private static final Map<BlockPosition, SmallRegion> smallRegionCache = new HashMap<>();
+     private final boolean a;
+     private final boolean b;
+     private final double posX;
+@@ -37,7 +38,13 @@ public class Explosion {
+         this.posZ = d2;
+         this.a = flag;
+         this.b = flag1;
+-        this.smallRegion = new SmallRegion(entity.world, new BlockPosition(entity.locX, entity.locY, entity.locY), LockedSpigotConfig.getExplosionRegionRadius());
++        final BlockPosition center = new BlockPosition(entity.locX, entity.locY, entity.locY);
++        final SmallRegion smallRegion = smallRegionCache.get(center);
++        if (smallRegion != null) {
++            this.smallRegion = smallRegion;
++        } else {
++            smallRegionCache.put(center, this.smallRegion = new SmallRegion(entity.world, center, LockedSpigotConfig.getExplosionRegionRadius()));
++        }
+     }
+ 
+     public void a() {
+diff --git a/src/main/java/net/minecraft/server/MathHelper.java b/src/main/java/net/minecraft/server/MathHelper.java
+index 604f71c5c..6ce335df4 100644
+--- a/src/main/java/net/minecraft/server/MathHelper.java
++++ b/src/main/java/net/minecraft/server/MathHelper.java
+@@ -6,23 +6,17 @@ import java.util.Random;
+ import java.util.UUID;
+ 
+ public class MathHelper {
+-    public static float a;
+-    private static float[] b;
+-    private static int[] c;
+-    private static double d;
+-    private static double[] e;
+-    private static double[] f;
++    public static float a = c(2.0f);
++    private static float[] b = new float[65536];
++    private static int[] c = new int[]{0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9};
++    private static double d = Double.longBitsToDouble(4805340802404319232L);
++    private static double[] e = new double[257];
++    private static double[] f = new double[257];
+ 
+     static {
+-        a = c(2.0f);
+-        b = new float[65536];
+         for (int i = 0; i < 65536; ++i) {
+             MathHelper.b[i] = (float) FastMath.sin(i * 3.141592653589793 * 2.0 / 65536.0);
+         }
+-        c = new int[]{0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9};
+-        d = Double.longBitsToDouble(4805340802404319232L);
+-        e = new double[257];
+-        f = new double[257];
+         for (int j = 0; j < 257; ++j) {
+             double asin = FastMath.asin(j / 256.0);
+             MathHelper.f[j] = FastMath.cos(asin);
+@@ -52,8 +46,9 @@ public class MathHelper {
+     }
+ 
+     public static int floor(double n) {
+-        int n2 = (int) n;
+-        return (n < n2) ? (n2 - 1) : n2;
++        return FastMath.floorToInt(n);
++        //int n2 = (int) n;
++        //return (n < n2) ? (n2 - 1) : n2;
+     }
+ 
+     public static long d(double n) {
+-- 
+2.21.0.windows.1
+

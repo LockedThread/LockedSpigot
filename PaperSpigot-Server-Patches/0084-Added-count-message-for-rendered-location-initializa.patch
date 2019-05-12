@@ -1,0 +1,33 @@
+From 63233988e2c04e1a8cdb1666d79768e7631206f3 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 11 May 2019 20:51:14 -0400
+Subject: [PATCH] Added count message for rendered location initializations
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index a31c0d410..29e579502 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -163,15 +163,19 @@ public class LockedSpigotConfig {
+         explosionCreatesFire = getBoolean("explosions.creates-fire", false);
+         explosionRegionRadius = getInt("explosions.region-radius", 3);
+ 
++        int count = 0;
++
+         for (int k = 0; k < 16; ++k) {
+             for (int i = 0; i < 16; ++i) {
+                 for (int j = 0; j < 16; ++j) {
+                     if (k == 0 || k == 15 || i == 0 || i == 15 || j == 0 || j == 15) {
++                        count++;
+                         RenderedLocation.locations.add(new RenderedLocation(k, i, j));
+                     }
+                 }
+             }
+         }
++        System.out.println("Created " + count + " RenderedLocations");
+ 
+         try {
+             config.save(CONFIG_FILE);
+-- 
+2.21.0.windows.1
+

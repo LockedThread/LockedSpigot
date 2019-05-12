@@ -1,0 +1,105 @@
+From f63fa5e5ab90e4ca584361c8efc114b47781530a Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 6 May 2019 20:42:01 -0400
+Subject: [PATCH] Switched to lists instead of hash tree sets
+
+
+diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
+index f9e805a46..931a5e520 100644
+--- a/src/main/java/net/minecraft/server/WorldServer.java
++++ b/src/main/java/net/minecraft/server/WorldServer.java
+@@ -10,7 +10,6 @@ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ import org.bukkit.WeatherType;
+ import org.bukkit.block.BlockState;
+-import org.bukkit.craftbukkit.util.HashTreeSet;
+ import org.bukkit.craftbukkit.util.LongHash;
+ import org.bukkit.event.block.BlockFormEvent;
+ import org.bukkit.event.weather.LightningStrikeEvent;
+@@ -29,8 +28,8 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+     private final MinecraftServer server;
+     public EntityTracker tracker;
+     private final PlayerChunkMap manager;
+-    // private final Set<NextTickListEntry> L = Sets.newHashSet(); // PAIL: Rename nextTickListHash
+-    private final HashTreeSet<NextTickListEntry> M = new HashTreeSet<>(); // CraftBukkit - HashTreeSet // PAIL: Rename nextTickList
++    private final List<NextTickListEntry> nextTickListHash = new ArrayList<>(); // PAIL: Rename nextTickListHash
++    //private final HashTreeSet<NextTickListEntry> M = new HashTreeSet<>(); // CraftBukkit - HashTreeSet // PAIL: Rename nextTickList
+     private final Map<UUID, Entity> entitiesByUUID = Maps.newHashMap();
+     public ChunkProviderServer chunkProviderServer;
+     public boolean savingDisabled;
+@@ -555,8 +554,8 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+             }
+ 
+             // CraftBukkit - use M, PAIL: Rename nextTickList
+-            if (!this.M.contains(nextticklistentry)) {
+-                this.M.add(nextticklistentry);
++            if (!this.nextTickListHash.contains(nextticklistentry)) {
++                this.nextTickListHash.add(nextticklistentry);
+             }
+         }
+ 
+@@ -571,8 +570,8 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+         }
+ 
+         // CraftBukkit - use M, PAIL: Rename nextTickList
+-        if (!this.M.contains(nextticklistentry)) {
+-            this.M.add(nextticklistentry);
++        if (!this.nextTickListHash.contains(nextticklistentry)) {
++            this.nextTickListHash.add(nextticklistentry);
+         }
+ 
+     }
+@@ -592,7 +591,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+         if (this.worldData.getType() == WorldType.DEBUG_ALL_BLOCK_STATES) {
+             return false;
+         }
+-        int i = this.M.size();
++        int i = this.nextTickListHash.size();
+ 
+         // PaperSpigot start - No, stop doing this, it affects things like redstone
+                 /*
+@@ -616,20 +615,20 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+         NextTickListEntry nextticklistentry;
+ 
+         for (int j = 0; j < i; ++j) {
+-            nextticklistentry = this.M.first();
++            nextticklistentry = this.nextTickListHash.iterator().next();
+             if (!flag && nextticklistentry.b > this.worldData.getTime()) {
+                 break;
+             }
+ 
+             // CraftBukkit - use M, PAIL: Rename nextTickList
+-            this.M.remove(nextticklistentry);
++            this.nextTickListHash.remove(nextticklistentry);
+             this.V.add(nextticklistentry);
+         }
+         timings.scheduledBlocksCleanup.stopTiming(); // Spigot
+ 
+         // PaperSpigot start - Allow redstone ticks to bypass the tickNextTickListCap
+         if (paperSpigotConfig.tickNextTickListCapIgnoresRedstone) {
+-            Iterator<NextTickListEntry> iterator = this.M.iterator();
++            Iterator<NextTickListEntry> iterator = this.nextTickListHash.iterator();
+             while (iterator.hasNext()) {
+                 NextTickListEntry next = iterator.next();
+                 if (!flag && next.b > this.worldData.getTime()) {
+@@ -679,7 +678,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+ 
+         this.methodProfiler.b();
+         this.V.clear();
+-        return !this.M.isEmpty();
++        return !this.nextTickListHash.isEmpty();
+     }
+ 
+     public List<NextTickListEntry> a(Chunk chunk, boolean flag) {
+@@ -699,7 +698,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+             Iterator iterator;
+ 
+             if (i == 0) {
+-                iterator = this.M.iterator();
++                iterator = this.nextTickListHash.iterator();
+             } else {
+                 iterator = this.V.iterator();
+             }
+-- 
+2.21.0.windows.1
+

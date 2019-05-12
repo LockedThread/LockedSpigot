@@ -1,0 +1,23 @@
+From b265717ad23fddb251a04b3beca000cd26e5120f Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 14:19:55 -0400
+Subject: [PATCH] Removed debug messages
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityTrackerEntry.java b/src/main/java/net/minecraft/server/EntityTrackerEntry.java
+index 7413d420d..dc35d8d44 100644
+--- a/src/main/java/net/minecraft/server/EntityTrackerEntry.java
++++ b/src/main/java/net/minecraft/server/EntityTrackerEntry.java
+@@ -346,9 +346,6 @@ public class EntityTrackerEntry {
+ 
+                     if (packet instanceof PacketPlayOutSpawnEntity) {
+                         int id = ((PacketPlayOutSpawnEntity) packet).j;
+-                        System.out.println("bukkitEntity.getName() = " + bukkitEntity.getName());
+-                        System.out.println("bukkitEntity.isSandToggle() = " + bukkitEntity.isSandToggle());
+-                        System.out.println("bukkitEntity.isTntToggle() = " + bukkitEntity.isTntToggle());
+                         if ((id == 50 && bukkitEntity.isTntToggle()) || (id == 70 && bukkitEntity.isSandToggle())) {
+                             return;
+                         }
+-- 
+2.21.0.windows.1
+

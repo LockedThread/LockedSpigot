@@ -1,0 +1,58 @@
+From be2957273128be6ebdaa5fb0fe4616e58a6a4ba7 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Tue, 7 May 2019 20:24:17 -0400
+Subject: [PATCH] optimized default Region
+
+
+diff --git a/src/main/java/dev/lockedthread/regions/Region.java b/src/main/java/dev/lockedthread/regions/Region.java
+index 75b33f0b6..3f6c43e71 100644
+--- a/src/main/java/dev/lockedthread/regions/Region.java
++++ b/src/main/java/dev/lockedthread/regions/Region.java
+@@ -12,9 +12,7 @@ public interface Region {
+         return getIBlockDataAt(blockPosition).getBlock();
+     }
+ 
+-    default IBlockData getIBlockDataAt(BlockPosition blockPosition) {
+-        return getIBlockDataMap().get(blockPosition);
+-    }
++    IBlockData getIBlockDataAt(BlockPosition blockPosition);
+ 
+     Block getBlockAt(int x, int y, int z);
+ 
+diff --git a/src/main/java/dev/lockedthread/regions/SmallRegion.java b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+index d520eeae5..4316b1414 100644
+--- a/src/main/java/dev/lockedthread/regions/SmallRegion.java
++++ b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+@@ -28,6 +28,15 @@ public class SmallRegion implements Region {
+         }
+     }
+ 
++    @Override
++    public IBlockData getIBlockDataAt(BlockPosition blockPosition) {
++        IBlockData iBlockData = iBlockDataMap.get(blockPosition);
++        if (iBlockData != null) {
++            return iBlockData;
++        }
++        return world.getType(blockPosition);
++    }
++
+     @Override
+     public Block getBlockAt(int x, int y, int z) {
+         return getIBlockDataAt(x, y, z).getBlock();
+@@ -35,12 +44,7 @@ public class SmallRegion implements Region {
+ 
+     @Override
+     public IBlockData getIBlockDataAt(int x, int y, int z) {
+-        BlockPosition blockPosition = new BlockPosition(x, y, z);
+-        IBlockData iBlockData = iBlockDataMap.get(blockPosition);
+-        if (iBlockData != null) {
+-            return iBlockData;
+-        }
+-        return world.getType(blockPosition);
++        return getIBlockDataAt(new BlockPosition(x, y, z));
+     }
+ 
+     @Override
+-- 
+2.21.0.windows.1
+

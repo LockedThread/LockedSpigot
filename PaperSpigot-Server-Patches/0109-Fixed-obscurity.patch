@@ -1,0 +1,35 @@
+From 081932c9fe0e30cd90946df22dd48085331b6cd5 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 13:18:34 -0400
+Subject: [PATCH] Fixed obscurity
+
+
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index 3aec8ec05..8b577570c 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -41,7 +41,7 @@ public class Explosion {
+         this.posZ = d2;
+         this.a = flag;
+         this.b = flag1;
+-        origin = new BlockPosition(entity.locX, entity.locY, entity.locY);
++        this.origin = new BlockPosition(entity.locX, entity.locY, entity.locY);
+         if (isInWater(origin)) {
+             return;
+         }
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index 276cb8043..5a719a17d 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -69,7 +69,7 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+     private double health = 20;
+     private boolean scaledHealth = false;
+     private double healthScale = 20;
+-    private boolean sandToggle, tntToggle;
++    private boolean sandToggle = false, tntToggle = false;
+     // Spigot start
+     private final Player.Spigot spigot = new Player.Spigot() {
+ 
+-- 
+2.21.0.windows.1
+

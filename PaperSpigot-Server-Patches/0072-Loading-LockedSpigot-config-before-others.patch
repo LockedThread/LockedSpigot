@@ -1,0 +1,42 @@
+From a918f2fcf0e64751a4cedd07183fef919e900078 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 6 May 2019 16:10:58 -0400
+Subject: [PATCH] Loading LockedSpigot config before others
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 6d7167b83..4aabee6fc 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -366,6 +366,7 @@ public class LockedSpigotConfig {
+     }
+ 
+     public static void init(File configFile) {
++        System.out.println("Initializing static fields for LockedSpigot");
+         CONFIG_FILE = configFile;
+         config = new YamlConfiguration();
+         try {
+diff --git a/src/main/java/net/minecraft/server/DedicatedServer.java b/src/main/java/net/minecraft/server/DedicatedServer.java
+index 0a6a00a67..36380e049 100644
+--- a/src/main/java/net/minecraft/server/DedicatedServer.java
++++ b/src/main/java/net/minecraft/server/DedicatedServer.java
+@@ -174,13 +174,14 @@ public class DedicatedServer extends MinecraftServer implements IMinecraftServer
+             this.a(new DedicatedPlayerList(this));
+             org.spigotmc.SpigotConfig.init((File) options.valueOf("spigot-settings"));
+             org.spigotmc.SpigotConfig.registerCommands();
++
++            LockedSpigotConfig.init((File) options.valueOf("lockedspigot-settings")); // LockedSpigot
++
+             // Spigot end
+             // PaperSpigot start
+             org.github.paperspigot.PaperSpigotConfig.init((File) options.valueOf("paper-settings"));
+             org.github.paperspigot.PaperSpigotConfig.registerCommands();
+             // PaperSpigot end
+-            
+-            LockedSpigotConfig.init((File) options.valueOf("lockedspigot-settings")); // LockedSpigot
+ 
+             DedicatedServer.LOGGER.info("Generating keypair");
+             this.a(MinecraftEncryption.b());
+-- 
+2.21.0.windows.1
+

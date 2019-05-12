@@ -1,0 +1,68 @@
+From e0534bcbef6f60154a22cbfc176058d9139a333e Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 01:54:32 -0400
+Subject: [PATCH] Added more region methods
+
+
+diff --git a/src/main/java/dev/lockedthread/regions/Region.java b/src/main/java/dev/lockedthread/regions/Region.java
+index 3f6c43e71..f546c22d4 100644
+--- a/src/main/java/dev/lockedthread/regions/Region.java
++++ b/src/main/java/dev/lockedthread/regions/Region.java
+@@ -3,6 +3,7 @@ package dev.lockedthread.regions;
+ import net.minecraft.server.Block;
+ import net.minecraft.server.BlockPosition;
+ import net.minecraft.server.IBlockData;
++import net.minecraft.server.World;
+ 
+ import java.util.Map;
+ 
+@@ -33,4 +34,10 @@ public interface Region {
+     default IBlockData getIBlockDataAt(double x, double y, double z) {
+         return getIBlockDataAt((int) x, (int) y, (int) z);
+     }
++
++    IBlockData getCenter();
++
++    World getWorld();
++
++    BlockPosition getCenterBlockPosition();
+ }
+diff --git a/src/main/java/dev/lockedthread/regions/SmallRegion.java b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+index 253c74909..cd0a48a69 100644
+--- a/src/main/java/dev/lockedthread/regions/SmallRegion.java
++++ b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+@@ -10,10 +10,12 @@ public class SmallRegion implements Region {
+ 
+     private Map<BlockPosition, IBlockData> iBlockDataMap;
+     private IBlockData center;
++    private BlockPosition centerBlockPosition;
+     private World world;
+ 
+     public SmallRegion(World world, BlockPosition center, int radius) {
+         this.world = world;
++        this.centerBlockPosition = center;
+         this.center = world.getType(center);
+         this.iBlockDataMap = new HashMap<>();
+         int centerX = center.getX();
+@@ -62,11 +64,18 @@ public class SmallRegion implements Region {
+         return world.setTypeAndData(blockPosition, Blocks.AIR.getBlockData(), c);
+     }
+ 
++    @Override
+     public IBlockData getCenter() {
+         return center;
+     }
+ 
++    @Override
+     public World getWorld() {
+         return world;
+     }
++
++    @Override
++    public BlockPosition getCenterBlockPosition() {
++        return centerBlockPosition;
++    }
+ }
+-- 
+2.21.0.windows.1
+

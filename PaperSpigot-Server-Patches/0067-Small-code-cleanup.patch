@@ -1,0 +1,249 @@
+From c14fc7c88b728e2deace4aa79b40ccd8291616e7 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 6 May 2019 12:41:49 -0400
+Subject: [PATCH] Small code cleanup
+
+
+diff --git a/src/main/java/net/minecraft/server/BlockFluids.java b/src/main/java/net/minecraft/server/BlockFluids.java
+index 406b41a40..6154fdbcb 100644
+--- a/src/main/java/net/minecraft/server/BlockFluids.java
++++ b/src/main/java/net/minecraft/server/BlockFluids.java
+@@ -180,7 +180,6 @@ public abstract class BlockFluids extends Block {
+                 world.addParticle(EnumParticle.SMOKE_LARGE, d0 + (LockedSpigotConfig.isLiquidsParticlesOffsetEnabled() ? LockedSpigotConfig.getLiquidsParticlesOffset() : Math.random()), d1 + 1.2D, d2 + (LockedSpigotConfig.isLiquidsParticlesOffsetEnabled() ? LockedSpigotConfig.getLiquidsParticlesOffset() : Math.random()), 0.0D, 0.0D, 0.0D);
+             }
+         }
+-
+     }
+ 
+     public IBlockData fromLegacyData(int i) {
+diff --git a/src/main/java/net/minecraft/server/Entity.java b/src/main/java/net/minecraft/server/Entity.java
+index 6406391af..5e67a59f7 100644
+--- a/src/main/java/net/minecraft/server/Entity.java
++++ b/src/main/java/net/minecraft/server/Entity.java
+@@ -1879,63 +1879,62 @@ public abstract class Entity implements ICommandListener {
+         double d3 = d0 - (double) blockposition.getX();
+         double d4 = d1 - (double) blockposition.getY();
+         double d5 = d2 - (double) blockposition.getZ();
+-        List list = this.world.a(this.getBoundingBox());
++        List<AxisAlignedBB> list = this.world.a(this.getBoundingBox());
+ 
+         if (list.isEmpty() && !this.world.u(blockposition)) {
+             return false;
+-        } else {
+-            byte b0 = 3;
+-            double d6 = 9999.0D;
++        }
++        byte b0 = 3;
++        double d6 = 9999.0D;
+ 
+-            if (!this.world.u(blockposition.west()) && d3 < d6) {
+-                d6 = d3;
+-                b0 = 0;
+-            }
++        if (!this.world.u(blockposition.west()) && d3 < d6) {
++            d6 = d3;
++            b0 = 0;
++        }
+ 
+-            if (!this.world.u(blockposition.east()) && 1.0D - d3 < d6) {
+-                d6 = 1.0D - d3;
+-                b0 = 1;
+-            }
++        if (!this.world.u(blockposition.east()) && 1.0D - d3 < d6) {
++            d6 = 1.0D - d3;
++            b0 = 1;
++        }
+ 
+-            if (!this.world.u(blockposition.up()) && 1.0D - d4 < d6) {
+-                d6 = 1.0D - d4;
+-                b0 = 3;
+-            }
++        if (!this.world.u(blockposition.up()) && 1.0D - d4 < d6) {
++            d6 = 1.0D - d4;
++            b0 = 3;
++        }
+ 
+-            if (!this.world.u(blockposition.north()) && d5 < d6) {
+-                d6 = d5;
+-                b0 = 4;
+-            }
++        if (!this.world.u(blockposition.north()) && d5 < d6) {
++            d6 = d5;
++            b0 = 4;
++        }
+ 
+-            if (!this.world.u(blockposition.south()) && 1.0D - d5 < d6) {
+-                d6 = 1.0D - d5;
+-                b0 = 5;
+-            }
++        if (!this.world.u(blockposition.south()) && 1.0D - d5 < d6) {
++            d6 = 1.0D - d5;
++            b0 = 5;
++        }
+ 
+-            float f = getRandom().nextFloat() * 0.2F + 0.1F;
++        float f = getRandom().nextFloat() * 0.2F + 0.1F;
+ 
+-            if (b0 == 0) {
+-                this.motX = (double) (-f);
+-            }
+-
+-            if (b0 == 1) {
+-                this.motX = (double) f;
+-            }
++        if (b0 == 0) {
++            this.motX = (double) (-f);
++        }
+ 
+-            if (b0 == 3) {
+-                this.motY = (double) f;
+-            }
++        if (b0 == 1) {
++            this.motX = (double) f;
++        }
+ 
+-            if (b0 == 4) {
+-                this.motZ = (double) (-f);
+-            }
++        if (b0 == 3) {
++            this.motY = (double) f;
++        }
+ 
+-            if (b0 == 5) {
+-                this.motZ = (double) f;
+-            }
++        if (b0 == 4) {
++            this.motZ = (double) (-f);
++        }
+ 
+-            return true;
++        if (b0 == 5) {
++            this.motZ = (double) f;
+         }
++
++        return true;
+     }
+ 
+     public void aA() {
+@@ -1946,15 +1945,14 @@ public abstract class Entity implements ICommandListener {
+     public String getName() {
+         if (this.hasCustomName()) {
+             return this.getCustomName();
+-        } else {
+-            String s = EntityTypes.b(this);
+-
+-            if (s == null) {
+-                s = "generic";
+-            }
++        }
++        String s = EntityTypes.b(this);
+ 
+-            return LocaleI18n.get("entity." + s + ".name");
++        if (s == null) {
++            s = "generic";
+         }
++
++        return LocaleI18n.get("entity." + s + ".name");
+     }
+ 
+     public Entity[] aB() {
+@@ -2041,12 +2039,11 @@ public abstract class Entity implements ICommandListener {
+     }
+ 
+     public void teleportTo(Location exit, boolean portal) {
+-        if (true) {
+-            WorldServer worldserver = ((CraftWorld) getBukkitEntity().getLocation().getWorld()).getHandle();
+-            WorldServer worldserver1 = ((CraftWorld) exit.getWorld()).getHandle();
+-            // CraftBukkit end
++        WorldServer worldserver = ((CraftWorld) getBukkitEntity().getLocation().getWorld()).getHandle();
++        WorldServer worldserver1 = ((CraftWorld) exit.getWorld()).getHandle();
++        // CraftBukkit end
+ 
+-            this.dimension = worldserver1.dimension;
++        this.dimension = worldserver1.dimension;
+             /* CraftBukkit start - TODO: Check if we need this
+             if (j == 1 && i == 1) {
+                 worldserver1 = minecraftserver.getWorldServer(0);
+@@ -2054,46 +2051,45 @@ public abstract class Entity implements ICommandListener {
+             }
+             // CraftBukkit end */
+ 
+-            this.world.kill(this);
+-            this.dead = false;
+-            this.world.methodProfiler.a("reposition");
+-            // CraftBukkit start - Ensure chunks are loaded in case TravelAgent is not used which would initially cause chunks to load during find/create
+-            // minecraftserver.getPlayerList().changeWorld(this, j, worldserver, worldserver1);
+-            boolean before = worldserver1.chunkProviderServer.forceChunkLoad;
+-            worldserver1.chunkProviderServer.forceChunkLoad = true;
+-            worldserver1.getMinecraftServer().getPlayerList().repositionEntity(this, exit, portal);
+-            worldserver1.chunkProviderServer.forceChunkLoad = before;
+-            // CraftBukkit end
+-            this.world.methodProfiler.c("reloading");
+-            Entity entity = EntityTypes.createEntityByName(EntityTypes.b(this), worldserver1);
++        this.world.kill(this);
++        this.dead = false;
++        this.world.methodProfiler.a("reposition");
++        // CraftBukkit start - Ensure chunks are loaded in case TravelAgent is not used which would initially cause chunks to load during find/create
++        // minecraftserver.getPlayerList().changeWorld(this, j, worldserver, worldserver1);
++        boolean before = worldserver1.chunkProviderServer.forceChunkLoad;
++        worldserver1.chunkProviderServer.forceChunkLoad = true;
++        worldserver1.getMinecraftServer().getPlayerList().repositionEntity(this, exit, portal);
++        worldserver1.chunkProviderServer.forceChunkLoad = before;
++        // CraftBukkit end
++        this.world.methodProfiler.c("reloading");
++        Entity entity = EntityTypes.createEntityByName(EntityTypes.b(this), worldserver1);
+ 
+-            if (entity != null) {
+-                entity.n(this);
+-                /* CraftBukkit start - We need to do this...
+-                if (j == 1 && i == 1) {
+-                    BlockPosition blockposition = this.world.r(worldserver1.getSpawn());
++        if (entity != null) {
++            entity.n(this);
++            /* CraftBukkit start - We need to do this...
++            if (j == 1 && i == 1) {
++                BlockPosition blockposition = this.world.r(worldserver1.getSpawn());
+ 
+-                    entity.setPositionRotation(blockposition, entity.yaw, entity.pitch);
+-                }
+-                // CraftBukkit end */
++                entity.setPositionRotation(blockposition, entity.yaw, entity.pitch);
++            }
++            // CraftBukkit end */
+ 
+-                worldserver1.addEntity(entity);
+-                // CraftBukkit start - Forward the CraftEntity to the new entity
+-                this.getBukkitEntity().setHandle(entity);
+-                entity.bukkitEntity = this.getBukkitEntity();
++            worldserver1.addEntity(entity);
++            // CraftBukkit start - Forward the CraftEntity to the new entity
++            this.getBukkitEntity().setHandle(entity);
++            entity.bukkitEntity = this.getBukkitEntity();
+ 
+-                if (this instanceof EntityInsentient) {
+-                    ((EntityInsentient) this).unleash(true, false); // Unleash to prevent duping of leads.
+-                }
+-                // CraftBukkit end
++            if (this instanceof EntityInsentient) {
++                ((EntityInsentient) this).unleash(true, false); // Unleash to prevent duping of leads.
+             }
+-
+-            this.dead = true;
+-            this.world.methodProfiler.b();
+-            worldserver.j();
+-            worldserver1.j();
+-            this.world.methodProfiler.b();
++            // CraftBukkit end
+         }
++
++        this.dead = true;
++        this.world.methodProfiler.b();
++        worldserver.j();
++        worldserver1.j();
++        this.world.methodProfiler.b();
+     }
+ 
+     public float a(Explosion explosion, World world, BlockPosition blockposition, IBlockData iblockdata) {
+-- 
+2.21.0.windows.1
+

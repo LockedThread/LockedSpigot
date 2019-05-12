@@ -1,0 +1,85 @@
+From c542c290e7bedaac898a88011f8c543ccff99813 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 11 May 2019 21:14:25 -0400
+Subject: [PATCH] Edited VersionCommand
+
+
+diff --git a/src/main/java/org/bukkit/command/defaults/VersionCommand.java b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
+index 42da60a8..bbc93631 100644
+--- a/src/main/java/org/bukkit/command/defaults/VersionCommand.java
++++ b/src/main/java/org/bukkit/command/defaults/VersionCommand.java
+@@ -1,10 +1,7 @@
+ package org.bukkit.command.defaults;
+ 
+ import com.google.common.base.Charsets;
+-import java.util.ArrayList;
+-import java.util.Arrays;
+-import java.util.List;
+-
++import com.google.common.collect.ImmutableList;
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Bukkit;
+ import org.bukkit.ChatColor;
+@@ -12,25 +9,19 @@ import org.bukkit.command.CommandSender;
+ import org.bukkit.plugin.Plugin;
+ import org.bukkit.plugin.PluginDescriptionFile;
+ import org.bukkit.util.StringUtil;
++import org.json.simple.JSONObject;
++import org.json.simple.parser.JSONParser;
++import org.json.simple.parser.ParseException;
+ 
+-import com.google.common.collect.ImmutableList;
+-import com.google.common.io.Resources;
+ import java.io.BufferedReader;
+ import java.io.IOException;
++import java.io.InputStreamReader;
++import java.net.HttpURLConnection;
+ import java.net.URL;
+-import java.net.URLEncoder;
+-import java.util.HashSet;
+-import java.util.Set;
++import java.util.*;
+ import java.util.concurrent.locks.ReentrantLock;
+-import java.util.logging.Level;
+-import java.util.logging.Logger;
+-import org.json.simple.JSONObject;
+-import org.json.simple.parser.JSONParser;
+-import org.json.simple.parser.ParseException;
+ 
+ // TacoSpigot start
+-import java.io.InputStreamReader;
+-import java.net.HttpURLConnection;
+ // TacoSpigot end
+ 
+ public class VersionCommand extends BukkitCommand {
+@@ -45,12 +36,15 @@ public class VersionCommand extends BukkitCommand {
+ 
+     @Override
+     public boolean execute(CommandSender sender, String currentAlias, String[] args) {
+-        if (!testPermission(sender)) return true;
+-
+         if (args.length == 0) {
+-            sender.sendMessage("This server is running " + Bukkit.getName() + " version " + Bukkit.getVersion() + " (Implementing API version " + Bukkit.getBukkitVersion() + ")");
+-            sendVersion(sender);
++            sender.sendMessage(ChatColor.DARK_GRAY + ChatColor.STRIKETHROUGH.toString() + "--------------------------");
++            sender.sendMessage(ChatColor.GREEN + "This server is running version 1.0 of LockedSpigot");
++            sender.sendMessage(ChatColor.GREEN + "Author: LockedThread#5691");
++            sender.sendMessage(ChatColor.GREEN + "Discord: https://discord.gg/NNMXhTx");
++            sender.sendMessage(ChatColor.GREEN + "Collaborators/Beta Testers: Dynamicz_, Frontier, FaziPVP, and PurpleNapkins");
++            sender.sendMessage(ChatColor.DARK_GRAY + ChatColor.STRIKETHROUGH.toString() + "--------------------------");
+         } else {
++            if (!testPermission(sender)) return true;
+             StringBuilder name = new StringBuilder();
+ 
+             for (String arg : args) {
+@@ -279,6 +273,7 @@ public class VersionCommand extends BukkitCommand {
+     }
+ 
+     private static final String BRANCH = "version/1.8.8";
++
+     private static int getFromRepo(String repo, String hash) {
+         try {
+             /*
+-- 
+2.21.0.windows.1
+

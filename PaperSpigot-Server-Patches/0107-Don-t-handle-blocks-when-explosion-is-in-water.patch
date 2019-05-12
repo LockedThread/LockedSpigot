@@ -1,0 +1,24 @@
+From 8f5d55cc534f2c10500fdf09761ede9c2bfe7022 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 13:06:21 -0400
+Subject: [PATCH] Don't handle blocks when explosion is in water
+
+
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 7e633ddfa..5e8ac6320 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -1881,7 +1881,9 @@ public abstract class World implements IBlockAccess {
+         Explosion explosion = new Explosion(entity, d0, d1, d2, f, flag, flag1);
+ 
+         explosion.a();
+-        explosion.a(true);
++        if (!explosion.inWater) {
++            explosion.a(true);
++        }
+         return explosion;
+     }
+ 
+-- 
+2.21.0.windows.1
+

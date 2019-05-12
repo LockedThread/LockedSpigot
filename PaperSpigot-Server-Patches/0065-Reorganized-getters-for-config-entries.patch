@@ -1,0 +1,89 @@
+From c4a56994b2f516b690432676d4cd7dbd2f5f5e6e Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 6 May 2019 12:41:05 -0400
+Subject: [PATCH] Reorganized getters for config entries
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index ca08d4398..acb8a6cd2 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -284,6 +284,38 @@ public class LockedSpigotConfig {
+         return liquidsSoundFizz;
+     }
+ 
++    public static boolean isHopperEfficientSearch() {
++        return hopperEfficientSearch;
++    }
++
++    public static DyeColor getFpsMenuFillColor() {
++        return fpsMenuFillColor;
++    }
++
++    public static double getLiquidsParticlesOffset() {
++        return liquidsParticlesOffset;
++    }
++
++    public static boolean isLiquidsParticlesOffsetEnabled() {
++        return liquidsParticlesOffsetEnabled;
++    }
++
++    public static boolean isLiquidsBreakRedstone() {
++        return liquidsBreakRedstone;
++    }
++
++    public static boolean isLiquidsCreateStone() {
++        return liquidsCreateStone;
++    }
++
++    public static int getServerPacketDeserializerLimit() {
++        return serverPacketDeserializerLimit;
++    }
++
++    public static boolean isServerChatDisconnectSpam() {
++        return serverChatDisconnectSpam;
++    }
++
+     public static void init(File configFile) {
+         CONFIG_FILE = configFile;
+         config = new YamlConfiguration();
+@@ -352,36 +384,4 @@ public class LockedSpigotConfig {
+         config.addDefault(path, def.name());
+         return DyeColor.valueOf(config.getString(path, config.getString(path)));
+     }
+-
+-    public static boolean isHopperEfficientSearch() {
+-        return hopperEfficientSearch;
+-    }
+-
+-    public static DyeColor getFpsMenuFillColor() {
+-        return fpsMenuFillColor;
+-    }
+-
+-    public static double getLiquidsParticlesOffset() {
+-        return liquidsParticlesOffset;
+-    }
+-
+-    public static boolean isLiquidsParticlesOffsetEnabled() {
+-        return liquidsParticlesOffsetEnabled;
+-    }
+-
+-    public static boolean isLiquidsBreakRedstone() {
+-        return liquidsBreakRedstone;
+-    }
+-
+-    public static boolean isLiquidsCreateStone() {
+-        return liquidsCreateStone;
+-    }
+-
+-    public static int getServerPacketDeserializerLimit() {
+-        return serverPacketDeserializerLimit;
+-    }
+-
+-    public static boolean isServerChatDisconnectSpam() {
+-        return serverChatDisconnectSpam;
+-    }
+ }
+-- 
+2.21.0.windows.1
+

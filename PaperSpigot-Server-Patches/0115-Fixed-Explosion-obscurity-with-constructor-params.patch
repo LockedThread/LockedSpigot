@@ -1,0 +1,33 @@
+From c19e4be960b5d92f8d2296e71ba09f6896c77829 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 15:20:57 -0400
+Subject: [PATCH] Fixed Explosion obscurity with constructor params
+
+
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index 059202103..72f296eb3 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -31,14 +31,14 @@ public class Explosion {
+     private final Set<BlockPosition> blocks;
+     public boolean wasCanceled;
+ 
+-    public Explosion(Entity entity, double d0, double d1, double d2, float f, boolean flag, boolean flag1) {
++    public Explosion(Entity entity, double x, double y, double z, float size, boolean flag, boolean flag1) {
+         this.blocks = new HashSet<>();
+         this.wasCanceled = false;
+         this.source = entity;
+-        this.size = Math.max(f, 0.0f);
+-        this.posX = d0;
+-        this.posY = d1;
+-        this.posZ = d2;
++        this.size = Math.max(size, 0.0f);
++        this.posX = x;
++        this.posY = y;
++        this.posZ = z;
+         this.a = flag;
+         this.b = flag1;
+         this.origin = new BlockPosition(entity.locX, entity.locY, entity.locY);
+-- 
+2.21.0.windows.1
+

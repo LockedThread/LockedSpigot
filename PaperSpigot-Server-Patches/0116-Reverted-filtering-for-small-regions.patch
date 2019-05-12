@@ -1,0 +1,81 @@
+From 79bca244467e640a9e91dc3c80ba199d4dc84c1d Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 16:03:09 -0400
+Subject: [PATCH] Reverted filtering for small regions
+
+
+diff --git a/src/main/java/dev/lockedthread/regions/SmallRegion.java b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+index 3f24a640a..3c2df316b 100644
+--- a/src/main/java/dev/lockedthread/regions/SmallRegion.java
++++ b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+@@ -38,12 +38,12 @@ public class SmallRegion implements Region {
+     public IBlockData getIBlockDataAt(BlockPosition blockPosition) {
+         IBlockData iBlockData = iBlockDataMap.get(blockPosition);
+         if (iBlockData == null) {
+-            iBlockData = world.getType(blockPosition);
++            iBlockDataMap.put(blockPosition, iBlockData = world.getType(blockPosition));
+             if (LockedSpigotConfig.isServerVerbose()) {
+-                System.out.println("Couldn't find blockposition in map, returning AIR. iBlockData=" + iBlockData);
++                System.out.println("Couldn't find blockposition in map, getting from world. iBlockData=" + iBlockData);
+             }
+         }
+-        return Blocks.AIR.getBlockData();
++        return iBlockData;
+     }
+ 
+     @Override
+diff --git a/src/main/java/org/spigotmc/TicksPerSecondCommand.java b/src/main/java/org/spigotmc/TicksPerSecondCommand.java
+index 8b6e54bce..3e1b49e3e 100644
+--- a/src/main/java/org/spigotmc/TicksPerSecondCommand.java
++++ b/src/main/java/org/spigotmc/TicksPerSecondCommand.java
+@@ -10,7 +10,7 @@ import java.text.DecimalFormat;
+ 
+ public class TicksPerSecondCommand extends Command {
+ 
+-    public TicksPerSecondCommand(String name) {
++    TicksPerSecondCommand(String name) {
+         super(name);
+         this.description = "Gets the current ticks per second for the server";
+         this.usageMessage = "/tps";
+@@ -18,11 +18,10 @@ public class TicksPerSecondCommand extends Command {
+     }
+ 
+     @Override
+-    public boolean execute(CommandSender sender, String currentAlias, String[] args) {
++    public boolean execute(CommandSender sender, String label, String[] args) {
+         if (!testPermission(sender)) {
+             return true;
+         }
+-
+         sender.sendMessage(ChatColor.YELLOW + "The tps shown is based on a 40tps scale whilst entities and and the bukkit scheduler are based on 20.");
+         sender.sendMessage(ChatColor.DARK_GRAY + ChatColor.STRIKETHROUGH.toString() + "--------------------------");
+         sender.sendMessage(ChatColor.YELLOW + "1s - " + format(MinecraftServer.getServer().tps1.getAverage()));
+@@ -33,7 +32,6 @@ public class TicksPerSecondCommand extends Command {
+         sender.sendMessage(ChatColor.YELLOW + "2m - " + format(MinecraftServer.getServer().tps120.getAverage()));
+         sender.sendMessage(ChatColor.YELLOW + "5m - " + format(MinecraftServer.getServer().tps300.getAverage()));
+         sender.sendMessage(ChatColor.DARK_GRAY + ChatColor.STRIKETHROUGH.toString() + "--------------------------");
+-
+         return true;
+     }
+ 
+@@ -41,16 +39,6 @@ public class TicksPerSecondCommand extends Command {
+         DecimalFormat decimalFormat = new DecimalFormat("##.##");
+         decimalFormat.setRoundingMode(RoundingMode.UP);
+         String formattedTps = decimalFormat.format(tps);
+-        if (tps >= 40.0) {
+-            return ChatColor.GREEN + "*" + formattedTps;
+-        } else if (tps >= 37.0) {
+-            return ChatColor.GREEN.toString() + formattedTps;
+-        } else if (tps >= 35.0) {
+-            return ChatColor.YELLOW.toString() + formattedTps;
+-        } else if (tps >= 20) {
+-            return ChatColor.RED.toString() + formattedTps;
+-        } else {
+-            return ChatColor.RED + ChatColor.STRIKETHROUGH.toString() + formattedTps;
+-        }
++        return tps >= 40.0 ? ChatColor.GREEN + "*" + formattedTps : tps >= 37.0 ? ChatColor.GREEN.toString() + formattedTps : tps >= 35.0 ? ChatColor.YELLOW.toString() + formattedTps : tps >= 20 ? ChatColor.RED.toString() + formattedTps : ChatColor.RED + ChatColor.STRIKETHROUGH.toString() + formattedTps;
+     }
+ }
+-- 
+2.21.0.windows.1
+

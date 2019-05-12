@@ -1,0 +1,100 @@
+From 640eb8a5c7d002084f03a3f2ef8d93079289e799 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 02:55:14 -0400
+Subject: [PATCH] Added origin and added check for water before initializing
+ small regions for explosions
+
+
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index fe72c661d..9f9d4daaf 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -22,7 +22,8 @@ public class Explosion {
+     private final double posZ;
+     public final Entity source;
+     private final float size;
+-    private final Region smallRegion;
++    private final BlockPosition origin;
++    private Region smallRegion;
+     public boolean inWater;
+     private final Set<BlockPosition> blocks;
+     public boolean wasCanceled;
+@@ -41,21 +42,34 @@ public class Explosion {
+         this.posZ = d2;
+         this.a = flag;
+         this.b = flag1;
+-        final BlockPosition center = new BlockPosition(entity.locX, entity.locY, entity.locY);
+-        final Region smallRegion = REGION_CACHE.get(center);
++        origin = new BlockPosition(entity.locX, entity.locY, entity.locY);
++        if (isInWater(origin)) {
++            return;
++        }
++        final Region smallRegion = REGION_CACHE.get(origin);
+         if (smallRegion != null) {
+             this.smallRegion = smallRegion;
+         } else {
+-            REGION_CACHE.put(center, this.smallRegion = new SmallRegion(entity.world, center, LockedSpigotConfig.getExplosionRegionRadius()));
++            REGION_CACHE.put(origin, this.smallRegion = new SmallRegion(entity.world, origin, LockedSpigotConfig.getExplosionRegionRadius()));
+         }
+     }
+ 
++    private boolean isInWater() {
++        return isInWater(null);
++    }
++
++    private boolean isInWater(BlockPosition blockPosition) {
++        if (blockPosition == null) {
++            return smallRegion.getCenter().getBlock().getMaterial().isLiquid();
++        }
++        return source.world.getType(blockPosition).getBlock().getMaterial().isLiquid();
++    }
++
+     public void a() {
+         if (this.size < 0.1f) {
+             return;
+         }
+-        Set<BlockPosition> hashset = new HashSet<>();
+-        if (this.source.world.tacoSpigotConfig.optimizeLiquidExplosions && smallRegion.getCenter().getBlock().getMaterial().isLiquid()) {
++        if (this.source.world.tacoSpigotConfig.optimizeLiquidExplosions && isInWater()) {
+             inWater = true;
+         } else {
+             for (RenderedLocation renderedLocation : RenderedLocation.locations) {
+@@ -72,8 +86,8 @@ public class Explosion {
+                     if (iblockdata.getBlock().getMaterial() != Material.AIR) {
+                         float f2 = this.source.a(this, this.source.world, blockposition, iblockdata);
+                         randSize -= (f2 + 0.3f) * 0.3f;
+-                        if (randSize > 0.0f && blockposition.getY() < 256 && blockposition.getY() >= 0 && !hashset.contains(blockposition) && !this.blocks.contains(blockposition)) {
+-                            hashset.add(blockposition);
++                        if (randSize > 0.0f && blockposition.getY() < 256 && blockposition.getY() >= 0 && !blocks.contains(blockposition) && !this.blocks.contains(blockposition)) {
++                            blocks.add(blockposition);
+                         }
+                     }
+                     x += d0m;
+@@ -83,10 +97,9 @@ public class Explosion {
+                 }
+             }
+         }
+-        this.blocks.addAll(hashset);
+         float f3 = this.size * 2.0f;
+         double maximumDistance = this.size * 2.0;
+-        Map<Entity, Float> entityPositionMap = EXPLOSION_ENTITY_CACHE.getOrDefault(smallRegion.getCenterBlockPosition(), new HashMap<>());
++        Map<Entity, Float> entityPositionMap = EXPLOSION_ENTITY_CACHE.getOrDefault(origin, new HashMap<>());
+         Collection<Entity> entities = entityPositionMap.isEmpty()
+                 ? this.source.world.a(this.source, new AxisAlignedBB(MathHelper.floor(this.posX - maximumDistance), MathHelper.floor(this.posY - maximumDistance), MathHelper.floor(this.posZ - maximumDistance), MathHelper.floor(this.posX + maximumDistance + 1.0), MathHelper.floor(this.posY + maximumDistance + 1.0), MathHelper.floor(this.posZ + maximumDistance + 1.0)), entity -> IEntitySelector.d.apply(entity) && !entity.dead)
+                 : entityPositionMap.keySet();
+@@ -124,11 +137,7 @@ public class Explosion {
+                 }
+             }
+         }
+-        EXPLOSION_ENTITY_CACHE.put(smallRegion.getCenterBlockPosition(), entityPositionMap);
+-    }
+-
+-    public float[] getForceArray(double multiplier, float density) {
+-        return new float[]{(float) multiplier, density};
++        EXPLOSION_ENTITY_CACHE.put(origin, entityPositionMap);
+     }
+ 
+     public void a(boolean flag) {
+-- 
+2.21.0.windows.1
+

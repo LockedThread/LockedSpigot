@@ -1,0 +1,29 @@
+From a08bc0be2aba485fb55522b8b65057b9dbfcdc0a Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 11 May 2019 23:04:23 -0400
+Subject: [PATCH] Cleared the explosionDensityCache
+
+
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index 82fe79148..d97609c25 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -906,6 +906,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+                     worldserver.a(crashreport);
+                     throw new ReportedException(crashreport);
+                 }
++                worldserver.explosionDensityCache.clear(); // PaperSpigot - Optimize explosions
+             }
+ 
+             /*
+@@ -936,7 +937,6 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+             worldserver.timings.tracker.stopTiming(); // Spigot
+             this.methodProfiler.b();
+             this.methodProfiler.b();
+-            worldserver.explosionDensityCache.clear(); // PaperSpigot - Optimize explosions
+             // } // CraftBukkit
+ 
+             // this.i[i][this.ticks % 100] = System.nanoTime() - j; // CraftBukkit
+-- 
+2.21.0.windows.1
+

@@ -1,0 +1,25 @@
+From e491e82cb28715b1f82b01cda69a1acb940dbfe4 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 6 May 2019 12:41:24 -0400
+Subject: [PATCH] Added NPE catch for /test entity-spawn
+
+
+diff --git a/src/main/java/dev/lockedthread/commands/CommandTest.java b/src/main/java/dev/lockedthread/commands/CommandTest.java
+index 2194cc327..37fa03d78 100644
+--- a/src/main/java/dev/lockedthread/commands/CommandTest.java
++++ b/src/main/java/dev/lockedthread/commands/CommandTest.java
+@@ -28,7 +28,10 @@ public class CommandTest extends Command {
+                             for (EntityType entityType : EntityType.values()) {
+                                 if (entityType == EntityType.DROPPED_ITEM || entityType == EntityType.ITEM_FRAME)
+                                     continue;
+-                                ((Player) sender).getWorld().spawnEntity(((Player) sender).getLocation(), entityType);
++                                try {
++                                    ((Player) sender).getWorld().spawnEntity(((Player) sender).getLocation(), entityType);
++                                } catch (NullPointerException ignored) {
++                                }
+                             }
+                             sender.sendMessage(ChatColor.GREEN + "Spawned Entities: " + Joiner.on(", ").skipNulls().join(EntityType.values()));
+                             sender.sendMessage(ChatColor.YELLOW + "Check console for errors. If you find errors send them to LockedThread.");
+-- 
+2.21.0.windows.1
+

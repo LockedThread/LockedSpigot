@@ -1,0 +1,37 @@
+From a37fd8be2b067c9fa8f937369169341ee4d4f8e0 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Tue, 7 May 2019 19:56:08 -0400
+Subject: [PATCH] Added location loop
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 886ae8ef5..0183f367a 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -3,6 +3,7 @@ package dev.lockedthread;
+ import com.google.common.base.Throwables;
+ import dev.lockedthread.commands.CommandFPS;
+ import dev.lockedthread.commands.CommandTest;
++import dev.lockedthread.locations.RenderedLocation;
+ import net.minecraft.server.MinecraftServer;
+ import org.apache.commons.lang3.tuple.Pair;
+ import org.bukkit.Bukkit;
+@@ -160,6 +161,15 @@ public class LockedSpigotConfig {
+         explosionCreatesFire = getBoolean("explosions.creates-fire", false);
+         explosionRegionRadius = getInt("explosions.region-radius", 4);
+ 
++        for (int k = 0; k < 16; ++k) {
++            for (int i = 0; i < 16; ++i) {
++                for (int j = 0; j < 16; ++j) {
++                    if (k == 0 || k == 15 || i == 0 || i == 15 || j == 0 || j == 15) {
++                        RenderedLocation.locations.add(new RenderedLocation(k, i, j));
++                    }
++                }
++            }
++        }
+ 
+         try {
+             config.save(CONFIG_FILE);
+-- 
+2.21.0.windows.1
+

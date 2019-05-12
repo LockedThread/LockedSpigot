@@ -1,0 +1,1472 @@
+From a841c71896c3a1eb0a5627f1287eb2bb4cdb88d6 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Tue, 7 May 2019 19:53:18 -0400
+Subject: [PATCH] Code cleanup and first attempt at explosion optimizations
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 163b5e370..886ae8ef5 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -85,6 +85,13 @@ public class LockedSpigotConfig {
+     private static boolean server40TpsProcessQueue;
+     private static boolean server40TpsTimeUpdate;
+ 
++    private static boolean explosionSounds;
++    private static boolean explosionParticles;
++    private static boolean explosionDamageEntities;
++    private static boolean explosionCreatesFire;
++    private static boolean explosionDropsBlocks;
++    private static int explosionRegionRadius;
++
+     private static void load() {
+         ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
+         ironGolemDropPoppies = getBoolean("irongolem.drop-poppies", false);
+@@ -146,6 +153,14 @@ public class LockedSpigotConfig {
+         server40TpsProcessQueue = getBoolean("server.40-tps.process-queue", true);
+         server40TpsTimeUpdate = getBoolean("server.40-tps.time-update", false);
+ 
++        explosionSounds = getBoolean("explosions.sound", false);
++        explosionParticles = getBoolean("explosions.particles", false);
++        explosionDamageEntities = getBoolean("explosions.damage-entities", false);
++        explosionDropsBlocks = getBoolean("explosions.drops-blocks", false);
++        explosionCreatesFire = getBoolean("explosions.creates-fire", false);
++        explosionRegionRadius = getInt("explosions.region-radius", 4);
++
++
+         try {
+             config.save(CONFIG_FILE);
+         } catch (IOException e) {
+@@ -354,6 +369,30 @@ public class LockedSpigotConfig {
+         return serverUpdateTime;
+     }
+ 
++    public static boolean isExplosionParticles() {
++        return explosionParticles;
++    }
++
++    public static boolean isExplosionSounds() {
++        return explosionSounds;
++    }
++
++    public static boolean isExplosionDamageEntities() {
++        return explosionDamageEntities;
++    }
++
++    public static int getExplosionRegionRadius() {
++        return explosionRegionRadius;
++    }
++
++    public static boolean isExplosionCreatesFire() {
++        return explosionCreatesFire;
++    }
++
++    public static boolean isExplosionDropsBlocks() {
++        return explosionDropsBlocks;
++    }
++
+     public static void init(File configFile) {
+         System.out.println("Initializing static fields for LockedSpigot");
+         CONFIG_FILE = configFile;
+diff --git a/src/main/java/dev/lockedthread/locations/RenderedLocation.java b/src/main/java/dev/lockedthread/locations/RenderedLocation.java
+new file mode 100644
+index 000000000..3e970312b
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/locations/RenderedLocation.java
+@@ -0,0 +1,39 @@
++package dev.lockedthread.locations;
++
++import java.util.HashSet;
++import java.util.Set;
++
++public class RenderedLocation {
++
++    public static Set<RenderedLocation> locations = new HashSet<>();
++
++    public int k;
++    public int i;
++    public int j;
++    public double d0;
++    public double d1;
++    public double d2;
++    public double d3;
++    public double d0m;
++    public double d1m;
++    public double d2m;
++
++    public RenderedLocation(int k, int i, int j) {
++        this.k = 0;
++        this.i = 0;
++        this.j = 0;
++        this.k = k;
++        this.i = i;
++        this.j = j;
++        this.d0 = k / 15.0f * 2.0f - 1.0f;
++        this.d1 = i / 15.0f * 2.0f - 1.0f;
++        this.d2 = j / 15.0f * 2.0f - 1.0f;
++        this.d3 = Math.sqrt(this.d0 * this.d0 + this.d1 * this.d1 + this.d2 * this.d2);
++        this.d0 /= this.d3;
++        this.d1 /= this.d3;
++        this.d2 /= this.d3;
++        this.d0m = this.d0 * 0.30000001192092896;
++        this.d1m = this.d1 * 0.30000001192092896;
++        this.d2m = this.d2 * 0.30000001192092896;
++    }
++}
+diff --git a/src/main/java/dev/lockedthread/regions/Region.java b/src/main/java/dev/lockedthread/regions/Region.java
+new file mode 100644
+index 000000000..75b33f0b6
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/regions/Region.java
+@@ -0,0 +1,38 @@
++package dev.lockedthread.regions;
++
++import net.minecraft.server.Block;
++import net.minecraft.server.BlockPosition;
++import net.minecraft.server.IBlockData;
++
++import java.util.Map;
++
++public interface Region {
++
++    default Block getBlockAt(BlockPosition blockPosition) {
++        return getIBlockDataAt(blockPosition).getBlock();
++    }
++
++    default IBlockData getIBlockDataAt(BlockPosition blockPosition) {
++        return getIBlockDataMap().get(blockPosition);
++    }
++
++    Block getBlockAt(int x, int y, int z);
++
++    IBlockData getIBlockDataAt(int x, int y, int z);
++
++    Map<BlockPosition, IBlockData> getIBlockDataMap();
++
++    boolean setType(BlockPosition blockPosition, IBlockData iBlockData, int c);
++
++    default boolean setTypeAndData(BlockPosition blockPosition, IBlockData iBlockData) {
++        return setType(blockPosition, iBlockData, 0);
++    }
++
++    default boolean setTypeUpdate(BlockPosition blockposition, IBlockData iblockdata) {
++        return this.setType(blockposition, iblockdata, 3);
++    }
++
++    default IBlockData getIBlockDataAt(double x, double y, double z) {
++        return getIBlockDataAt((int) x, (int) y, (int) z);
++    }
++}
+diff --git a/src/main/java/dev/lockedthread/regions/SmallRegion.java b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+new file mode 100644
+index 000000000..d520eeae5
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+@@ -0,0 +1,63 @@
++package dev.lockedthread.regions;
++
++import net.minecraft.server.*;
++
++import java.util.HashMap;
++import java.util.Map;
++
++public class SmallRegion implements Region {
++
++    private Map<BlockPosition, IBlockData> iBlockDataMap;
++    private IBlockData center;
++    private World world;
++
++    public SmallRegion(World world, BlockPosition center, int radius) {
++        this.world = world;
++        this.center = world.getType(center);
++        this.iBlockDataMap = new HashMap<>();
++        int centerX = center.getX();
++        int centerY = center.getY();
++        int centerZ = center.getZ();
++
++        for (int x = centerX - radius; x <= centerX + radius; x++) {
++            for (int y = centerY - radius; y <= centerY + radius; y++) {
++                for (int z = centerZ - radius; z <= centerZ + radius; z++) {
++                    iBlockDataMap.put(new BlockPosition(x, y, z), world.getType(new BlockPosition(x, y, z)));
++                }
++            }
++        }
++    }
++
++    @Override
++    public Block getBlockAt(int x, int y, int z) {
++        return getIBlockDataAt(x, y, z).getBlock();
++    }
++
++    @Override
++    public IBlockData getIBlockDataAt(int x, int y, int z) {
++        BlockPosition blockPosition = new BlockPosition(x, y, z);
++        IBlockData iBlockData = iBlockDataMap.get(blockPosition);
++        if (iBlockData != null) {
++            return iBlockData;
++        }
++        return world.getType(blockPosition);
++    }
++
++    @Override
++    public Map<BlockPosition, IBlockData> getIBlockDataMap() {
++        return iBlockDataMap;
++    }
++
++    @Override
++    public boolean setType(BlockPosition blockPosition, IBlockData iBlockData, int c) {
++        return world.setTypeAndData(blockPosition, Blocks.AIR.getBlockData(), c);
++    }
++
++    public IBlockData getCenter() {
++        return center;
++    }
++
++    public World getWorld() {
++        return world;
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/BaseBlockPosition.java b/src/main/java/net/minecraft/server/BaseBlockPosition.java
+index eaef5eaa4..f837c30e4 100644
+--- a/src/main/java/net/minecraft/server/BaseBlockPosition.java
++++ b/src/main/java/net/minecraft/server/BaseBlockPosition.java
+@@ -29,7 +29,7 @@ public class BaseBlockPosition implements Comparable<BaseBlockPosition> {
+         } else {
+             BaseBlockPosition baseblockposition = (BaseBlockPosition) object;
+ 
+-            return this.getX() != baseblockposition.getX() ? false : (this.getY() != baseblockposition.getY() ? false : this.getZ() == baseblockposition.getZ());
++            return this.getX() == baseblockposition.getX() && (this.getY() == baseblockposition.getY() && this.getZ() == baseblockposition.getZ());
+         }
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/Block.java b/src/main/java/net/minecraft/server/Block.java
+index b37592307..2dbad967d 100644
+--- a/src/main/java/net/minecraft/server/Block.java
++++ b/src/main/java/net/minecraft/server/Block.java
+@@ -7,8 +7,8 @@ import java.util.Random;
+ public class Block {
+ 
+     private static final MinecraftKey a = new MinecraftKey("air");
+-    public static final RegistryBlocks<MinecraftKey, Block> REGISTRY = new RegistryBlocks(Block.a);
+-    public static final RegistryID<IBlockData> d = new RegistryID();
++    public static final RegistryBlocks<MinecraftKey, Block> REGISTRY = new RegistryBlocks<>(Block.a);
++    public static final RegistryID<IBlockData> d = new RegistryID<>();
+     private CreativeModeTab creativeTab;
+     public static final Block.StepSound e = new Block.StepSound("stone", 1.0F, 1.0F);
+     public static final Block.StepSound f = new Block.StepSound("wood", 1.0F, 1.0F);
+@@ -67,6 +67,7 @@ public class Block {
+     protected boolean isTileEntity;
+     // Spigot start
+     public co.aikar.timings.Timing timing;
++
+     public co.aikar.timings.Timing getTiming() {
+         if (timing == null) {
+             timing = co.aikar.timings.SpigotTimings.getBlockTiming(this);
+@@ -120,12 +121,11 @@ public class Block {
+ 
+         if (Block.REGISTRY.d(minecraftkey)) {
+             return Block.REGISTRY.get(minecraftkey);
+-        } else {
+-            try {
+-                return Block.REGISTRY.a(Integer.parseInt(s));
+-            } catch (NumberFormatException numberformatexception) {
+-                return null;
+-            }
++        }
++        try {
++            return Block.REGISTRY.a(Integer.parseInt(s));
++        } catch (NumberFormatException numberformatexception) {
++            return null;
+         }
+     }
+ 
+@@ -309,22 +309,25 @@ public class Block {
+         this.b(world, blockposition, iblockdata, random);
+     }
+ 
+-    public void b(World world, BlockPosition blockposition, IBlockData iblockdata, Random random) {}
++    public void b(World world, BlockPosition blockposition, IBlockData iblockdata, Random random) {
++    }
+ 
+-    public void postBreak(World world, BlockPosition blockposition, IBlockData iblockdata) {}
++    public void postBreak(World world, BlockPosition blockposition, IBlockData iblockdata) {
++    }
+ 
+-    public void doPhysics(World world, BlockPosition blockposition, IBlockData iblockdata, Block block) {}
++    public void doPhysics(World world, BlockPosition blockposition, IBlockData iblockdata, Block block) {
++    }
+ 
+     public int a(World world) {
+         return 10;
+     }
+ 
+     public void onPlace(World world, BlockPosition blockposition, IBlockData iblockdata) {
+-        org.spigotmc.AsyncCatcher.catchOp( "block onPlace"); // Spigot
++        org.spigotmc.AsyncCatcher.catchOp("block onPlace"); // Spigot
+     }
+ 
+     public void remove(World world, BlockPosition blockposition, IBlockData iblockdata) {
+-        org.spigotmc.AsyncCatcher.catchOp( "block remove"); // Spigot
++        org.spigotmc.AsyncCatcher.catchOp("block remove"); // Spigot
+     }
+ 
+     public int a(Random random) {
+@@ -502,7 +505,8 @@ public class Block {
+         return vec3d == null ? false : vec3d.a >= this.minX && vec3d.a <= this.maxX && vec3d.b >= this.minY && vec3d.b <= this.maxY;
+     }
+ 
+-    public void wasExploded(World world, BlockPosition blockposition, Explosion explosion) {}
++    public void wasExploded(World world, BlockPosition blockposition, Explosion explosion) {
++    }
+ 
+     public boolean canPlace(World world, BlockPosition blockposition, EnumDirection enumdirection, ItemStack itemstack) {
+         return this.canPlace(world, blockposition, enumdirection);
+@@ -520,19 +524,22 @@ public class Block {
+         return false;
+     }
+ 
+-    public void a(World world, BlockPosition blockposition, Entity entity) {}
++    public void a(World world, BlockPosition blockposition, Entity entity) {
++    }
+ 
+     public IBlockData getPlacedState(World world, BlockPosition blockposition, EnumDirection enumdirection, float f, float f1, float f2, int i, EntityLiving entityliving) {
+         return this.fromLegacyData(i);
+     }
+ 
+-    public void attack(World world, BlockPosition blockposition, EntityHuman entityhuman) {}
++    public void attack(World world, BlockPosition blockposition, EntityHuman entityhuman) {
++    }
+ 
+     public Vec3D a(World world, BlockPosition blockposition, Entity entity, Vec3D vec3d) {
+         return vec3d;
+     }
+ 
+-    public void updateShape(IBlockAccess iblockaccess, BlockPosition blockposition) {}
++    public void updateShape(IBlockAccess iblockaccess, BlockPosition blockposition) {
++    }
+ 
+     public final double B() {
+         return this.minX;
+@@ -566,13 +573,15 @@ public class Block {
+         return false;
+     }
+ 
+-    public void a(World world, BlockPosition blockposition, IBlockData iblockdata, Entity entity) {}
++    public void a(World world, BlockPosition blockposition, IBlockData iblockdata, Entity entity) {
++    }
+ 
+     public int b(IBlockAccess iblockaccess, BlockPosition blockposition, IBlockData iblockdata, EnumDirection enumdirection) {
+         return 0;
+     }
+ 
+-    public void j() {}
++    public void j() {
++    }
+ 
+     public void a(World world, EntityHuman entityhuman, BlockPosition blockposition, IBlockData iblockdata, TileEntity tileentity) {
+         entityhuman.b(StatisticList.MINE_BLOCK_COUNT[getId(this)]);
+@@ -610,7 +619,8 @@ public class Block {
+         return this.a(random);
+     }
+ 
+-    public void postPlace(World world, BlockPosition blockposition, IBlockData iblockdata, EntityLiving entityliving, ItemStack itemstack) {}
++    public void postPlace(World world, BlockPosition blockposition, IBlockData iblockdata, EntityLiving entityliving, ItemStack itemstack) {
++    }
+ 
+     public boolean g() {
+         return !this.material.isBuildable() && !this.material.isLiquid();
+@@ -663,9 +673,11 @@ public class Block {
+         return this;
+     }
+ 
+-    public void a(World world, BlockPosition blockposition, IBlockData iblockdata, EntityHuman entityhuman) {}
++    public void a(World world, BlockPosition blockposition, IBlockData iblockdata, EntityHuman entityhuman) {
++    }
+ 
+-    public void k(World world, BlockPosition blockposition) {}
++    public void k(World world, BlockPosition blockposition) {
++    }
+ 
+     public boolean N() {
+         return true;
+diff --git a/src/main/java/net/minecraft/server/BlockPosition.java b/src/main/java/net/minecraft/server/BlockPosition.java
+index 735c9851a..0c79e1653 100644
+--- a/src/main/java/net/minecraft/server/BlockPosition.java
++++ b/src/main/java/net/minecraft/server/BlockPosition.java
+@@ -1,6 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.AbstractIterator;
++
+ import java.util.Iterator;
+ 
+ public class BlockPosition extends BaseBlockPosition {
+@@ -9,7 +10,7 @@ public class BlockPosition extends BaseBlockPosition {
+     private static final int c = 1 + MathHelper.c(MathHelper.b(30000000));
+     private static final int d = BlockPosition.c;
+     private static final int e = 64 - BlockPosition.c - BlockPosition.d;
+-    private static final int f = 0 + BlockPosition.d;
++    private static final int f = BlockPosition.d;
+     private static final int g = BlockPosition.f + BlockPosition.e;
+     private static final long h = (1L << BlockPosition.c) - 1L;
+     private static final long i = (1L << BlockPosition.e) - 1L;
+@@ -124,12 +125,9 @@ public class BlockPosition extends BaseBlockPosition {
+     }
+ 
+     public static Iterable<BlockPosition> a(BlockPosition blockposition, BlockPosition blockposition1) {
+-        final BlockPosition blockposition2 = new BlockPosition(Math.min(blockposition.getX(), blockposition1.getX()), Math.min(blockposition.getY(), blockposition1.getY()), Math.min(blockposition.getZ(), blockposition1.getZ()));
+-        final BlockPosition blockposition3 = new BlockPosition(Math.max(blockposition.getX(), blockposition1.getX()), Math.max(blockposition.getY(), blockposition1.getY()), Math.max(blockposition.getZ(), blockposition1.getZ()));
+-
+-        return new Iterable() {
++        return new Iterable<BlockPosition>() {
+             public Iterator<BlockPosition> iterator() {
+-                return new AbstractIterator() {
++                return new AbstractIterator<BlockPosition>() {
+                     private BlockPosition b = null;
+ 
+                     protected BlockPosition a() {
+@@ -137,7 +135,7 @@ public class BlockPosition extends BaseBlockPosition {
+                             this.b = blockposition;
+                             return this.b;
+                         } else if (this.b.equals(blockposition1)) {
+-                            return (BlockPosition) this.endOfData();
++                            return this.endOfData();
+                         } else {
+                             int i = this.b.getX();
+                             int j = this.b.getY();
+@@ -159,7 +157,7 @@ public class BlockPosition extends BaseBlockPosition {
+                         }
+                     }
+ 
+-                    protected Object computeNext() {
++                    protected BlockPosition computeNext() {
+                         return this.a();
+                     }
+                 };
+@@ -168,12 +166,10 @@ public class BlockPosition extends BaseBlockPosition {
+     }
+ 
+     public static Iterable<BlockPosition.MutableBlockPosition> b(BlockPosition blockposition, BlockPosition blockposition1) {
+-        final BlockPosition blockposition2 = new BlockPosition(Math.min(blockposition.getX(), blockposition1.getX()), Math.min(blockposition.getY(), blockposition1.getY()), Math.min(blockposition.getZ(), blockposition1.getZ()));
+-        final BlockPosition blockposition3 = new BlockPosition(Math.max(blockposition.getX(), blockposition1.getX()), Math.max(blockposition.getY(), blockposition1.getY()), Math.max(blockposition.getZ(), blockposition1.getZ()));
+ 
+-        return new Iterable() {
++        return new Iterable<BlockPosition.MutableBlockPosition>() {
+             public Iterator<BlockPosition.MutableBlockPosition> iterator() {
+-                return new AbstractIterator() {
++                return new AbstractIterator<BlockPosition.MutableBlockPosition>() {
+                     private BlockPosition.MutableBlockPosition b = null;
+ 
+                     protected BlockPosition.MutableBlockPosition a() {
+@@ -181,7 +177,7 @@ public class BlockPosition extends BaseBlockPosition {
+                             this.b = new BlockPosition.MutableBlockPosition(blockposition.getX(), blockposition.getY(), blockposition.getZ());
+                             return this.b;
+                         } else if (this.b.equals(blockposition1)) {
+-                            return (BlockPosition.MutableBlockPosition) this.endOfData();
++                            return this.endOfData();
+                         } else {
+                             int i = this.b.getX();
+                             int j = this.b.getY();
+@@ -207,7 +203,7 @@ public class BlockPosition extends BaseBlockPosition {
+                         }
+                     }
+ 
+-                    protected Object computeNext() {
++                    protected BlockPosition.MutableBlockPosition computeNext() {
+                         return this.a();
+                     }
+                 };
+diff --git a/src/main/java/net/minecraft/server/EntityEnderDragon.java b/src/main/java/net/minecraft/server/EntityEnderDragon.java
+index ae7489670..22c908299 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderDragon.java
++++ b/src/main/java/net/minecraft/server/EntityEnderDragon.java
+@@ -1,11 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
+-import java.util.ArrayList;
+-import java.util.Iterator;
+-import java.util.List;
+-
+-// CraftBukkit start
++import org.bukkit.Bukkit;
+ import org.bukkit.block.BlockState;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.craftbukkit.util.BlockStateListPopulator;
+@@ -13,7 +9,11 @@ import org.bukkit.event.entity.EntityCreatePortalEvent;
+ import org.bukkit.event.entity.EntityExplodeEvent;
+ import org.bukkit.event.entity.EntityRegainHealthEvent;
+ import org.bukkit.event.entity.EntityTargetEvent;
+-import org.bukkit.Bukkit;
++
++import java.util.ArrayList;
++import java.util.List;
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public class EntityEnderDragon extends EntityInsentient implements IComplex, IMonster {
+@@ -38,11 +38,11 @@ public class EntityEnderDragon extends EntityInsentient implements IComplex, IMo
+     public Entity target;
+     public int by;
+     public EntityEnderCrystal bz;
+-    private Explosion explosionSource = new Explosion(null, this, Double.NaN, Double.NaN, Double.NaN, Float.NaN, true, true); // CraftBukkit - reusable source for CraftTNTPrimed.getSource()
++    private Explosion explosionSource = new Explosion(this, Double.NaN, Double.NaN, Double.NaN, Float.NaN, true, true); // CraftBukkit - reusable entity for CraftTNTPrimed.getEntity()
+ 
+     public EntityEnderDragon(World world) {
+         super(world);
+-        this.children = new EntityComplexPart[] { this.bn = new EntityComplexPart(this, "head", 6.0F, 6.0F), this.bo = new EntityComplexPart(this, "body", 8.0F, 8.0F), this.bp = new EntityComplexPart(this, "tail", 4.0F, 4.0F), this.bq = new EntityComplexPart(this, "tail", 4.0F, 4.0F), this.br = new EntityComplexPart(this, "tail", 4.0F, 4.0F), this.bs = new EntityComplexPart(this, "wing", 4.0F, 4.0F), this.bt = new EntityComplexPart(this, "wing", 4.0F, 4.0F)};
++        this.children = new EntityComplexPart[]{this.bn = new EntityComplexPart(this, "head", 6.0F, 6.0F), this.bo = new EntityComplexPart(this, "body", 8.0F, 8.0F), this.bp = new EntityComplexPart(this, "tail", 4.0F, 4.0F), this.bq = new EntityComplexPart(this, "tail", 4.0F, 4.0F), this.br = new EntityComplexPart(this, "tail", 4.0F, 4.0F), this.bs = new EntityComplexPart(this, "wing", 4.0F, 4.0F), this.bt = new EntityComplexPart(this, "wing", 4.0F, 4.0F)};
+         this.setHealth(this.getMaxHealth());
+         this.setSize(16.0F, 8.0F);
+         this.noclip = true;
+@@ -569,7 +569,8 @@ public class EntityEnderDragon extends EntityInsentient implements IComplex, IMo
+                     double deltaX = this.locX - player.locX;
+                     double deltaZ = this.locZ - player.locZ;
+                     double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
+-                    if ( world.spigotConfig.dragonDeathSoundRadius > 0 && distanceSquared > world.spigotConfig.dragonDeathSoundRadius * world.spigotConfig.dragonDeathSoundRadius ) continue; // Spigot
++                    if (world.spigotConfig.dragonDeathSoundRadius > 0 && distanceSquared > world.spigotConfig.dragonDeathSoundRadius * world.spigotConfig.dragonDeathSoundRadius)
++                        continue; // Spigot
+                     if (distanceSquared > viewDistance * viewDistance) {
+                         double deltaLength = Math.sqrt(distanceSquared);
+                         double relativeX = player.locX + (deltaX / deltaLength) * viewDistance;
+@@ -666,7 +667,8 @@ public class EntityEnderDragon extends EntityInsentient implements IComplex, IMo
+         // CraftBukkit end
+     }
+ 
+-    protected void D() {}
++    protected void D() {
++    }
+ 
+     public Entity[] aB() {
+         return this.children;
+diff --git a/src/main/java/net/minecraft/server/EntityTNTPrimed.java b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
+index faf3a013d..1117d22b9 100644
+--- a/src/main/java/net/minecraft/server/EntityTNTPrimed.java
++++ b/src/main/java/net/minecraft/server/EntityTNTPrimed.java
+@@ -1,6 +1,6 @@
+ package net.minecraft.server;
+ 
+-import org.bukkit.event.entity.ExplosionPrimeEvent; // CraftBukkit
++import org.bukkit.event.entity.ExplosionPrimeEvent;
+ 
+ public class EntityTNTPrimed extends Entity {
+ 
+@@ -10,7 +10,7 @@ public class EntityTNTPrimed extends Entity {
+     public boolean isIncendiary = false; // CraftBukkit - add field
+     public org.bukkit.Location sourceLoc; // PaperSpigot
+ 
+-    // PaperSpigot start - TNT source location API
++    // PaperSpigot start - TNT entity location API
+     public EntityTNTPrimed(World world) {
+         this(null, world);
+     }
+@@ -126,7 +126,7 @@ public class EntityTNTPrimed extends Entity {
+ 
+     protected void b(NBTTagCompound nbttagcompound) {
+         nbttagcompound.setByte("Fuse", (byte) this.fuseTicks);
+-        // PaperSpigot start - TNT source location API
++        // PaperSpigot start - TNT entity location API
+         if (sourceLoc != null) {
+             nbttagcompound.setInt("SourceLoc_x", sourceLoc.getBlockX());
+             nbttagcompound.setInt("SourceLoc_y", sourceLoc.getBlockY());
+@@ -137,7 +137,7 @@ public class EntityTNTPrimed extends Entity {
+ 
+     protected void a(NBTTagCompound nbttagcompound) {
+         this.fuseTicks = nbttagcompound.getByte("Fuse");
+-        // PaperSpigot start - TNT source location API
++        // PaperSpigot start - TNT entity location API
+         if (nbttagcompound.hasKey("SourceLoc_x")) {
+             int srcX = nbttagcompound.getInt("SourceLoc_x");
+             int srcY = nbttagcompound.getInt("SourceLoc_y");
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index ff5d650b0..b51f48462 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -1,282 +1,219 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.collect.Lists;
+-import com.google.common.collect.Maps;
+-import com.google.common.collect.Sets;
+-import java.util.HashSet;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Random;
+-
+-// CraftBukkit start
+-import org.bukkit.craftbukkit.event.CraftEventFactory;
+-import org.bukkit.event.entity.EntityExplodeEvent;
++import dev.lockedthread.LockedSpigotConfig;
++import dev.lockedthread.locations.RenderedLocation;
++import dev.lockedthread.regions.SmallRegion;
+ import org.bukkit.Location;
++import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.block.BlockExplodeEvent;
+-// CraftBukkit end
++import org.bukkit.event.entity.EntityExplodeEvent;
++
++import java.util.*;
+ 
+ public class Explosion {
+ 
+     private final boolean a;
+     private final boolean b;
+-    private final Random c = new Random();
+-    private final World world;
+     private final double posX;
+     private final double posY;
+     private final double posZ;
+     public final Entity source;
+     private final float size;
+-    private final List<BlockPosition> blocks = Lists.newArrayList();
+-    private final Map<EntityHuman, Vec3D> k = Maps.newHashMap();
+-    public boolean wasCanceled = false; // CraftBukkit - add field
+-
+-    public Explosion(World world, Entity entity, double d0, double d1, double d2, float f, boolean flag, boolean flag1) {
+-        this.world = world;
++    private final SmallRegion smallRegion;
++    private final Set<BlockPosition> blocks;
++    public boolean wasCanceled;
++    private Map<EntityHuman, Vec3D> k;
++
++    public Explosion(Entity entity, double d0, double d1, double d2, float f, boolean flag, boolean flag1) {
++        this.blocks = new HashSet<>();
++        if (LockedSpigotConfig.isExplosionDamageEntities()) {
++            this.k = new HashMap<>();
++        }
++        this.wasCanceled = false;
+         this.source = entity;
+-        this.size = (float) Math.max(f, 0.0); // CraftBukkit - clamp bad values
++        this.size = (float) Math.max(f, 0.0);
+         this.posX = d0;
+         this.posY = d1;
+         this.posZ = d2;
+         this.a = flag;
+         this.b = flag1;
++        this.smallRegion = new SmallRegion(entity.world, entity.an, LockedSpigotConfig.getExplosionRegionRadius());
+     }
+ 
+     public void a() {
+-        // CraftBukkit start
+-        if (this.size < 0.1F) {
++        if (this.size < 0.1f) {
+             return;
+         }
+-        // CraftBukkit end
+-        HashSet hashset = Sets.newHashSet();
+-        boolean flag = true;
+-
+-        int i;
+-        int j;
+-
+-        Block b = world.getChunkAt((int)posX >> 4, (int)posZ >> 4).getBlockData(new BlockPosition(posX, posY, posZ)).getBlock(); // TacoSpigot - get block of the explosion
+-
+-        if (!this.world.tacoSpigotConfig.optimizeLiquidExplosions || !b.getMaterial().isLiquid()) { //TacoSpigot - skip calculating what blocks to blow up in water/lava
+-        for (int k = 0; k < 16; ++k) {
+-            for (i = 0; i < 16; ++i) {
+-                for (j = 0; j < 16; ++j) {
+-                    if (k == 0 || k == 15 || i == 0 || i == 15 || j == 0 || j == 15) {
+-                        double d0 = (double) ((float) k / 15.0F * 2.0F - 1.0F);
+-                        double d1 = (double) ((float) i / 15.0F * 2.0F - 1.0F);
+-                        double d2 = (double) ((float) j / 15.0F * 2.0F - 1.0F);
+-                        double d3 = Math.sqrt(d0 * d0 + d1 * d1 + d2 * d2);
+-
+-                        d0 /= d3;
+-                        d1 /= d3;
+-                        d2 /= d3;
+-                        float f = this.size * (0.7F + this.world.random.nextFloat() * 0.6F);
+-                        double d4 = this.posX;
+-                        double d5 = this.posY;
+-                        double d6 = this.posZ;
+-
+-                        for (float f1 = 0.3F; f > 0.0F; f -= 0.22500001F) {
+-                            BlockPosition blockposition = new BlockPosition(d4, d5, d6);
+-                            IBlockData iblockdata = this.world.getType(blockposition);
+-
+-                            if (iblockdata.getBlock().getMaterial() != Material.AIR) {
+-                                float f2 = this.source != null ? this.source.a(this, this.world, blockposition, iblockdata) : iblockdata.getBlock().a((Entity) null);
+-
+-                                f -= (f2 + 0.3F) * 0.3F;
+-                            }
+-
+-                            if (f > 0.0F && (this.source == null || this.source.a(this, this.world, blockposition, iblockdata, f)) && blockposition.getY() < 256 && blockposition.getY() >= 0) { // CraftBukkit - don't wrap explosions
+-                                hashset.add(blockposition);
+-                            }
+-
+-                            d4 += d0 * 0.30000001192092896D;
+-                            d5 += d1 * 0.30000001192092896D;
+-                            d6 += d2 * 0.30000001192092896D;
++        Set<BlockPosition> hashset = new HashSet<>();
++        if (!this.source.world.tacoSpigotConfig.optimizeLiquidExplosions || !smallRegion.getCenter().getBlock().getMaterial().isLiquid()) {
++            for (RenderedLocation renderedLocation : RenderedLocation.locations) {
++                float randSize = this.size * (0.7f + this.source.world.random.nextFloat() * 0.6f);
++                double x = this.posX;
++                double y = this.posY;
++                double z = this.posZ;
++                while (randSize > 0.0f) {
++                    double d0m = renderedLocation.d0m;
++                    double d7 = renderedLocation.d1m;
++                    double d8 = renderedLocation.d2m;
++                    BlockPosition blockposition = new BlockPosition(x, y, z);
++                    IBlockData iblockdata = smallRegion.getIBlockDataAt(blockposition);
++                    if (iblockdata.getBlock().getMaterial() != Material.AIR) {
++                        float f2 = this.source.a(this, this.source.world, blockposition, iblockdata);
++                        randSize -= (f2 + 0.3f) * 0.3f;
++                        if (randSize > 0.0f && blockposition.getY() < 256 && blockposition.getY() >= 0 && !hashset.contains(blockposition) && !this.blocks.contains(blockposition)) {
++                            hashset.add(blockposition);
+                         }
+                     }
++                    x += d0m;
++                    y += d7;
++                    z += d8;
++                    randSize -= 0.22500001f;
+                 }
+             }
+         }
+-        }
+-
+         this.blocks.addAll(hashset);
+-        float f3 = this.size * 2.0F;
+-
+-        i = MathHelper.floor(this.posX - (double) f3 - 1.0D);
+-        j = MathHelper.floor(this.posX + (double) f3 + 1.0D);
+-        int l = MathHelper.floor(this.posY - (double) f3 - 1.0D);
+-        int i1 = MathHelper.floor(this.posY + (double) f3 + 1.0D);
+-        int j1 = MathHelper.floor(this.posZ - (double) f3 - 1.0D);
+-        int k1 = MathHelper.floor(this.posZ + (double) f3 + 1.0D);
+-        // PaperSpigot start - Fix lag from explosions processing dead entities
+-        List list = this.world.a(this.source, new AxisAlignedBB((double) i, (double) l, (double) j1, (double) j, (double) i1, (double) k1), entity -> IEntitySelector.d.apply(entity) && !entity.dead);
+-        // PaperSpigot end
+-        Vec3D vec3d = new Vec3D(this.posX, this.posY, this.posZ);
+-
+-        for (Object o : list) {
+-            Entity entity = (Entity) o;
+-
+-            if (!entity.aW()) {
+-                double d7 = entity.f(this.posX, this.posY, this.posZ) / (double) f3;
+-
+-                if (d7 <= 1.0D) {
+-                    double d8 = entity.locX - this.posX;
+-                    double d9 = entity.locY + (double) entity.getHeadHeight() - this.posY;
+-                    double d10 = entity.locZ - this.posZ;
+-                    double d11 = (double) MathHelper.sqrt(d8 * d8 + d9 * d9 + d10 * d10);
+-
+-                    if (d11 != 0.0D) {
+-                        d8 /= d11;
+-                        d9 /= d11;
+-                        d10 /= d11;
+-                        double d12 = this.getBlockDensity(vec3d, entity.getBoundingBox()); // PaperSpigot - Optimize explosions
+-                        double d13 = (1.0D - d7) * d12;
+-
+-                        // entity.damageEntity(DamageSource.explosion(this), (float) ((int) ((d13 * d13 + d13) / 2.0D * 8.0D * (double) f3 + 1.0D)));+                        // CraftBukkit start
+-                        CraftEventFactory.entityDamage = source;
+-                        entity.forceExplosionKnockback = false;
+-                        boolean wasDamaged = entity.damageEntity(DamageSource.explosion(this), (float) ((int) ((d13 * d13 + d13) / 2.0D * 8.0D * (double) f3 + 1.0D)));
+-                        CraftEventFactory.entityDamage = null;
+-                        if (!wasDamaged && !(entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock) && !entity.forceExplosionKnockback) {
+-                            continue;
+-                        }
+-                        // CraftBukkit end
+-                        double d14 = entity instanceof EntityHuman && world.paperSpigotConfig.disableExplosionKnockback ? 0 : EnchantmentProtection.a(entity, d13); // PaperSpigot
+-
+-                        // PaperSpigot start - Fix cannons
+-                        /*
+-                        entity.motX += d8 * d14;
+-                        entity.motY += d9 * d14;
+-                        entity.motZ += d10 * d14;
+-                        */
+-                        // This impulse method sets the dirty flag, so clients will get an immediate velocity update
+-                        entity.g(d8 * d14, d9 * d14, d10 * d14);
+-                        // PaperSpigot end
+-
+-                        if (entity instanceof EntityHuman && !((EntityHuman) entity).abilities.isInvulnerable && !world.paperSpigotConfig.disableExplosionKnockback) { // PaperSpigot
+-                            this.k.put((EntityHuman) entity, new Vec3D(d8 * d13, d9 * d13, d10 * d13));
++        if (LockedSpigotConfig.isExplosionDamageEntities()) {
++            float f3 = this.size * 2.0f;
++            int i = MathHelper.floor(this.posX - f3 - 1.0);
++            int j = MathHelper.floor(this.posX + f3 + 1.0);
++            int l = MathHelper.floor(this.posY - f3 - 1.0);
++            int i2 = MathHelper.floor(this.posY + f3 + 1.0);
++            int j2 = MathHelper.floor(this.posZ - f3 - 1.0);
++            int k1 = MathHelper.floor(this.posZ + f3 + 1.0);
++            List<Entity> list = this.source.world.a(this.source, new AxisAlignedBB(i, l, j2, j, i2, k1), entity -> IEntitySelector.d.apply(entity) && !entity.dead);
++            Vec3D vec3d = new Vec3D(this.posX, this.posY, this.posZ);
++            for (Entity entity : list) {
++                if (!entity.aW()) {
++                    double d7 = entity.f(this.posX, this.posY, this.posZ) / f3;
++                    if (d7 <= 1.0) {
++                        double d8 = entity.locX - this.posX;
++                        double d9 = entity.locY + entity.getHeadHeight() - this.posY;
++                        double d10 = entity.locZ - this.posZ;
++                        double d11 = MathHelper.sqrt(d8 * d8 + d9 * d9 + d10 * d10);
++                        if (d11 != 0.0) {
++                            d8 /= d11;
++                            d9 /= d11;
++                            d10 /= d11;
++                            double d12 = this.getBlockDensity(vec3d, entity.getBoundingBox());
++                            double d13 = (1.0 - d7) * d12;
++                            CraftEventFactory.entityDamage = this.source;
++                            entity.forceExplosionKnockback = false;
++                            boolean wasDamaged = entity.damageEntity(DamageSource.explosion(this), (float) (int) ((d13 * d13 + d13) / 2.0 * 8.0 * f3 + 1.0));
++                            CraftEventFactory.entityDamage = null;
++                            if (wasDamaged || entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock || entity.forceExplosionKnockback) {
++                                double d14 = (entity instanceof EntityHuman && this.source.world.paperSpigotConfig.disableExplosionKnockback) ? 0.0 : EnchantmentProtection.a(entity, d13);
++                                entity.g(d8 * d14, d9 * d14, d10 * d14);
++                                if (entity instanceof EntityHuman && !((EntityHuman) entity).abilities.isInvulnerable && !this.source.world.paperSpigotConfig.disableExplosionKnockback) {
++                                    this.k.put((EntityHuman) entity, new Vec3D(d8 * d13, d9 * d13, d10 * d13));
++                                }
++                            }
+                         }
+                     }
+                 }
+             }
+         }
+-
+     }
+ 
+     public void a(boolean flag) {
+-        // PaperSpigot start - Configurable TNT explosion volume.
+-        float volume = source instanceof EntityTNTPrimed ? world.paperSpigotConfig.tntExplosionVolume : 4.0F;
+-        this.world.makeSound(this.posX, this.posY, this.posZ, "random.explode", volume, (1.0F + (this.world.random.nextFloat() - this.world.random.nextFloat()) * 0.2F) * 0.7F);
+-        // PaperSpigot end
+-        if (this.size >= 2.0F && this.b) {
+-            this.world.addParticle(EnumParticle.EXPLOSION_HUGE, this.posX, this.posY, this.posZ, 1.0D, 0.0D, 0.0D);
+-        } else {
+-            this.world.addParticle(EnumParticle.EXPLOSION_LARGE, this.posX, this.posY, this.posZ, 1.0D, 0.0D, 0.0D);
++        if (LockedSpigotConfig.isExplosionSounds()) {
++            float volume = (this.source instanceof EntityTNTPrimed) ? this.source.world.paperSpigotConfig.tntExplosionVolume : 4.0f;
++            this.source.world.makeSound(this.posX, this.posY, this.posZ, "random.explode", volume, (1.0f + (this.source.world.random.nextFloat() - this.source.world.random.nextFloat()) * 0.2f) * 0.7f);
++        }
++        if (LockedSpigotConfig.isExplosionParticles()) {
++            if (this.size >= 2.0f && this.b) {
++                this.source.world.addParticle(EnumParticle.EXPLOSION_HUGE, this.posX, this.posY, this.posZ, 1.0, 0.0, 0.0);
++            } else {
++                this.source.world.addParticle(EnumParticle.EXPLOSION_LARGE, this.posX, this.posY, this.posZ, 1.0, 0.0, 0.0);
++            }
+         }
+-
+-        Iterator iterator;
+-        BlockPosition blockposition;
+-
+         if (this.b) {
+-            // CraftBukkit start
+-            org.bukkit.World bworld = this.world.getWorld();
+-            org.bukkit.entity.Entity explode = this.source == null ? null : this.source.getBukkitEntity();
+-            Location location = new Location(bworld, this.posX, this.posY, this.posZ);
+-
+-            List<org.bukkit.block.Block> blockList = Lists.newArrayList();
+-            for (int i1 = this.blocks.size() - 1; i1 >= 0; i1--) {
+-                BlockPosition cpos = this.blocks.get(i1);
+-                org.bukkit.block.Block bblock = bworld.getBlockAt(cpos.getX(), cpos.getY(), cpos.getZ());
++            org.bukkit.World bukkitWorld = this.source.world.getWorld();
++            List<org.bukkit.block.Block> blockList = new ArrayList<>();
++            for (BlockPosition blockPosition : blocks) {
++                org.bukkit.block.Block bblock = bukkitWorld.getBlockAt(blockPosition.getX(), blockPosition.getY(), blockPosition.getZ());
+                 if (bblock.getType() != org.bukkit.Material.AIR) {
+                     blockList.add(bblock);
+                 }
+             }
+-
++           /*for (int i1 = this.blocks.size() - 1; i1 >= 0; --i1) {
++                BlockPosition cpos = this.blocks.get(i1);
++                org.bukkit.block.Block bblock = bukkitWorld.getBlockAt(cpos.getX(), cpos.getY(), cpos.getZ());
++                if (bblock.getType() != org.bukkit.Material.AIR) {
++                    blockList.add(bblock);
++                }
++            }*/
+             boolean cancelled;
+             List<org.bukkit.block.Block> bukkitBlocks;
+             float yield;
+-
++            Location location = new Location(bukkitWorld, this.posX, this.posY, this.posZ);
++            org.bukkit.entity.Entity explode = this.source.getBukkitEntity();
+             if (explode != null) {
+-                EntityExplodeEvent event = new EntityExplodeEvent(explode, location, blockList, 0.3F);
+-                this.world.getServer().getPluginManager().callEvent(event);
++                EntityExplodeEvent event = new EntityExplodeEvent(explode, location, blockList, 0.3f);
++                this.source.world.getServer().getPluginManager().callEvent(event);
+                 cancelled = event.isCancelled();
+                 bukkitBlocks = event.blockList();
+                 yield = event.getYield();
+             } else {
+-                BlockExplodeEvent event = new BlockExplodeEvent(location.getBlock(), blockList, 0.3F);
+-                this.world.getServer().getPluginManager().callEvent(event);
+-                cancelled = event.isCancelled();
+-                bukkitBlocks = event.blockList();
+-                yield = event.getYield();
++                BlockExplodeEvent event2 = new BlockExplodeEvent(location.getBlock(), blockList, 0.3f);
++                this.source.world.getServer().getPluginManager().callEvent(event2);
++                cancelled = event2.isCancelled();
++                bukkitBlocks = event2.blockList();
++                yield = event2.getYield();
+             }
+-
+             this.blocks.clear();
+-
+-            for (org.bukkit.block.Block bblock : bukkitBlocks) {
+-                BlockPosition coords = new BlockPosition(bblock.getX(), bblock.getY(), bblock.getZ());
+-                blocks.add(coords);
++            for (org.bukkit.block.Block bblock2 : bukkitBlocks) {
++                BlockPosition coords = new BlockPosition(bblock2.getX(), bblock2.getY(), bblock2.getZ());
++                this.blocks.add(coords);
+             }
+-
+             if (cancelled) {
+                 this.wasCanceled = true;
+                 return;
+             }
+-            // CraftBukkit end
+-            iterator = this.blocks.iterator();
+-
+-            while (iterator.hasNext()) {
+-                blockposition = (BlockPosition) iterator.next();
+-                Block block = this.world.getType(blockposition).getBlock();
+-
+-                world.spigotConfig.antiXrayInstance.updateNearbyBlocks(world, blockposition); // Spigot
+-                if (flag) {
+-                    double d0 = (double) ((float) blockposition.getX() + this.world.random.nextFloat());
+-                    double d1 = (double) ((float) blockposition.getY() + this.world.random.nextFloat());
+-                    double d2 = (double) ((float) blockposition.getZ() + this.world.random.nextFloat());
+-                    double d3 = d0 - this.posX;
+-                    double d4 = d1 - this.posY;
+-                    double d5 = d2 - this.posZ;
+-                    double d6 = (double) MathHelper.sqrt(d3 * d3 + d4 * d4 + d5 * d5);
+-
+-                    d3 /= d6;
+-                    d4 /= d6;
+-                    d5 /= d6;
+-                    double d7 = 0.5D / (d6 / (double) this.size + 0.1D);
+-
+-                    d7 *= (double) (this.world.random.nextFloat() * this.world.random.nextFloat() + 0.3F);
+-                    d3 *= d7;
+-                    d4 *= d7;
+-                    d5 *= d7;
+-                    this.world.addParticle(EnumParticle.EXPLOSION_NORMAL, (d0 + this.posX * 1.0D) / 2.0D, (d1 + this.posY * 1.0D) / 2.0D, (d2 + this.posZ * 1.0D) / 2.0D, d3, d4, d5);
+-                    this.world.addParticle(EnumParticle.SMOKE_NORMAL, d0, d1, d2, d3, d4, d5);
++            for (BlockPosition blockPosition : this.blocks) {
++                Block block = this.smallRegion.getBlockAt(blockPosition);
++                this.source.world.spigotConfig.antiXrayInstance.updateNearbyBlocks(this.source.world, blockPosition);
++                if (LockedSpigotConfig.isExplosionParticles()) {
++                    if (flag) {
++                        double d0 = blockPosition.getX() + this.source.world.random.nextFloat();
++                        double d2 = blockPosition.getY() + this.source.world.random.nextFloat();
++                        double d3 = blockPosition.getZ() + this.source.world.random.nextFloat();
++                        double d4 = d0 - this.posX;
++                        double d5 = d2 - this.posY;
++                        double d6 = d3 - this.posZ;
++                        double d7 = MathHelper.sqrt(d4 * d4 + d5 * d5 + d6 * d6);
++                        d4 /= d7;
++                        d5 /= d7;
++                        d6 /= d7;
++                        double d8 = 0.5 / (d7 / this.size + 0.1);
++                        d8 *= this.source.world.random.nextFloat() * this.source.world.random.nextFloat() + 0.3f;
++                        d4 *= d8;
++                        d5 *= d8;
++                        d6 *= d8;
++                        this.source.world.addParticle(EnumParticle.EXPLOSION_NORMAL, (d0 + this.posX * 1.0) / 2.0, (d2 + this.posY * 1.0) / 2.0, (d3 + this.posZ * 1.0) / 2.0, d4, d5, d6);
++                        this.source.world.addParticle(EnumParticle.SMOKE_NORMAL, d0, d2, d3, d4, d5, d6);
++                    }
+                 }
+-
+                 if (block.getMaterial() != Material.AIR) {
+-                    if (block.a(this)) {
+-                        // CraftBukkit - add yield
+-                        block.dropNaturally(this.world, blockposition, this.world.getType(blockposition), yield, 0);
++                    if (LockedSpigotConfig.isExplosionDropsBlocks()) {
++                        if (block.a(this)) {
++                            block.dropNaturally(this.source.world, blockPosition, this.source.world.getType(blockPosition), yield, 0);
++                        }
+                     }
+-
+-                    this.world.setTypeAndData(blockposition, Blocks.AIR.getBlockData(), 3);
+-                    block.wasExploded(this.world, blockposition, this);
++                    this.smallRegion.setTypeAndData(blockPosition, Blocks.AIR.getBlockData());
++                    //this.source.world.setTypeAndData(blockPosition, Blocks.AIR.getBlockData(), 3);
++                    block.wasExploded(this.source.world, blockPosition, this);
+                 }
+             }
+         }
+-
+-        if (this.a) {
+-            iterator = this.blocks.iterator();
+-
+-            while (iterator.hasNext()) {
+-                blockposition = (BlockPosition) iterator.next();
+-                if (this.world.getType(blockposition).getBlock().getMaterial() == Material.AIR && this.world.getType(blockposition.down()).getBlock().o() && this.c.nextInt(3) == 0) {
+-                    // CraftBukkit start - Ignition by explosion
+-                    if (!org.bukkit.craftbukkit.event.CraftEventFactory.callBlockIgniteEvent(this.world, blockposition.getX(), blockposition.getY(), blockposition.getZ(), this).isCancelled()) {
+-                        this.world.setTypeUpdate(blockposition, Blocks.FIRE.getBlockData());
++        if (LockedSpigotConfig.isExplosionCreatesFire()) {
++            if (this.a) {
++                for (BlockPosition blockposition : this.blocks) {
++                    if (smallRegion.getBlockAt(blockposition).getMaterial() == Material.AIR && this.source.world.getType(blockposition.down()).getBlock().o() && this.source.getRandom().nextInt(3) == 0 && !CraftEventFactory.callBlockIgniteEvent(this.source.world, blockposition.getX(), blockposition.getY(), blockposition.getZ(), this).isCancelled()) {
++                        this.source.world.setTypeUpdate(blockposition, Blocks.FIRE.getBlockData());
+                     }
+-                    // CraftBukkit end
+                 }
+             }
+         }
+-
+     }
+ 
+     public Map<EntityHuman, Vec3D> b() {
+@@ -284,98 +221,98 @@ public class Explosion {
+     }
+ 
+     public EntityLiving getSource() {
+-        // CraftBukkit start - obtain Fireball shooter for explosion tracking
+-        return this.source == null ? null : (this.source instanceof EntityTNTPrimed ? ((EntityTNTPrimed) this.source).getSource() : (this.source instanceof EntityLiving ? (EntityLiving) this.source : (this.source instanceof EntityFireball ? ((EntityFireball) this.source).shooter : null)));
+-        // CraftBukkit end
++        if (this.source == null) {
++            return null;
++        } else if (this.source instanceof EntityTNTPrimed) {
++            return ((EntityTNTPrimed) this.source).getSource();
++        } else if (this.source instanceof EntityLiving) {
++            return (EntityLiving) this.source;
++        } else if (this.source instanceof EntityFireball) {
++            return ((EntityFireball) this.source).shooter;
++        }
++        return null;
+     }
+ 
+     public void clearBlocks() {
+         this.blocks.clear();
+     }
+ 
+-    public List<BlockPosition> getBlocks() {
++    public Set<BlockPosition> getBlocks() {
+         return this.blocks;
+     }
+ 
+-    // PaperSpigot start - Optimize explosions
+     private float getBlockDensity(Vec3D vec3d, AxisAlignedBB aabb) {
+-        if (!this.world.paperSpigotConfig.optimizeExplosions) {
+-            return this.world.a(vec3d, aabb);
++        if (!this.source.world.paperSpigotConfig.optimizeExplosions) {
++            return this.source.world.a(vec3d, aabb);
+         }
+-
+         CacheKey key = new CacheKey(this, aabb);
+-        Float blockDensity = this.world.explosionDensityCache.get(key);
++        Float blockDensity = this.source.world.explosionDensityCache.get(key);
+         if (blockDensity == null) {
+-            blockDensity = this.world.a(vec3d, aabb);
+-            this.world.explosionDensityCache.put(key, blockDensity);
++            blockDensity = this.source.world.a(vec3d, aabb);
++            this.source.world.explosionDensityCache.put(key, blockDensity);
+         }
+-
+         return blockDensity;
+     }
+ 
+     static class CacheKey {
+         private final World world;
+-        private final double posX, posY, posZ;
+-        private final double minX, minY, minZ;
+-        private final double maxX, maxY, maxZ;
+-
+-        public CacheKey(Explosion explosion, AxisAlignedBB aabb) {
+-            this.world = explosion.world;
++        private final double posX;
++        private final double posY;
++        private final double posZ;
++        private final double minX;
++        private final double minY;
++        private final double minZ;
++        private final double maxX;
++        private final double maxY;
++        private final double maxZ;
++
++        public CacheKey(Explosion explosion, AxisAlignedBB axisAlignedBB) {
++            this.world = explosion.source.world;
+             this.posX = explosion.posX;
+             this.posY = explosion.posY;
+             this.posZ = explosion.posZ;
+-            this.minX = aabb.a;
+-            this.minY = aabb.b;
+-            this.minZ = aabb.c;
+-            this.maxX = aabb.d;
+-            this.maxY = aabb.e;
+-            this.maxZ = aabb.f;
++            this.minX = axisAlignedBB.a;
++            this.minY = axisAlignedBB.b;
++            this.minZ = axisAlignedBB.c;
++            this.maxX = axisAlignedBB.d;
++            this.maxY = axisAlignedBB.e;
++            this.maxZ = axisAlignedBB.f;
+         }
+ 
+         @Override
+-        public boolean equals(Object o) {
+-            if (this == o) return true;
+-            if (o == null || getClass() != o.getClass()) return false;
+-
+-            CacheKey cacheKey = (CacheKey) o;
+-
+-            if (Double.compare(cacheKey.posX, posX) != 0) return false;
+-            if (Double.compare(cacheKey.posY, posY) != 0) return false;
+-            if (Double.compare(cacheKey.posZ, posZ) != 0) return false;
+-            if (Double.compare(cacheKey.minX, minX) != 0) return false;
+-            if (Double.compare(cacheKey.minY, minY) != 0) return false;
+-            if (Double.compare(cacheKey.minZ, minZ) != 0) return false;
+-            if (Double.compare(cacheKey.maxX, maxX) != 0) return false;
+-            if (Double.compare(cacheKey.maxY, maxY) != 0) return false;
+-            if (Double.compare(cacheKey.maxZ, maxZ) != 0) return false;
+-            return world.equals(cacheKey.world);
++        public boolean equals(final Object o) {
++            if (this == o) {
++                return true;
++            }
++            if (o == null || this.getClass() != o.getClass()) {
++                return false;
++            }
++            final CacheKey cacheKey = (CacheKey) o;
++            return Double.compare(cacheKey.posX, this.posX) == 0 && Double.compare(cacheKey.posY, this.posY) == 0 && Double.compare(cacheKey.posZ, this.posZ) == 0 && Double.compare(cacheKey.minX, this.minX) == 0 && Double.compare(cacheKey.minY, this.minY) == 0 && Double.compare(cacheKey.minZ, this.minZ) == 0 && Double.compare(cacheKey.maxX, this.maxX) == 0 && Double.compare(cacheKey.maxY, this.maxY) == 0 && Double.compare(cacheKey.maxZ, this.maxZ) == 0 && this.world.worldData.getName().equals(cacheKey.world.worldData.getName());
+         }
+ 
+         @Override
+         public int hashCode() {
+-            int result;
+-            long temp;
+-            result = world.hashCode();
+-            temp = Double.doubleToLongBits(posX);
+-            result = 31 * result + (int) (temp ^ (temp >>> 32));
+-            temp = Double.doubleToLongBits(posY);
+-            result = 31 * result + (int) (temp ^ (temp >>> 32));
+-            temp = Double.doubleToLongBits(posZ);
+-            result = 31 * result + (int) (temp ^ (temp >>> 32));
+-            temp = Double.doubleToLongBits(minX);
+-            result = 31 * result + (int) (temp ^ (temp >>> 32));
+-            temp = Double.doubleToLongBits(minY);
+-            result = 31 * result + (int) (temp ^ (temp >>> 32));
+-            temp = Double.doubleToLongBits(minZ);
+-            result = 31 * result + (int) (temp ^ (temp >>> 32));
+-            temp = Double.doubleToLongBits(maxX);
+-            result = 31 * result + (int) (temp ^ (temp >>> 32));
+-            temp = Double.doubleToLongBits(maxY);
+-            result = 31 * result + (int) (temp ^ (temp >>> 32));
+-            temp = Double.doubleToLongBits(maxZ);
+-            result = 31 * result + (int) (temp ^ (temp >>> 32));
++            int result = this.world.hashCode();
++            long temp = Double.doubleToLongBits(this.posX);
++            result = 31 * result + (int) (temp ^ temp >>> 32);
++            temp = Double.doubleToLongBits(this.posY);
++            result = 31 * result + (int) (temp ^ temp >>> 32);
++            temp = Double.doubleToLongBits(this.posZ);
++            result = 31 * result + (int) (temp ^ temp >>> 32);
++            temp = Double.doubleToLongBits(this.minX);
++            result = 31 * result + (int) (temp ^ temp >>> 32);
++            temp = Double.doubleToLongBits(this.minY);
++            result = 31 * result + (int) (temp ^ temp >>> 32);
++            temp = Double.doubleToLongBits(this.minZ);
++            result = 31 * result + (int) (temp ^ temp >>> 32);
++            temp = Double.doubleToLongBits(this.maxX);
++            result = 31 * result + (int) (temp ^ temp >>> 32);
++            temp = Double.doubleToLongBits(this.maxY);
++            result = 31 * result + (int) (temp ^ temp >>> 32);
++            temp = Double.doubleToLongBits(this.maxZ);
++            result = 31 * result + (int) (temp ^ temp >>> 32);
+             return result;
+         }
+     }
+-    // PaperSpigot end
+ }
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 0a60f36f0..315fcc640 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -1880,7 +1880,7 @@ public abstract class World implements IBlockAccess {
+     }
+ 
+     public Explosion createExplosion(Entity entity, double d0, double d1, double d2, float f, boolean flag, boolean flag1) {
+-        Explosion explosion = new Explosion(this, entity, d0, d1, d2, f, flag, flag1);
++        Explosion explosion = new Explosion(entity, d0, d1, d2, f, flag, flag1);
+ 
+         explosion.a();
+         explosion.a(true);
+diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
+index 60b605bc3..0f3753ce1 100644
+--- a/src/main/java/net/minecraft/server/WorldServer.java
++++ b/src/main/java/net/minecraft/server/WorldServer.java
+@@ -821,17 +821,20 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+ 
+     @Override
+     public Explosion createExplosion(final Entity entity, final double d0, final double d1, final double d2, final float f, final boolean flag, final boolean flag1) {
+-        final Explosion explosion = super.createExplosion(entity, d0, d1, d2, f, flag, flag1);
++        Explosion explosion = super.createExplosion(entity, d0, d1, d2, f, flag, flag1);
+         if (explosion.wasCanceled) {
+             return explosion;
+         }
+         if (!flag1) {
+             explosion.clearBlocks();
+         }
+-        final PacketPlayOutExplosion packet = new PacketPlayOutExplosion(d0, d1, d2, f, explosion.getBlocks(), null);
+-        for (final EntityHuman entityhuman : this.players) {
+-            if (entityhuman.e(d0, d1, d2) < 4096.0) {
+-                ((EntityPlayer) entityhuman).playerConnection.sendPacket(packet);
++        final PacketPlayOutExplosion packet = new PacketPlayOutExplosion(d0, d1, d2, f, new ArrayList<>(explosion.getBlocks()), null);
++        for (EntityHuman entityhuman : this.players) {
++            EntityPlayer entityPlayer = (EntityPlayer) entityhuman;
++            if (entityPlayer.isTntToggle()) {
++                if (entityhuman.e(d0, d1, d2) < 4096.0) {
++                    entityPlayer.playerConnection.sendPacket(packet);
++                }
+             }
+         }
+         return explosion;
+diff --git a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
+index 3cac9be9a..6d1afb81d 100644
+--- a/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
++++ b/src/main/java/org/bukkit/craftbukkit/block/CraftBlock.java
+@@ -1,21 +1,13 @@
+ package org.bukkit.craftbukkit.block;
+ 
+-import java.util.ArrayList;
+-import java.util.Collection;
+-import java.util.Collections;
+-import java.util.List;
+-
+ import net.minecraft.server.*;
+-
+ import org.bukkit.Chunk;
+ import org.bukkit.Location;
+ import org.bukkit.Material;
+ import org.bukkit.World;
+-import org.bukkit.block.Biome;
+ import org.bukkit.block.Block;
+-import org.bukkit.block.BlockFace;
+ import org.bukkit.block.BlockState;
+-import org.bukkit.block.PistonMoveReaction;
++import org.bukkit.block.*;
+ import org.bukkit.craftbukkit.CraftChunk;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+@@ -24,6 +16,11 @@ import org.bukkit.metadata.MetadataValue;
+ import org.bukkit.plugin.Plugin;
+ import org.bukkit.util.BlockVector;
+ 
++import java.util.ArrayList;
++import java.util.Collection;
++import java.util.Collections;
++import java.util.List;
++
+ public class CraftBlock implements Block {
+     private final CraftChunk chunk;
+     private final int x;
+@@ -187,19 +184,24 @@ public class CraftBlock implements Block {
+         return getRelative(face.getModX() * distance, face.getModY() * distance, face.getModZ() * distance);
+     }
+ 
+-    public BlockFace getFace(final Block block) {
+-        BlockFace[] values = BlockFace.values();
+-
+-        for (BlockFace face : values) {
+-            if ((this.getX() + face.getModX() == block.getX()) &&
+-                (this.getY() + face.getModY() == block.getY()) &&
+-                (this.getZ() + face.getModZ() == block.getZ())
+-            ) {
+-                return face;
+-            }
++    public static BlockFace notchToBlockFace(EnumDirection notch) {
++        if (notch == null) return BlockFace.SELF;
++        switch (notch) {
++            case DOWN:
++                return BlockFace.DOWN;
++            case UP:
++                return BlockFace.UP;
++            case NORTH:
++                return BlockFace.NORTH;
++            case SOUTH:
++                return BlockFace.SOUTH;
++            case WEST:
++                return BlockFace.WEST;
++            case EAST:
++                return BlockFace.EAST;
++            default:
++                return BlockFace.SELF;
+         }
+-
+-        return null;
+     }
+ 
+     @Override
+@@ -207,85 +209,80 @@ public class CraftBlock implements Block {
+         return "CraftBlock{" + "chunk=" + chunk + ",x=" + x + ",y=" + y + ",z=" + z + ",type=" + getType() + ",data=" + getData() + '}';
+     }
+ 
+-    public static BlockFace notchToBlockFace(EnumDirection notch) {
+-        if (notch == null) return BlockFace.SELF;
+-        switch (notch) {
+-        case DOWN:
+-            return BlockFace.DOWN;
+-        case UP:
+-            return BlockFace.UP;
+-        case NORTH:
+-            return BlockFace.NORTH;
+-        case SOUTH:
+-            return BlockFace.SOUTH;
+-        case WEST:
+-            return BlockFace.WEST;
+-        case EAST:
+-            return BlockFace.EAST;
+-        default:
+-            return BlockFace.SELF;
++    public static EnumDirection blockFaceToNotch(BlockFace face) {
++        switch (face) {
++            case DOWN:
++                return EnumDirection.DOWN;
++            case UP:
++                return EnumDirection.UP;
++            case NORTH:
++                return EnumDirection.NORTH;
++            case SOUTH:
++                return EnumDirection.SOUTH;
++            case WEST:
++                return EnumDirection.WEST;
++            case EAST:
++                return EnumDirection.EAST;
++            default:
++                return null;
+         }
+     }
+ 
+-    public static EnumDirection blockFaceToNotch(BlockFace face) {
+-        switch (face) {
+-        case DOWN:
+-            return EnumDirection.DOWN;
+-        case UP:
+-            return EnumDirection.UP;
+-        case NORTH:
+-            return EnumDirection.NORTH;
+-        case SOUTH:
+-            return EnumDirection.SOUTH;
+-        case WEST:
+-            return EnumDirection.WEST;
+-        case EAST:
+-            return EnumDirection.EAST;
+-        default:
+-            return null;
++    public BlockFace getFace(final Block block) {
++        BlockFace[] values = BlockFace.values();
++
++        for (BlockFace face : values) {
++            if ((this.getX() + face.getModX() == block.getX()) &&
++                    (this.getY() + face.getModY() == block.getY()) &&
++                    (this.getZ() + face.getModZ() == block.getZ())
++            ) {
++                return face;
++            }
+         }
++
++        return null;
+     }
+ 
+     public BlockState getState() {
+         Material material = getType();
+ 
+         switch (material) {
+-        case SIGN:
+-        case SIGN_POST:
+-        case WALL_SIGN:
+-            return new CraftSign(this);
+-        case CHEST:
+-        case TRAPPED_CHEST:
+-            return new CraftChest(this);
+-        case BURNING_FURNACE:
+-        case FURNACE:
+-            return new CraftFurnace(this);
+-        case DISPENSER:
+-            return new CraftDispenser(this);
+-        case DROPPER:
+-            return new CraftDropper(this);
+-        case HOPPER:
+-            return new CraftHopper(this);
+-        case MOB_SPAWNER:
+-            return new CraftCreatureSpawner(this);
+-        case NOTE_BLOCK:
+-            return new CraftNoteBlock(this);
+-        case JUKEBOX:
+-            return new CraftJukebox(this);
+-        case BREWING_STAND:
+-            return new CraftBrewingStand(this);
+-        case SKULL:
+-            return new CraftSkull(this);
+-        case COMMAND:
+-            return new CraftCommandBlock(this);
+-        case BEACON:
+-            return new CraftBeacon(this);
+-        case BANNER:
+-        case WALL_BANNER:
+-        case STANDING_BANNER:
+-            return new CraftBanner(this);
+-        default:
+-            return new CraftBlockState(this);
++            case SIGN:
++            case SIGN_POST:
++            case WALL_SIGN:
++                return new CraftSign(this);
++            case CHEST:
++            case TRAPPED_CHEST:
++                return new CraftChest(this);
++            case BURNING_FURNACE:
++            case FURNACE:
++                return new CraftFurnace(this);
++            case DISPENSER:
++                return new CraftDispenser(this);
++            case DROPPER:
++                return new CraftDropper(this);
++            case HOPPER:
++                return new CraftHopper(this);
++            case MOB_SPAWNER:
++                return new CraftCreatureSpawner(this);
++            case NOTE_BLOCK:
++                return new CraftNoteBlock(this);
++            case JUKEBOX:
++                return new CraftJukebox(this);
++            case BREWING_STAND:
++                return new CraftBrewingStand(this);
++            case SKULL:
++                return new CraftSkull(this);
++            case COMMAND:
++                return new CraftCommandBlock(this);
++            case BEACON:
++                return new CraftBeacon(this);
++            case BANNER:
++            case WALL_BANNER:
++            case STANDING_BANNER:
++                return new CraftBanner(this);
++            default:
++                return new CraftBlockState(this);
+         }
+     }
+ 
+@@ -361,12 +358,18 @@ public class CraftBlock implements Block {
+         int power = 0;
+         BlockRedstoneWire wire = Blocks.REDSTONE_WIRE;
+         net.minecraft.server.World world = chunk.getHandle().getWorld();
+-        if ((face == BlockFace.DOWN || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x, y - 1, z), EnumDirection.DOWN)) power = wire.getPower(world, new BlockPosition(x, y - 1, z), power);
+-        if ((face == BlockFace.UP || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x, y + 1, z), EnumDirection.UP)) power = wire.getPower(world, new BlockPosition(x, y + 1, z), power);
+-        if ((face == BlockFace.EAST || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x + 1, y, z), EnumDirection.EAST)) power = wire.getPower(world, new BlockPosition(x + 1, y, z), power);
+-        if ((face == BlockFace.WEST || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x - 1, y, z), EnumDirection.WEST)) power = wire.getPower(world, new BlockPosition(x - 1, y, z), power);
+-        if ((face == BlockFace.NORTH || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x, y, z - 1), EnumDirection.NORTH)) power = wire.getPower(world, new BlockPosition(x, y, z - 1), power);
+-        if ((face == BlockFace.SOUTH || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x, y, z + 1), EnumDirection.SOUTH)) power = wire.getPower(world, new BlockPosition(x, y, z - 1), power);
++        if ((face == BlockFace.DOWN || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x, y - 1, z), EnumDirection.DOWN))
++            power = wire.getPower(world, new BlockPosition(x, y - 1, z), power);
++        if ((face == BlockFace.UP || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x, y + 1, z), EnumDirection.UP))
++            power = wire.getPower(world, new BlockPosition(x, y + 1, z), power);
++        if ((face == BlockFace.EAST || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x + 1, y, z), EnumDirection.EAST))
++            power = wire.getPower(world, new BlockPosition(x + 1, y, z), power);
++        if ((face == BlockFace.WEST || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x - 1, y, z), EnumDirection.WEST))
++            power = wire.getPower(world, new BlockPosition(x - 1, y, z), power);
++        if ((face == BlockFace.NORTH || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x, y, z - 1), EnumDirection.NORTH))
++            power = wire.getPower(world, new BlockPosition(x, y, z - 1), power);
++        if ((face == BlockFace.SOUTH || face == BlockFace.SELF) && world.isBlockFacePowered(new BlockPosition(x, y, z + 1), EnumDirection.SOUTH))
++            power = wire.getPower(world, new BlockPosition(x, y, z - 1), power);
+         return power > 0 ? power : (face == BlockFace.SELF ? isBlockIndirectlyPowered() : isBlockFaceIndirectlyPowered(face)) ? 15 : 0;
+     }
+ 
+-- 
+2.21.0.windows.1
+

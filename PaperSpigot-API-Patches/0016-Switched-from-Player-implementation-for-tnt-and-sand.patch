@@ -1,0 +1,29 @@
+From 17833baf83fa7f0c49c54e260623d8ff53a7cf86 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 22:15:08 -0400
+Subject: [PATCH] Switched from Player implementation for tnt and sand toggling
+ to EntityPlayer
+
+
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index cc9512a3..9e519f02 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -18,14 +18,6 @@ import java.net.InetSocketAddress;
+  */
+ public interface Player extends HumanEntity, Conversable, CommandSender, OfflinePlayer, PluginMessageRecipient {
+ 
+-    public boolean canSeeTNT();
+-
+-    public void setCanSeeTNT(boolean canSeeTNT);
+-
+-    public boolean canSeeFallingBlocks();
+-
+-    public void setCanSeeFallingBlocks(boolean canSeeSand);
+-
+     /**
+      * Gets the "friendly" name to display of this player. This may include
+      * color.
+-- 
+2.21.0.windows.1
+

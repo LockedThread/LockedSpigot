@@ -1,0 +1,22 @@
+From eb4f62e7f07548969bd0010b00b3bbf1cbe758f9 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 03:03:50 -0400
+Subject: [PATCH] Increased explosion region radius
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 25b7434f0..6cf6946f6 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -161,7 +161,7 @@ public class LockedSpigotConfig {
+         explosionParticles = getBoolean("explosions.particles", false);
+         explosionDropsBlocks = getBoolean("explosions.drops-blocks", false);
+         explosionCreatesFire = getBoolean("explosions.creates-fire", false);
+-        explosionRegionRadius = getInt("explosions.region-radius", 3);
++        explosionRegionRadius = getInt("explosions.region-radius", 4);
+ 
+         int count = 0;
+ 
+-- 
+2.21.0.windows.1
+

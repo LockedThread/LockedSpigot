@@ -1,0 +1,88 @@
+From 63db57fe0d56c83d9ec469b44eddde645c0d1761 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 14:09:00 -0400
+Subject: [PATCH] Added PacketPlayOutSpawnEntity to project structure
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityTrackerEntry.java b/src/main/java/net/minecraft/server/EntityTrackerEntry.java
+index 4dbc43353..7413d420d 100644
+--- a/src/main/java/net/minecraft/server/EntityTrackerEntry.java
++++ b/src/main/java/net/minecraft/server/EntityTrackerEntry.java
+@@ -3,6 +3,7 @@ package net.minecraft.server;
+ import net.jafama.FastMath;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.player.PlayerVelocityEvent;
+ 
+@@ -330,9 +331,10 @@ public class EntityTrackerEntry {
+             if (this.c(entityplayer)) {
+                 if (!this.trackedPlayers.contains(entityplayer) && (this.e(entityplayer) || this.tracker.attachedToPlayer)) {
+                     // CraftBukkit start - respect vanish API
++                    CraftPlayer bukkitEntity = entityplayer.getBukkitEntity();
+                     if (this.tracker instanceof EntityPlayer) {
+                         Player player = ((EntityPlayer) this.tracker).getBukkitEntity();
+-                        if (!entityplayer.getBukkitEntity().canSee(player)) {
++                        if (!bukkitEntity.canSee(player)) {
+                             return;
+                         }
+                     }
+@@ -342,14 +344,25 @@ public class EntityTrackerEntry {
+                     this.trackedPlayerMap.put(entityplayer, true); // PaperBukkit
+                     Packet packet = this.c();
+ 
+-                    if (!entityplayer.getBukkitEntity().isTntToggle() || !(this.tracker instanceof EntityTNTPrimed)) {
+-                        entityplayer.playerConnection.sendPacket(packet);
++                    if (packet instanceof PacketPlayOutSpawnEntity) {
++                        int id = ((PacketPlayOutSpawnEntity) packet).j;
++                        System.out.println("bukkitEntity.getName() = " + bukkitEntity.getName());
++                        System.out.println("bukkitEntity.isSandToggle() = " + bukkitEntity.isSandToggle());
++                        System.out.println("bukkitEntity.isTntToggle() = " + bukkitEntity.isTntToggle());
++                        if ((id == 50 && bukkitEntity.isTntToggle()) || (id == 70 && bukkitEntity.isSandToggle())) {
++                            return;
++                        }
+                     }
++                    entityplayer.playerConnection.sendPacket(packet);
+ 
+-                    if (!entityplayer.getBukkitEntity().isSandToggle() || !(this.tracker instanceof EntityFallingBlock)) {
++                    /*if (!bukkitEntity.isTntToggle() || !(this.tracker instanceof EntityTNTPrimed)) {
+                         entityplayer.playerConnection.sendPacket(packet);
+                     }
+ 
++                    if (!bukkitEntity.isSandToggle() || !(this.tracker instanceof EntityFallingBlock)) {
++                        entityplayer.playerConnection.sendPacket(packet);
++                    }*/
++
+                     //entityplayer.playerConnection.sendPacket(packet);
+                     if (!this.tracker.getDataWatcher().d()) {
+                         entityplayer.playerConnection.sendPacket(new PacketPlayOutEntityMetadata(this.tracker.getId(), this.tracker.getDataWatcher(), true));
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index ee2220b92..cac57dc74 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -1156,7 +1156,7 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+     }
+ 
+     public String getServerModName() {
+-        return "TacoSpigot"; // TacoSpigot - TacoSpigot // PaperSpigot - PaperSpigot > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
++        return "LockedSpigot"; // TacoSpigot - TacoSpigot // PaperSpigot - PaperSpigot > // Spigot - Spigot > // CraftBukkit - cb > vanilla!
+     }
+ 
+     public CrashReport b(CrashReport crashreport) {
+diff --git a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
+index 9e543b6fe..a7714f9ab 100644
+--- a/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
++++ b/src/main/java/net/minecraft/server/PacketPlayOutSpawnEntity.java
+@@ -19,7 +19,7 @@ public class PacketPlayOutSpawnEntity implements Packet<PacketListenerPlayOut> {
+     private int g;
+     private int h;
+     private int i;
+-    private int j;
++    public int j;
+     private int k;
+ 
+     public PacketPlayOutSpawnEntity() {
+-- 
+2.21.0.windows.1
+

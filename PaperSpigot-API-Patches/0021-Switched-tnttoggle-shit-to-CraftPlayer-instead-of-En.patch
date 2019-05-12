@@ -1,0 +1,29 @@
+From efbb2bfae147f28cb69fa252ea8f1cf3516f5627 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 13:05:57 -0400
+Subject: [PATCH] Switched tnttoggle shit to CraftPlayer instead of
+ EntityPlayer
+
+
+diff --git a/src/main/java/org/bukkit/entity/Player.java b/src/main/java/org/bukkit/entity/Player.java
+index 9e519f02..2149e134 100644
+--- a/src/main/java/org/bukkit/entity/Player.java
++++ b/src/main/java/org/bukkit/entity/Player.java
+@@ -18,6 +18,14 @@ import java.net.InetSocketAddress;
+  */
+ public interface Player extends HumanEntity, Conversable, CommandSender, OfflinePlayer, PluginMessageRecipient {
+ 
++    boolean isTntToggle();
++
++    void setTntToggle(boolean tntToggle);
++
++    boolean isSandToggle();
++
++    void setSandToggle(boolean sandToggle);
++
+     /**
+      * Gets the "friendly" name to display of this player. This may include
+      * color.
+-- 
+2.21.0.windows.1
+

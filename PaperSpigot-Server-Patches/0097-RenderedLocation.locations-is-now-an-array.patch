@@ -1,0 +1,41 @@
+From 728f5b4a6110d155356ec36e96d7d9d00f1f1fbb Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 02:41:46 -0400
+Subject: [PATCH] RenderedLocation.locations is now an array
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 1d5be4159..56c1eaf07 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -171,8 +171,8 @@ public class LockedSpigotConfig {
+             for (int i = 0; i < 16; ++i) {
+                 for (int j = 0; j < 16; ++j) {
+                     if (k == 0 || k == 15 || i == 0 || i == 15 || j == 0 || j == 15) {
++                        RenderedLocation.locations[count] = new RenderedLocation(k, i, j);
+                         count++;
+-                        RenderedLocation.locations.add(new RenderedLocation(k, i, j));
+                     }
+                 }
+             }
+diff --git a/src/main/java/dev/lockedthread/locations/RenderedLocation.java b/src/main/java/dev/lockedthread/locations/RenderedLocation.java
+index 82787023d..a4164cd03 100644
+--- a/src/main/java/dev/lockedthread/locations/RenderedLocation.java
++++ b/src/main/java/dev/lockedthread/locations/RenderedLocation.java
+@@ -2,12 +2,9 @@ package dev.lockedthread.locations;
+ 
+ import net.minecraft.server.MathHelper;
+ 
+-import java.util.HashSet;
+-import java.util.Set;
+-
+ public class RenderedLocation {
+ 
+-    public static Set<RenderedLocation> locations = new HashSet<>();
++    public static RenderedLocation[] locations = new RenderedLocation[1352];
+ 
+     public int k;
+     public int i;
+-- 
+2.21.0.windows.1
+

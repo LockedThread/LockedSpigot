@@ -1,0 +1,35 @@
+From 4ac552eb236668a68525dd7ae53011e639c18487 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 01:55:15 -0400
+Subject: [PATCH] Removed explosionDensityCache
+
+
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 9f8ff6d0f..80ded33b8 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -132,7 +132,7 @@ public abstract class World implements IBlockAccess {
+     private org.spigotmc.TickLimiter tileLimiter;
+     private int tileTickPosition;
+     public ExecutorService lightingExecutor = Executors.newSingleThreadExecutor(new ThreadFactoryBuilder().setNameFormat("PaperSpigot - Lighting Thread").build()); // PaperSpigot - Asynchronous lighting updates
+-    public final Map<Explosion.CacheKey, Float> explosionDensityCache = new HashMap<>(); // PaperSpigot - Optimize explosions
++    //public final Map<Explosion.CacheKey, Float> explosionDensityCache = new HashMap<>(); // PaperSpigot - Optimize explosions
+ 
+     public static long chunkToKey(int x, int z) {
+         long k = ((((long) x) & 0xFFFF0000L) << 16) | ((((long) x) & 0x0000FFFFL));
+@@ -2590,10 +2590,8 @@ public abstract class World implements IBlockAccess {
+         ArrayList arraylist = Lists.newArrayList();
+ 
+         for (EntityHuman player : this.players) {
+-            Entity entity = (Entity) player;
+-
+-            if (oclass.isAssignableFrom(entity.getClass()) && predicate.apply((T) entity)) { // CraftBukkit - fix decompile error
+-                arraylist.add(entity);
++            if (oclass.isAssignableFrom(((Entity) player).getClass()) && predicate.apply((T) player)) { // CraftBukkit - fix decompile error
++                arraylist.add(player);
+             }
+         }
+ 
+-- 
+2.21.0.windows.1
+

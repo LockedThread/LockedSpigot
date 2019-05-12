@@ -1,0 +1,237 @@
+From cf1655b30df894af2a55243b414a5a02d9201e7e Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 01:58:49 -0400
+Subject: [PATCH] Attempt at optimizing tnt with entity force caching and
+ region cache
+
+
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index b73227c6e..40e2a6722 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -2,6 +2,7 @@ package net.minecraft.server;
+ 
+ import dev.lockedthread.LockedSpigotConfig;
+ import dev.lockedthread.locations.RenderedLocation;
++import dev.lockedthread.regions.Region;
+ import dev.lockedthread.regions.SmallRegion;
+ import org.bukkit.Location;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+@@ -12,7 +13,8 @@ import java.util.*;
+ 
+ public class Explosion {
+ 
+-    private static final Map<BlockPosition, SmallRegion> smallRegionCache = new HashMap<>();
++    public static final Map<BlockPosition, Map<Entity, Float>> EXPLOSION_ENTITY_CACHE = new HashMap<>();
++    public static final Map<BlockPosition, Region> REGION_CACHE = new HashMap<>();
+     private final boolean a;
+     private final boolean b;
+     private final double posX;
+@@ -20,7 +22,8 @@ public class Explosion {
+     private final double posZ;
+     public final Entity source;
+     private final float size;
+-    private final SmallRegion smallRegion;
++    private final Region smallRegion;
++    public boolean inWater;
+     private final Set<BlockPosition> blocks;
+     public boolean wasCanceled;
+     private Map<EntityHuman, Vec3D> k;
+@@ -39,11 +42,11 @@ public class Explosion {
+         this.a = flag;
+         this.b = flag1;
+         final BlockPosition center = new BlockPosition(entity.locX, entity.locY, entity.locY);
+-        final SmallRegion smallRegion = smallRegionCache.get(center);
++        final Region smallRegion = REGION_CACHE.get(center);
+         if (smallRegion != null) {
+             this.smallRegion = smallRegion;
+         } else {
+-            smallRegionCache.put(center, this.smallRegion = new SmallRegion(entity.world, center, LockedSpigotConfig.getExplosionRegionRadius()));
++            REGION_CACHE.put(center, this.smallRegion = new SmallRegion(entity.world, center, LockedSpigotConfig.getExplosionRegionRadius()));
+         }
+     }
+ 
+@@ -52,9 +55,11 @@ public class Explosion {
+             return;
+         }
+         Set<BlockPosition> hashset = new HashSet<>();
+-        if (!this.source.world.tacoSpigotConfig.optimizeLiquidExplosions || !smallRegion.getCenter().getBlock().getMaterial().isLiquid()) {
++        if (this.source.world.tacoSpigotConfig.optimizeLiquidExplosions && smallRegion.getCenter().getBlock().getMaterial().isLiquid()) {
++            inWater = true;
++        } else {
+             for (RenderedLocation renderedLocation : RenderedLocation.locations) {
+-                float randSize = this.size * (0.7f + this.source.world.random.nextFloat() * 0.6f);
++                float randSize = this.size * (0.7f + this.source.getRandom().nextFloat() * 0.6f);
+                 double x = this.posX;
+                 double y = this.posY;
+                 double z = this.posZ;
+@@ -80,55 +85,64 @@ public class Explosion {
+         }
+         this.blocks.addAll(hashset);
+         float f3 = this.size * 2.0f;
+-        int i = MathHelper.floor(this.posX - f3 - 1.0);
+-        int j = MathHelper.floor(this.posX + f3 + 1.0);
+-        int l = MathHelper.floor(this.posY - f3 - 1.0);
+-        int i2 = MathHelper.floor(this.posY + f3 + 1.0);
+-        int j2 = MathHelper.floor(this.posZ - f3 - 1.0);
+-        int k1 = MathHelper.floor(this.posZ + f3 + 1.0);
+-        List<Entity> list = this.source.world.a(this.source, new AxisAlignedBB(i, l, j2, j, i2, k1), entity -> IEntitySelector.d.apply(entity) && !entity.dead);
++        double maximumDistance = this.size * 2.0;
++        Map<Entity, Float> entityPositionMap = EXPLOSION_ENTITY_CACHE.get(smallRegion.getCenterBlockPosition());
++        Collection<Entity> entities;
++        if (entityPositionMap != null) {
++            entities = entityPositionMap.keySet();
++        } else {
++            entities = this.source.world.a(this.source, new AxisAlignedBB(MathHelper.floor(this.posX - maximumDistance), MathHelper.floor(this.posY - maximumDistance), MathHelper.floor(this.posZ - maximumDistance), MathHelper.floor(this.posX + maximumDistance + 1.0), MathHelper.floor(this.posY + maximumDistance + 1.0), MathHelper.floor(this.posZ + maximumDistance + 1.0)), entity -> IEntitySelector.d.apply(entity) && !entity.dead);
++            entityPositionMap = new HashMap<>();
++        }
+         Vec3D vec3d = new Vec3D(this.posX, this.posY, this.posZ);
+-        for (Entity entity : list) {
++        for (Entity entity : entities) {
+             if (!entity.aW()) {
+                 double d7 = entity.f(this.posX, this.posY, this.posZ) / f3;
+                 if (d7 <= 1.0) {
+-                    double d8 = entity.locX - this.posX;
+-                    double d9 = entity.locY + entity.getHeadHeight() - this.posY;
+-                    double d10 = entity.locZ - this.posZ;
+-                    double d11 = MathHelper.sqrt(d8 * d8 + d9 * d9 + d10 * d10);
++                    double x = entity.locX - this.posX;
++                    double y = entity.locY + entity.getHeadHeight() - this.posY;
++                    double z = entity.locZ - this.posZ;
++                    double d11 = MathHelper.sqrt(x * x + y * y + z * z);
+                     if (d11 != 0.0) {
+-                        d8 /= d11;
+-                        d9 /= d11;
+-                        d10 /= d11;
+-                        double d12 = this.getBlockDensity(vec3d, entity.getBoundingBox());
+-                        double d13 = (1.0 - d7) * d12;
+-                        CraftEventFactory.entityDamage = this.source;
+-                        entity.forceExplosionKnockback = false;
+-                        boolean wasDamaged;
+-                        if (LockedSpigotConfig.isExplosionDamageEntities()) {
+-                            wasDamaged = entity.damageEntity(DamageSource.explosion(this), (float) (int) ((d13 * d13 + d13) / 2.0 * 8.0 * f3 + 1.0));
++                        x /= d11;
++                        y /= d11;
++                        z /= d11;
++                        float positionData = entityPositionMap.get(entity);
++                        float blockDensity;
++                        if (positionData != 0) {
++                            blockDensity = positionData;
+                         } else {
+-                            wasDamaged = false;
++                            blockDensity = this.getBlockDensity(entity, vec3d);
++                            entityPositionMap.put(entity, blockDensity);
+                         }
++                        double d13 = (1.0 - d7) * blockDensity;
++                        CraftEventFactory.entityDamage = this.source;
++                        entity.forceExplosionKnockback = false;
++                        boolean wasDamaged = LockedSpigotConfig.isExplosionDamageEntities() && entity.damageEntity(DamageSource.explosion(this), (float) (int) ((d13 * d13 + d13) / 2.0 * 8.0 * f3 + 1.0));
+                         CraftEventFactory.entityDamage = null;
+                         if (wasDamaged || entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock || entity.forceExplosionKnockback) {
+-                            double d14 = (entity instanceof EntityHuman && this.source.world.paperSpigotConfig.disableExplosionKnockback) ? 0.0 : EnchantmentProtection.a(entity, d13);
+-                            entity.g(d8 * d14, d9 * d14, d10 * d14);
++                            double multiplier = (entity instanceof EntityHuman && this.source.world.paperSpigotConfig.disableExplosionKnockback) ? 0.0 : EnchantmentProtection.a(entity, d13);
++
++                            entity.g(x * multiplier, y * multiplier, z * multiplier);
+                             if (entity instanceof EntityHuman && !((EntityHuman) entity).abilities.isInvulnerable && !this.source.world.paperSpigotConfig.disableExplosionKnockback) {
+-                                this.k.put((EntityHuman) entity, new Vec3D(d8 * d13, d9 * d13, d10 * d13));
++                                this.k.put((EntityHuman) entity, new Vec3D(x * d13, y * d13, z * d13));
+                             }
+                         }
+                     }
+                 }
+             }
+         }
++        EXPLOSION_ENTITY_CACHE.put(smallRegion.getCenterBlockPosition(), entityPositionMap);
++    }
+ 
++    public float[] getForceArray(double multiplier, float density) {
++        return new float[]{(float) multiplier, density};
+     }
+ 
+     public void a(boolean flag) {
+         if (LockedSpigotConfig.isExplosionSounds()) {
+             float volume = (this.source instanceof EntityTNTPrimed) ? this.source.world.paperSpigotConfig.tntExplosionVolume : 4.0f;
+-            this.source.world.makeSound(this.posX, this.posY, this.posZ, "random.explode", volume, (1.0f + (this.source.world.random.nextFloat() - this.source.world.random.nextFloat()) * 0.2f) * 0.7f);
++            this.source.world.makeSound(this.posX, this.posY, this.posZ, "random.explode", volume, (1.0f + (this.source.getRandom().nextFloat() - this.source.getRandom().nextFloat()) * 0.2f) * 0.7f);
+         }
+         if (LockedSpigotConfig.isExplosionParticles()) {
+             if (this.size >= 2.0f && this.b) {
+@@ -185,9 +199,9 @@ public class Explosion {
+                 this.source.world.spigotConfig.antiXrayInstance.updateNearbyBlocks(this.source.world, blockPosition);
+                 if (LockedSpigotConfig.isExplosionParticles()) {
+                     if (flag) {
+-                        double d0 = blockPosition.getX() + this.source.world.random.nextFloat();
+-                        double d2 = blockPosition.getY() + this.source.world.random.nextFloat();
+-                        double d3 = blockPosition.getZ() + this.source.world.random.nextFloat();
++                        double d0 = blockPosition.getX() + this.source.getRandom().nextFloat();
++                        double d2 = blockPosition.getY() + this.source.getRandom().nextFloat();
++                        double d3 = blockPosition.getZ() + this.source.getRandom().nextFloat();
+                         double d4 = d0 - this.posX;
+                         double d5 = d2 - this.posY;
+                         double d6 = d3 - this.posZ;
+@@ -196,7 +210,7 @@ public class Explosion {
+                         d5 /= d7;
+                         d6 /= d7;
+                         double d8 = 0.5 / (d7 / this.size + 0.1);
+-                        d8 *= this.source.world.random.nextFloat() * this.source.world.random.nextFloat() + 0.3f;
++                        d8 *= this.source.getRandom().nextFloat() * this.source.getRandom().nextFloat() + 0.3f;
+                         d4 *= d8;
+                         d5 *= d8;
+                         d6 *= d8;
+@@ -219,7 +233,7 @@ public class Explosion {
+         if (LockedSpigotConfig.isExplosionCreatesFire()) {
+             if (this.a) {
+                 for (BlockPosition blockposition : this.blocks) {
+-                    if (smallRegion.getBlockAt(blockposition).getMaterial() == Material.AIR && this.source.world.getType(blockposition.down()).getBlock().o() && this.source.getRandom().nextInt(3) == 0 && !CraftEventFactory.callBlockIgniteEvent(this.source.world, blockposition.getX(), blockposition.getY(), blockposition.getZ(), this).isCancelled()) {
++                    if (smallRegion.getBlockAt(blockposition).getMaterial() == Material.AIR && smallRegion.getBlockAt(blockposition.down()).o() && this.source.getRandom().nextInt(3) == 0 && !CraftEventFactory.callBlockIgniteEvent(this.source.world, blockposition.getX(), blockposition.getY(), blockposition.getZ(), this).isCancelled()) {
+                         this.source.world.setTypeUpdate(blockposition, Blocks.FIRE.getBlockData());
+                     }
+                 }
+@@ -252,7 +266,19 @@ public class Explosion {
+         return this.blocks;
+     }
+ 
+-    private float getBlockDensity(Vec3D vec3d, AxisAlignedBB aabb) {
++    private float getBlockDensity(Entity entity, Vec3D vec3d) {
++        //if (LockedSpigotConfig.explosions_send1RayInsteadOf27) {
++        return (this.source.world.rayTrace(new Vec3D(entity.locX, entity.locY + entity.getHeadHeight(), entity.locZ), vec3d) == null) ? 1.0f : 0.0f;
++        //}
++        /*final AxisAlignedBB axisalignedbb = source.getBoundingBox();
++        int i = 0;
++        for (final double[] offset : Explosion.RAY_OFFSETS) {
++            if (this.world.rayTrace(new Vec3D(axisalignedbb.a + offset[0], axisalignedbb.b + offset[1], axisalignedbb.c + offset[2]), vec3d) == null) {
++                ++i;
++            }
++        }
++        return i / 27.0f;*/
++        /*
+         if (!this.source.world.paperSpigotConfig.optimizeExplosions) {
+             return this.source.world.a(vec3d, aabb);
+         }
+@@ -262,7 +288,7 @@ public class Explosion {
+             blockDensity = this.source.world.a(vec3d, aabb);
+             this.source.world.explosionDensityCache.put(key, blockDensity);
+         }
+-        return blockDensity;
++        return blockDensity;*/
+     }
+ 
+     static class CacheKey {
+diff --git a/src/main/java/net/minecraft/server/MinecraftServer.java b/src/main/java/net/minecraft/server/MinecraftServer.java
+index d97609c25..ee2220b92 100644
+--- a/src/main/java/net/minecraft/server/MinecraftServer.java
++++ b/src/main/java/net/minecraft/server/MinecraftServer.java
+@@ -906,7 +906,8 @@ public abstract class MinecraftServer implements Runnable, ICommandListener, IAs
+                     worldserver.a(crashreport);
+                     throw new ReportedException(crashreport);
+                 }
+-                worldserver.explosionDensityCache.clear(); // PaperSpigot - Optimize explosions
++                Explosion.REGION_CACHE.clear();
++                Explosion.EXPLOSION_ENTITY_CACHE.clear();
+             }
+ 
+             /*
+-- 
+2.21.0.windows.1
+

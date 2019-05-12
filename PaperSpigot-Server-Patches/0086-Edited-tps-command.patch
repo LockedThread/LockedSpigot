@@ -1,0 +1,48 @@
+From dbbaaf80e03b3ce173a7e86a6757f17ea9392e06 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 11 May 2019 21:09:57 -0400
+Subject: [PATCH] Edited tps command
+
+
+diff --git a/src/main/java/org/spigotmc/TicksPerSecondCommand.java b/src/main/java/org/spigotmc/TicksPerSecondCommand.java
+index 091262c95..8b6e54bce 100644
+--- a/src/main/java/org/spigotmc/TicksPerSecondCommand.java
++++ b/src/main/java/org/spigotmc/TicksPerSecondCommand.java
+@@ -5,6 +5,9 @@ import org.bukkit.ChatColor;
+ import org.bukkit.command.Command;
+ import org.bukkit.command.CommandSender;
+ 
++import java.math.RoundingMode;
++import java.text.DecimalFormat;
++
+ public class TicksPerSecondCommand extends Command {
+ 
+     public TicksPerSecondCommand(String name) {
+@@ -35,16 +38,19 @@ public class TicksPerSecondCommand extends Command {
+     }
+ 
+     private String format(double tps) {
++        DecimalFormat decimalFormat = new DecimalFormat("##.##");
++        decimalFormat.setRoundingMode(RoundingMode.UP);
++        String formattedTps = decimalFormat.format(tps);
+         if (tps >= 40.0) {
+-            return ChatColor.GREEN + "*" + tps;
++            return ChatColor.GREEN + "*" + formattedTps;
+         } else if (tps >= 37.0) {
+-            return ChatColor.GREEN.toString() + tps;
++            return ChatColor.GREEN.toString() + formattedTps;
+         } else if (tps >= 35.0) {
+-            return ChatColor.YELLOW.toString() + tps;
++            return ChatColor.YELLOW.toString() + formattedTps;
+         } else if (tps >= 20) {
+-            return ChatColor.RED.toString() + tps;
++            return ChatColor.RED.toString() + formattedTps;
+         } else {
+-            return ChatColor.RED + ChatColor.STRIKETHROUGH.toString() + tps;
++            return ChatColor.RED + ChatColor.STRIKETHROUGH.toString() + formattedTps;
+         }
+     }
+ }
+-- 
+2.21.0.windows.1
+

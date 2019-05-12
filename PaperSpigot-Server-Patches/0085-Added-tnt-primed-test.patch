@@ -1,0 +1,39 @@
+From dd574ef87c2bb9e11d7e85beb5ef6e84d3195e78 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sat, 11 May 2019 21:05:59 -0400
+Subject: [PATCH] Added tnt primed test
+
+
+diff --git a/src/main/java/dev/lockedthread/commands/CommandTest.java b/src/main/java/dev/lockedthread/commands/CommandTest.java
+index 37fa03d78..7b0a15588 100644
+--- a/src/main/java/dev/lockedthread/commands/CommandTest.java
++++ b/src/main/java/dev/lockedthread/commands/CommandTest.java
+@@ -21,7 +21,7 @@ public class CommandTest extends Command {
+             if (args.length == 0) {
+                 sender.sendMessage(ChatColor.YELLOW + "/test {test-type}");
+                 sender.sendMessage(ChatColor.YELLOW + "TestTypes: entity-spawn");
+-            } else if (args.length == 1) {
++            } else {
+                 switch (args[0].toLowerCase()) {
+                     case "entity-spawn":
+                         if (sender instanceof Player) {
+@@ -39,6 +39,16 @@ public class CommandTest extends Command {
+                             sender.sendMessage(ChatColor.RED + "You must be a player to do this!");
+                         }
+                         break;
++                    case "tnt":
++                        if (sender instanceof Player) {
++                            int amount = args.length == 2 ? Integer.parseInt(args[1]) : 100;
++                            for (int i = 0; i < amount; i++) {
++                                ((Player) sender).getWorld().spawnEntity(((Player) sender).getLocation(), EntityType.PRIMED_TNT);
++                            }
++                            sender.sendMessage(ChatColor.GREEN + "Spawned " + amount + " tntprimed entities at " + ((Player) sender).getLocation().toString());
++                        } else {
++                            sender.sendMessage(ChatColor.RED + "You must be a player to do this!");
++                        }
+                     default:
+                         sender.sendMessage(ChatColor.RED + "Unable to find EntityType with name \"" + args[0] + "\"");
+                         break;
+-- 
+2.21.0.windows.1
+

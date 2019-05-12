@@ -1,0 +1,107 @@
+From ceb3a48d9ffd19587691cae4f661e1e692ea2811 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Tue, 7 May 2019 20:16:36 -0400
+Subject: [PATCH] Fixed NPE
+
+
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index b51f48462..e85187734 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -37,7 +37,7 @@ public class Explosion {
+         this.posZ = d2;
+         this.a = flag;
+         this.b = flag1;
+-        this.smallRegion = new SmallRegion(entity.world, entity.an, LockedSpigotConfig.getExplosionRegionRadius());
++        this.smallRegion = new SmallRegion(entity.world, new BlockPosition(entity.locX, entity.locY, entity.locY), LockedSpigotConfig.getExplosionRegionRadius());
+     }
+ 
+     public void a() {
+@@ -72,46 +72,50 @@ public class Explosion {
+             }
+         }
+         this.blocks.addAll(hashset);
+-        if (LockedSpigotConfig.isExplosionDamageEntities()) {
+-            float f3 = this.size * 2.0f;
+-            int i = MathHelper.floor(this.posX - f3 - 1.0);
+-            int j = MathHelper.floor(this.posX + f3 + 1.0);
+-            int l = MathHelper.floor(this.posY - f3 - 1.0);
+-            int i2 = MathHelper.floor(this.posY + f3 + 1.0);
+-            int j2 = MathHelper.floor(this.posZ - f3 - 1.0);
+-            int k1 = MathHelper.floor(this.posZ + f3 + 1.0);
+-            List<Entity> list = this.source.world.a(this.source, new AxisAlignedBB(i, l, j2, j, i2, k1), entity -> IEntitySelector.d.apply(entity) && !entity.dead);
+-            Vec3D vec3d = new Vec3D(this.posX, this.posY, this.posZ);
+-            for (Entity entity : list) {
+-                if (!entity.aW()) {
+-                    double d7 = entity.f(this.posX, this.posY, this.posZ) / f3;
+-                    if (d7 <= 1.0) {
+-                        double d8 = entity.locX - this.posX;
+-                        double d9 = entity.locY + entity.getHeadHeight() - this.posY;
+-                        double d10 = entity.locZ - this.posZ;
+-                        double d11 = MathHelper.sqrt(d8 * d8 + d9 * d9 + d10 * d10);
+-                        if (d11 != 0.0) {
+-                            d8 /= d11;
+-                            d9 /= d11;
+-                            d10 /= d11;
+-                            double d12 = this.getBlockDensity(vec3d, entity.getBoundingBox());
+-                            double d13 = (1.0 - d7) * d12;
+-                            CraftEventFactory.entityDamage = this.source;
+-                            entity.forceExplosionKnockback = false;
+-                            boolean wasDamaged = entity.damageEntity(DamageSource.explosion(this), (float) (int) ((d13 * d13 + d13) / 2.0 * 8.0 * f3 + 1.0));
+-                            CraftEventFactory.entityDamage = null;
+-                            if (wasDamaged || entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock || entity.forceExplosionKnockback) {
+-                                double d14 = (entity instanceof EntityHuman && this.source.world.paperSpigotConfig.disableExplosionKnockback) ? 0.0 : EnchantmentProtection.a(entity, d13);
+-                                entity.g(d8 * d14, d9 * d14, d10 * d14);
+-                                if (entity instanceof EntityHuman && !((EntityHuman) entity).abilities.isInvulnerable && !this.source.world.paperSpigotConfig.disableExplosionKnockback) {
+-                                    this.k.put((EntityHuman) entity, new Vec3D(d8 * d13, d9 * d13, d10 * d13));
+-                                }
++        float f3 = this.size * 2.0f;
++        int i = MathHelper.floor(this.posX - f3 - 1.0);
++        int j = MathHelper.floor(this.posX + f3 + 1.0);
++        int l = MathHelper.floor(this.posY - f3 - 1.0);
++        int i2 = MathHelper.floor(this.posY + f3 + 1.0);
++        int j2 = MathHelper.floor(this.posZ - f3 - 1.0);
++        int k1 = MathHelper.floor(this.posZ + f3 + 1.0);
++        List<Entity> list = this.source.world.a(this.source, new AxisAlignedBB(i, l, j2, j, i2, k1), entity -> IEntitySelector.d.apply(entity) && !entity.dead);
++        Vec3D vec3d = new Vec3D(this.posX, this.posY, this.posZ);
++        for (Entity entity : list) {
++            if (!entity.aW()) {
++                double d7 = entity.f(this.posX, this.posY, this.posZ) / f3;
++                if (d7 <= 1.0) {
++                    double d8 = entity.locX - this.posX;
++                    double d9 = entity.locY + entity.getHeadHeight() - this.posY;
++                    double d10 = entity.locZ - this.posZ;
++                    double d11 = MathHelper.sqrt(d8 * d8 + d9 * d9 + d10 * d10);
++                    if (d11 != 0.0) {
++                        d8 /= d11;
++                        d9 /= d11;
++                        d10 /= d11;
++                        double d12 = this.getBlockDensity(vec3d, entity.getBoundingBox());
++                        double d13 = (1.0 - d7) * d12;
++                        CraftEventFactory.entityDamage = this.source;
++                        entity.forceExplosionKnockback = false;
++                        boolean wasDamaged;
++                        if (LockedSpigotConfig.isExplosionDamageEntities()) {
++                            wasDamaged = entity.damageEntity(DamageSource.explosion(this), (float) (int) ((d13 * d13 + d13) / 2.0 * 8.0 * f3 + 1.0));
++                        } else {
++                            wasDamaged = false;
++                        }
++                        CraftEventFactory.entityDamage = null;
++                        if (wasDamaged || entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock || entity.forceExplosionKnockback) {
++                            double d14 = (entity instanceof EntityHuman && this.source.world.paperSpigotConfig.disableExplosionKnockback) ? 0.0 : EnchantmentProtection.a(entity, d13);
++                            entity.g(d8 * d14, d9 * d14, d10 * d14);
++                            if (entity instanceof EntityHuman && !((EntityHuman) entity).abilities.isInvulnerable && !this.source.world.paperSpigotConfig.disableExplosionKnockback) {
++                                this.k.put((EntityHuman) entity, new Vec3D(d8 * d13, d9 * d13, d10 * d13));
+                             }
+                         }
+                     }
+                 }
+             }
+         }
++
+     }
+ 
+     public void a(boolean flag) {
+-- 
+2.21.0.windows.1
+

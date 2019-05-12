@@ -1,0 +1,69 @@
+From ea8a19cd445ef56a18ae73d7fa25828906b2c616 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 13:18:13 -0400
+Subject: [PATCH] Fixed fps menu
+
+
+diff --git a/src/main/java/dev/lockedthread/commands/CommandFPS.java b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+index 93ffd1bfb..7b481700a 100644
+--- a/src/main/java/dev/lockedthread/commands/CommandFPS.java
++++ b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+@@ -40,23 +40,23 @@ public class CommandFPS extends Command {
+ 
+ 
+     private MenuItem setupFallingBlock(Player player) {
+-        return player.isSandToggle() ? MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuFallingBlockMaterial())
+-                .setDisplayName(LockedSpigotConfig.getFpsMenuFallingBlockName())
+-                .setLore(LockedSpigotConfig.getFpsMenuFallingBlockLore().stream().map(s -> s.replace("{mode}", "&c&lDISABLE")).collect(Collectors.toList()))
++        return player.isSandToggle() ? MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuTNTMaterial())
++                .setDisplayName(LockedSpigotConfig.getFpsMenuTNTName())
++                .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&c&lDISABLE")).collect(Collectors.toList()))
+                 .addEnchant(Enchantment.DURABILITY, 1)
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setSandToggle(false);
++                    player.setTntToggle(false);
+                     event.getWhoClicked().closeInventory();
+                 }) : MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuFallingBlockMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuFallingBlockName())
+-                .setLore(LockedSpigotConfig.getFpsMenuFallingBlockLore().stream().map(s -> s.replace("{mode}", "&a&lENABLE")).collect(Collectors.toList()))
++                .setLore(LockedSpigotConfig.getFpsMenuFallingBlockLore().stream().map(s -> s.replace("{mode}", "&c&lDISABLE")).collect(Collectors.toList()))
+                 .addEnchant(Enchantment.DURABILITY, 1)
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setSandToggle(true);
++                    player.setSandToggle(false);
+                     event.getWhoClicked().closeInventory();
+                 });
+     }
+@@ -64,21 +64,21 @@ public class CommandFPS extends Command {
+     private MenuItem setupTNT(Player player) {
+         return player.isTntToggle() ? MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuTNTMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuTNTName())
+-                .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&c&lDISABLE")).collect(Collectors.toList()))
++                .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&a&lENABLE")).collect(Collectors.toList()))
+                 .addEnchant(Enchantment.DURABILITY, 1)
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setTntToggle(false);
++                    player.setTntToggle(true);
+                     event.getWhoClicked().closeInventory();
+                 }) : MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuTNTMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuTNTName())
+-                .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&a&lENABLE")).collect(Collectors.toList()))
++                .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&c&lDISABLE")).collect(Collectors.toList()))
+                 .addEnchant(Enchantment.DURABILITY, 1)
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setTntToggle(true);
++                    player.setTntToggle(false);
+                     event.getWhoClicked().closeInventory();
+                 });
+     }
+-- 
+2.21.0.windows.1
+

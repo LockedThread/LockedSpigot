@@ -1,0 +1,24 @@
+From 2d4930cc1f22eee5afb83c586b3e656b8e3b18a2 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 05:32:32 -0400
+Subject: [PATCH] Added boolean values for obscurity reasons
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityPlayer.java b/src/main/java/net/minecraft/server/EntityPlayer.java
+index 010f5a559..8326f2ef7 100644
+--- a/src/main/java/net/minecraft/server/EntityPlayer.java
++++ b/src/main/java/net/minecraft/server/EntityPlayer.java
+@@ -63,8 +63,8 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+     public boolean collidesWithEntities = true;
+     public int viewDistance; // PaperSpigot - Player view distance API
+     private int containerUpdateDelay; // PaperSpigot
+-    private boolean tntToggle;
+-    private boolean sandToggle;
++    private boolean tntToggle = false;
++    private boolean sandToggle = false;
+ 
+     @Override
+     public boolean ad() {
+-- 
+2.21.0.windows.1
+

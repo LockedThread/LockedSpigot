@@ -1,0 +1,78 @@
+From 03ea33b97cb5d508b502717e8c7dfbf58a7a2621 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 6 May 2019 13:45:48 -0400
+Subject: [PATCH] Configurable chunk-io threads
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index c410df609..203d285ee 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -79,6 +79,8 @@ public class LockedSpigotConfig {
+     private static int serverPacketDeserializerLimit;
+     private static boolean serverChatDisconnectSpam;
+     private static boolean serverMobAi;
++    private static int serverChunkIOBaseThreads;
++    private static int serverChunkIOPlayersPerThread;
+ 
+     private static void load() {
+         ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
+@@ -135,6 +137,8 @@ public class LockedSpigotConfig {
+         serverPacketDeserializerLimit = getInt("server.packet-deserializer-limit", Integer.MAX_VALUE);
+         serverChatDisconnectSpam = getBoolean("server.chat-disconnect-spam", false);
+         serverMobAi = getBoolean("server.mob-ai", false);
++        serverChunkIOBaseThreads = getInt("server.chunk-io.base-threads", 2);
++        serverChunkIOPlayersPerThread = getInt("server.chunk-io.players-per-thread", 50);
+ 
+         try {
+             config.save(CONFIG_FILE);
+@@ -322,6 +326,14 @@ public class LockedSpigotConfig {
+         return serverMobAi;
+     }
+ 
++    public static int getServerChunkIOBaseThreads() {
++        return serverChunkIOBaseThreads;
++    }
++
++    public static int getServerChunkIOPlayersPerThread() {
++        return serverChunkIOPlayersPerThread;
++    }
++
+     public static void init(File configFile) {
+         CONFIG_FILE = configFile;
+         config = new YamlConfiguration();
+diff --git a/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOExecutor.java b/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOExecutor.java
+index 8a6adeaea..184375fca 100644
+--- a/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOExecutor.java
++++ b/src/main/java/org/bukkit/craftbukkit/chunkio/ChunkIOExecutor.java
+@@ -1,5 +1,6 @@
+ package org.bukkit.craftbukkit.chunkio;
+ 
++import dev.lockedthread.LockedSpigotConfig;
+ import net.minecraft.server.Chunk;
+ import net.minecraft.server.ChunkProviderServer;
+ import net.minecraft.server.ChunkRegionLoader;
+@@ -7,10 +8,8 @@ import net.minecraft.server.World;
+ import org.bukkit.craftbukkit.util.AsynchronousExecutor;
+ 
+ public class ChunkIOExecutor {
+-    static final int BASE_THREADS = 2; // PaperSpigot - Bumped value
+-    static final int PLAYERS_PER_THREAD = 50;
+ 
+-    private static final AsynchronousExecutor<QueuedChunk, Chunk, Runnable, RuntimeException> instance = new AsynchronousExecutor<>(new ChunkIOProvider(), BASE_THREADS);
++    private static final AsynchronousExecutor<QueuedChunk, Chunk, Runnable, RuntimeException> instance = new AsynchronousExecutor<>(new ChunkIOProvider(), LockedSpigotConfig.getServerChunkIOBaseThreads());
+ 
+     public static Chunk syncChunkLoad(World world, ChunkRegionLoader loader, ChunkProviderServer provider, int x, int z) {
+         return instance.getSkipQueue(new QueuedChunk(x, z, loader, world, provider));
+@@ -26,7 +25,7 @@ public class ChunkIOExecutor {
+     }
+ 
+     public static void adjustPoolSize(int players) {
+-        int size = Math.max(BASE_THREADS, (int) Math.ceil(players / PLAYERS_PER_THREAD));
++        int size = Math.max(LockedSpigotConfig.getServerChunkIOBaseThreads(), (int) Math.ceil(players / LockedSpigotConfig.getServerChunkIOPlayersPerThread()));
+         instance.setActiveThreads(size);
+     }
+ 
+-- 
+2.21.0.windows.1
+

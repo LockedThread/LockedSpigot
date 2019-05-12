@@ -1,0 +1,55 @@
+From ffcddb2051e4e2f7cabd7e3ee59a76f0fd00183d Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 13:24:05 -0400
+Subject: [PATCH] Set proper toggles and fixed fps menu lores
+
+
+diff --git a/src/main/java/dev/lockedthread/commands/CommandFPS.java b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+index 7b481700a..70aa04d2c 100644
+--- a/src/main/java/dev/lockedthread/commands/CommandFPS.java
++++ b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+@@ -42,12 +42,12 @@ public class CommandFPS extends Command {
+     private MenuItem setupFallingBlock(Player player) {
+         return player.isSandToggle() ? MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuTNTMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuTNTName())
+-                .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&c&lDISABLE")).collect(Collectors.toList()))
++                .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&a&lENABLE")).collect(Collectors.toList()))
+                 .addEnchant(Enchantment.DURABILITY, 1)
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setTntToggle(false);
++                    player.setSandToggle(false);
+                     event.getWhoClicked().closeInventory();
+                 }) : MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuFallingBlockMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuFallingBlockName())
+@@ -56,7 +56,7 @@ public class CommandFPS extends Command {
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setSandToggle(false);
++                    player.setSandToggle(true);
+                     event.getWhoClicked().closeInventory();
+                 });
+     }
+@@ -69,7 +69,7 @@ public class CommandFPS extends Command {
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setTntToggle(true);
++                    player.setTntToggle(false);
+                     event.getWhoClicked().closeInventory();
+                 }) : MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuTNTMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuTNTName())
+@@ -78,7 +78,7 @@ public class CommandFPS extends Command {
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setTntToggle(false);
++                    player.setTntToggle(true);
+                     event.getWhoClicked().closeInventory();
+                 });
+     }
+-- 
+2.21.0.windows.1
+

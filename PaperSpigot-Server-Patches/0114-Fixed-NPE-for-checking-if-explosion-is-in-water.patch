@@ -1,0 +1,69 @@
+From fcd686f940ee0d842b7dd11fc8c0017401f0132d Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 15:16:26 -0400
+Subject: [PATCH] Fixed NPE for checking if explosion is in water
+
+
+diff --git a/src/main/java/dev/lockedthread/regions/SmallRegion.java b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+index cd0a48a69..3f24a640a 100644
+--- a/src/main/java/dev/lockedthread/regions/SmallRegion.java
++++ b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+@@ -26,7 +26,9 @@ public class SmallRegion implements Region {
+             for (int y = centerY - radius; y <= centerY + radius; y++) {
+                 for (int z = centerZ - radius; z <= centerZ + radius; z++) {
+                     final BlockPosition key = new BlockPosition(x, y, z);
+-                    iBlockDataMap.put(key, world.getType(key));
++                    IBlockData type = world.getType(key);
++                    if (type.getBlock().getMaterial() == Material.AIR) continue;
++                    iBlockDataMap.put(key, type);
+                 }
+             }
+         }
+@@ -36,12 +38,12 @@ public class SmallRegion implements Region {
+     public IBlockData getIBlockDataAt(BlockPosition blockPosition) {
+         IBlockData iBlockData = iBlockDataMap.get(blockPosition);
+         if (iBlockData == null) {
+-            iBlockDataMap.put(blockPosition, iBlockData = world.getType(blockPosition));
++            iBlockData = world.getType(blockPosition);
+             if (LockedSpigotConfig.isServerVerbose()) {
+-                System.out.println("Couldn't find blockposition in map, getting from world. iBlockData=" + iBlockData);
++                System.out.println("Couldn't find blockposition in map, returning AIR. iBlockData=" + iBlockData);
+             }
+         }
+-        return iBlockData;
++        return Blocks.AIR.getBlockData();
+     }
+ 
+     @Override
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index 8b577570c..059202103 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -42,7 +42,7 @@ public class Explosion {
+         this.a = flag;
+         this.b = flag1;
+         this.origin = new BlockPosition(entity.locX, entity.locY, entity.locY);
+-        if (isInWater(origin)) {
++        if (isInWater()) {
+             return;
+         }
+         final Region smallRegion = REGION_CACHE.get(origin);
+@@ -54,14 +54,7 @@ public class Explosion {
+     }
+ 
+     private boolean isInWater() {
+-        return isInWater(null);
+-    }
+-
+-    private boolean isInWater(BlockPosition blockPosition) {
+-        if (blockPosition == null) {
+-            return smallRegion.getCenter().getBlock().getMaterial().isLiquid();
+-        }
+-        return source.world.getType(blockPosition).getBlock().getMaterial().isLiquid();
++        return source.world.getType(origin).getBlock().getMaterial().isLiquid();
+     }
+ 
+     public void a() {
+-- 
+2.21.0.windows.1
+

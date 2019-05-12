@@ -1,0 +1,303 @@
+From 27414413b894a36fed62fceb118cc679e165ac86 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 5 May 2019 22:15:07 -0400
+Subject: [PATCH] Switched from Player implementation for tnt and sand toggling
+ to EntityPlayer
+
+
+diff --git a/src/main/java/dev/lockedthread/commands/CommandFPS.java b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+index 8d91ff6e0..f0ebbef1d 100644
+--- a/src/main/java/dev/lockedthread/commands/CommandFPS.java
++++ b/src/main/java/dev/lockedthread/commands/CommandFPS.java
+@@ -4,9 +4,11 @@ import dev.lockedthread.LockedSpigotConfig;
+ import dev.lockedthread.items.ItemStackBuilder;
+ import dev.lockedthread.menu.MenuFPS;
+ import dev.lockedthread.menu.MenuItem;
++import net.minecraft.server.EntityPlayer;
+ import org.bukkit.ChatColor;
+ import org.bukkit.command.Command;
+ import org.bukkit.command.CommandSender;
++import org.bukkit.craftbukkit.entity.CraftPlayer;
+ import org.bukkit.enchantments.Enchantment;
+ import org.bukkit.entity.Player;
+ import org.bukkit.inventory.ItemFlag;
+@@ -24,11 +26,11 @@ public class CommandFPS extends Command {
+     public boolean execute(CommandSender sender, String commandLabel, String[] args) {
+         if (sender instanceof Player) {
+             if (sender.hasPermission(LockedSpigotConfig.getCommandFpsPermission())) {
+-                Player player = (Player) sender;
+-                MenuFPS menuFPS = new MenuFPS(LockedSpigotConfig.getFpsMenuTitle().replace("{player}", player.getName()), LockedSpigotConfig.getFpsMenuSize(), LockedSpigotConfig.isFpsMenuFill(), LockedSpigotConfig.getFpsMenuFillColor());
+-                menuFPS.setItem(LockedSpigotConfig.getFpsMenuFallingBlockSlot(), setupFallingBlock(player));
+-                menuFPS.setItem(LockedSpigotConfig.getFpsMenuTNTSlot(), setupTNT(player));
+-                player.openInventory(menuFPS.getInventory());
++                EntityPlayer entityPlayer = ((CraftPlayer) sender).getHandle();
++                MenuFPS menuFPS = new MenuFPS(LockedSpigotConfig.getFpsMenuTitle().replace("{player}", entityPlayer.getName()), LockedSpigotConfig.getFpsMenuSize(), LockedSpigotConfig.isFpsMenuFill(), LockedSpigotConfig.getFpsMenuFillColor());
++                menuFPS.setItem(LockedSpigotConfig.getFpsMenuFallingBlockSlot(), setupFallingBlock(entityPlayer));
++                menuFPS.setItem(LockedSpigotConfig.getFpsMenuTNTSlot(), setupTNT(entityPlayer));
++                ((CraftPlayer) sender).openInventory(menuFPS.getInventory());
+             } else {
+                 sender.sendMessage(ChatColor.RED + "Unable to execute /" + commandLabel);
+             }
+@@ -39,15 +41,15 @@ public class CommandFPS extends Command {
+     }
+ 
+ 
+-    private MenuItem setupFallingBlock(Player player) {
+-        return player.canSeeFallingBlocks() ? MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuFallingBlockMaterial())
++    private MenuItem setupFallingBlock(EntityPlayer player) {
++        return player.isSandToggle() ? MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuFallingBlockMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuFallingBlockName())
+                 .setLore(LockedSpigotConfig.getFpsMenuFallingBlockLore().stream().map(s -> s.replace("{mode}", "&c&lDISABLE")).collect(Collectors.toList()))
+                 .addEnchant(Enchantment.DURABILITY, 1)
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setCanSeeFallingBlocks(false);
++                    player.setSandToggle(false);
+                     event.getWhoClicked().closeInventory();
+                 }) : MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuFallingBlockMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuFallingBlockName())
+@@ -56,21 +58,21 @@ public class CommandFPS extends Command {
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setCanSeeFallingBlocks(true);
++                    player.setSandToggle(true);
+                     event.getWhoClicked().closeInventory();
+                 });
+     }
+ 
+-    private MenuItem setupTNT(Player player) {
+-        return player.canSeeTNT() ? MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuTNTMaterial())
++    private MenuItem setupTNT(EntityPlayer player) {
++        return player.isTntToggle() ? MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuTNTMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuTNTName())
+                 .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&c&lDISABLE")).collect(Collectors.toList()))
+                 .addEnchant(Enchantment.DURABILITY, 1)
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setCanSeeTNT(false);
+-                    setupTNT(player);
++                    player.setTntToggle(false);
++                    event.getWhoClicked().closeInventory();
+                 }) : MenuItem.of(ItemStackBuilder.of(LockedSpigotConfig.getFpsMenuTNTMaterial())
+                 .setDisplayName(LockedSpigotConfig.getFpsMenuTNTName())
+                 .setLore(LockedSpigotConfig.getFpsMenuTNTLore().stream().map(s -> s.replace("{mode}", "&a&lENABLE")).collect(Collectors.toList()))
+@@ -78,8 +80,8 @@ public class CommandFPS extends Command {
+                 .addItemFlags(ItemFlag.HIDE_ENCHANTS)
+                 .build())
+                 .setInventoryClickEventConsumer(event -> {
+-                    player.setCanSeeTNT(true);
+-                    setupTNT(player);
++                    player.setTntToggle(true);
++                    event.getWhoClicked().closeInventory();
+                 });
+     }
+ }
+diff --git a/src/main/java/net/minecraft/server/EntityPlayer.java b/src/main/java/net/minecraft/server/EntityPlayer.java
+index dd26218ee..b72876c00 100644
+--- a/src/main/java/net/minecraft/server/EntityPlayer.java
++++ b/src/main/java/net/minecraft/server/EntityPlayer.java
+@@ -4,16 +4,8 @@ import com.google.common.collect.Lists;
+ import com.google.common.collect.Sets;
+ import com.mojang.authlib.GameProfile;
+ import io.netty.buffer.Unpooled;
+-import java.util.ArrayList;
+-import java.util.Arrays;
+-import java.util.Collection;
+-import java.util.HashSet;
+-import java.util.Iterator;
+-import java.util.List;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+-
+-// CraftBukkit start
+ import org.bukkit.Bukkit;
+ import org.bukkit.WeatherType;
+ import org.bukkit.craftbukkit.CraftWorld;
+@@ -22,6 +14,10 @@ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.event.inventory.InventoryType;
+ import org.bukkit.event.player.PlayerTeleportEvent.TeleportCause;
++
++import java.util.*;
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public class EntityPlayer extends EntityHuman implements ICrafting {
+@@ -66,16 +62,16 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+     public boolean collidesWithEntities = true;
+     public int viewDistance; // PaperSpigot - Player view distance API
+     private int containerUpdateDelay; // PaperSpigot
++    private boolean tntToggle;
++    private boolean sandToggle;
+ 
+     @Override
+-    public boolean ad()
+-    {
++    public boolean ad() {
+         return this.collidesWithEntities && super.ad(); // (first !this.isDead near bottom of EntityLiving)
+     }
+ 
+     @Override
+-    public boolean ae()
+-    {
++    public boolean ae() {
+         return this.collidesWithEntities && super.ae(); // (second !this.isDead near bottom of EntityLiving)
+     }
+     // Spigot end
+@@ -128,6 +124,14 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+             }
+         }
+ 
++        if (nbttagcompound.hasKey("tnttoggle")) {
++            this.tntToggle = nbttagcompound.getBoolean("tnttoggle");
++        }
++
++        if (nbttagcompound.hasKey("sandtoggle")) {
++            this.sandToggle = nbttagcompound.getBoolean("sandtoggle");
++        }
++
+         this.getBukkitEntity().readExtraData(nbttagcompound); // CraftBukkit
+     }
+ 
+@@ -198,7 +202,7 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+         if (this.noDamageTicks > 0) {
+             --this.noDamageTicks;
+         }
+-        
++
+         // PaperSpigot start - Configurable container update tick rate
+         if (--containerUpdateDelay <= 0) {
+             this.activeContainer.b();
+@@ -521,7 +525,7 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+                 this.viewingCredits = true;
+                 this.playerConnection.sendPacket(new PacketPlayOutGameStateChange(4, 0.0F));
+             }
+-        // PaperSpigot end
++            // PaperSpigot end
+         } else {
+             if (this.dimension == 0 && i == 1) {
+                 this.b(AchievementList.C);
+@@ -613,7 +617,8 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+ 
+     }
+ 
+-    protected void a(double d0, boolean flag, Block block, BlockPosition blockposition) {}
++    protected void a(double d0, boolean flag, Block block, BlockPosition blockposition) {
++    }
+ 
+     public void a(double d0, boolean flag) {
+         int i = MathHelper.floor(this.locX);
+@@ -669,7 +674,7 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+ 
+         Container container;
+         if (iinventory instanceof ITileEntityContainer) {
+-            container = ((ITileEntityContainer)iinventory).createContainer(this.inventory, this);
++            container = ((ITileEntityContainer) iinventory).createContainer(this.inventory, this);
+         } else {
+             container = new ContainerChest(this.inventory, iinventory, this);
+         }
+@@ -779,7 +784,7 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+         this.playerConnection.sendPacket(new PacketPlayOutWindowItems(container.windowId, list));
+         this.playerConnection.sendPacket(new PacketPlayOutSetSlot(-1, -1, this.inventory.getCarried()));
+         // CraftBukkit start - Send a Set Slot to update the crafting result slot
+-        if (java.util.EnumSet.of(InventoryType.CRAFTING,InventoryType.WORKBENCH).contains(container.getBukkitView().getType())) {
++        if (java.util.EnumSet.of(InventoryType.CRAFTING, InventoryType.WORKBENCH).contains(container.getBukkitView().getType())) {
+             this.playerConnection.sendPacket(new PacketPlayOutSetSlot(container.windowId, 0, container.getSlot(0).getItem()));
+         }
+         // CraftBukkit end
+@@ -1207,5 +1212,21 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+     public CraftPlayer getBukkitEntity() {
+         return (CraftPlayer) super.getBukkitEntity();
+     }
++
++    public boolean isTntToggle() {
++        return tntToggle;
++    }
++
++    public void setTntToggle(boolean tntToggle) {
++        this.tntToggle = tntToggle;
++    }
++
++    public boolean isSandToggle() {
++        return sandToggle;
++    }
++
++    public void setSandToggle(boolean sandToggle) {
++        this.sandToggle = sandToggle;
++    }
+     // CraftBukkit end
+ }
+diff --git a/src/main/java/net/minecraft/server/EntityTrackerEntry.java b/src/main/java/net/minecraft/server/EntityTrackerEntry.java
+index 06a0623f6..ca6c60f69 100644
+--- a/src/main/java/net/minecraft/server/EntityTrackerEntry.java
++++ b/src/main/java/net/minecraft/server/EntityTrackerEntry.java
+@@ -341,11 +341,11 @@ public class EntityTrackerEntry {
+                     this.trackedPlayerMap.put(entityplayer, true); // PaperBukkit
+                     Packet packet = this.c();
+ 
+-                    if (entityplayer.getBukkitEntity().canSeeFallingBlocks() || !(this.tracker instanceof EntityFallingBlock)) {
++                    if (!entityplayer.isTntToggle() || !(this.tracker instanceof EntityTNTPrimed)) {
+                         entityplayer.playerConnection.sendPacket(packet);
+                     }
+ 
+-                    if (entityplayer.getBukkitEntity().canSeeTNT() || !(this.tracker instanceof EntityTNTPrimed)) {
++                    if (!entityplayer.isSandToggle() || !(this.tracker instanceof EntityFallingBlock)) {
+                         entityplayer.playerConnection.sendPacket(packet);
+                     }
+ 
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+index b1a0cfdad..d5cf0ba05 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftPlayer.java
+@@ -197,7 +197,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+             return getHandle().ping;
+         }
+     };
+-    private boolean canSeeTNT = true;
+ 
+     public CraftPlayer(CraftServer server, EntityPlayer entity) {
+         super(server, entity);
+@@ -205,24 +204,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         firstPlayed = System.currentTimeMillis();
+     }
+ 
+-    private boolean canSeeFallingBlocks = true;
+-
+-    @Override
+-    public boolean canSeeTNT() {
+-        return this.canSeeTNT;
+-    }
+-
+-    @Override
+-    public void setCanSeeTNT(boolean canSeeTNT) {
+-        this.canSeeTNT = canSeeTNT;
+-    }
+-
+-    @Override
+-    public boolean canSeeFallingBlocks() {
+-        return this.canSeeFallingBlocks;
+-    }
+-
+-
+     public GameProfile getProfile() {
+         return getHandle().getProfile();
+     }
+@@ -265,11 +246,6 @@ public class CraftPlayer extends CraftHumanEntity implements Player {
+         return getEyeHeight(false);
+     }
+ 
+-    @Override
+-    public void setCanSeeFallingBlocks(boolean canSeeFallingBlocks) {
+-        this.canSeeFallingBlocks = canSeeFallingBlocks;
+-    }
+-
+     @Override
+     public void sendRawMessage(String message) {
+         if (getHandle().playerConnection == null) return;
+-- 
+2.21.0.windows.1
+

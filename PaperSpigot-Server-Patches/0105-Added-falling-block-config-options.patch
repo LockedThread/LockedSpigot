@@ -1,0 +1,237 @@
+From e0361008ca425b9c9de17296aa23d80711dbe970 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 06:08:15 -0400
+Subject: [PATCH] Added falling block config options
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 0458ef2a3..02b8d842d 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -97,6 +97,12 @@ public class LockedSpigotConfig {
+     private static boolean explosionBlockUpdates;
+     private static int explosionRegionRadius;
+ 
++    private static int fallingBlockLifeTime;
++    private static boolean fallingBlockDropItemEnabled;
++    private static boolean fallingBlockDropItemOverrideAPIUsage;
++    private static boolean fallingBlockHurtEntitiesEnabled;
++    private static boolean fallingBlockHurtEntitiesOverrideAPIUsage;
++
+     private static void load() {
+         ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
+         ironGolemDropPoppies = getBoolean("irongolem.drop-poppies", false);
+@@ -168,6 +174,13 @@ public class LockedSpigotConfig {
+         explosionDamagesPlayers = getBoolean("explosions.damage-players", false);
+         explosionDestroyItems = getBoolean("explosions.destroy-items", false);
+         explosionBlockUpdates = getBoolean("explosions.block-updates", true);
++
++        fallingBlockLifeTime = getInt("falling-blocks.life-time", Integer.MAX_VALUE);
++        fallingBlockDropItemEnabled = getBoolean("falling-blocks.drop-items.enabled", false);
++        fallingBlockDropItemOverrideAPIUsage = getBoolean("falling-blocks.drop-items.override-api-usage", true);
++        fallingBlockHurtEntitiesEnabled = getBoolean("falling-blocks.hurt-entities.enabled", false);
++        fallingBlockHurtEntitiesOverrideAPIUsage = getBoolean("falling-blocks.hurt-entities.override-api-usage", true);
++
+         int count = 0;
+ 
+         for (int k = 0; k < 16; ++k) {
+@@ -430,6 +443,26 @@ public class LockedSpigotConfig {
+         return explosionBlockUpdates;
+     }
+ 
++    public static boolean isFallingBlockDropItemEnabled() {
++        return fallingBlockDropItemEnabled;
++    }
++
++    public static boolean isFallingBlockDropItemOverrideAPIUsage() {
++        return fallingBlockDropItemOverrideAPIUsage;
++    }
++
++    public static int getFallingBlockLifeTime() {
++        return fallingBlockLifeTime;
++    }
++
++    public static boolean isFallingBlockHurtEntitiesEnabled() {
++        return fallingBlockHurtEntitiesEnabled;
++    }
++
++    public static boolean isFallingBlockHurtEntitiesOverrideAPIUsage() {
++        return fallingBlockHurtEntitiesOverrideAPIUsage;
++    }
++
+     public static void init(File configFile) {
+         System.out.println("Initializing static fields for LockedSpigot");
+         CONFIG_FILE = configFile;
+diff --git a/src/main/java/net/minecraft/server/EntityFallingBlock.java b/src/main/java/net/minecraft/server/EntityFallingBlock.java
+index ecc0a4eec..17d1e90f1 100644
+--- a/src/main/java/net/minecraft/server/EntityFallingBlock.java
++++ b/src/main/java/net/minecraft/server/EntityFallingBlock.java
+@@ -1,6 +1,7 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.collect.Lists;
++import dev.lockedthread.LockedSpigotConfig;
+ import net.jafama.FastMath;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ 
+@@ -10,9 +11,9 @@ public class EntityFallingBlock extends Entity {
+ 
+     private IBlockData block;
+     public int ticksLived;
+-    public boolean dropItem = true;
++    public boolean dropItem = LockedSpigotConfig.isFallingBlockDropItemEnabled();
+     private boolean e;
+-    public boolean hurtEntities; // PAIL: private -> public
++    public boolean hurtEntities = LockedSpigotConfig.isFallingBlockHurtEntitiesEnabled(); // PAIL: private -> public
+     private int fallHurtMax = 40;
+     private float fallHurtAmount = 2.0F;
+     public NBTTagCompound tileEntityData;
+@@ -36,7 +37,7 @@ public class EntityFallingBlock extends Entity {
+     public EntityFallingBlock(org.bukkit.Location loc, World world, double d0, double d1, double d2, IBlockData iblockdata) {
+         super(world);
+         sourceLoc = loc;
+-    // PaperSpigot end
++        // PaperSpigot end
+         this.block = iblockdata;
+         this.k = true;
+         this.setSize(0.98F, 0.98F);
+@@ -54,7 +55,8 @@ public class EntityFallingBlock extends Entity {
+         return false;
+     }
+ 
+-    protected void h() {}
++    protected void h() {
++    }
+ 
+     public boolean ad() {
+         return !this.dead;
+@@ -162,26 +164,23 @@ public class EntityFallingBlock extends Entity {
+     }
+ 
+     public void e(float f, float f1) {
+-        Block block = this.block.getBlock();
+-
+         if (this.hurtEntities) {
++            Block block = this.block.getBlock();
+             int i = MathHelper.f(f - 1.0F);
+ 
+             if (i > 0) {
+-                ArrayList arraylist = Lists.newArrayList(this.world.getEntities(this, this.getBoundingBox()));
++                ArrayList<Entity> arraylist = Lists.newArrayList(this.world.getEntities(this, this.getBoundingBox()));
+                 boolean flag = block == Blocks.ANVIL;
+                 DamageSource damagesource = flag ? DamageSource.ANVIL : DamageSource.FALLING_BLOCK;
+ 
+-                for (Object o : arraylist) {
+-                    Entity entity = (Entity) o;
+-
++                for (Entity entity : arraylist) {
+                     CraftEventFactory.entityDamage = this; // CraftBukkit
+                     entity.damageEntity(damagesource, (float) FastMath.min(MathHelper.d((float) i * this.fallHurtAmount), this.fallHurtMax));
+                     CraftEventFactory.entityDamage = null; // CraftBukkit
+                 }
+ 
+                 if (flag && (double) this.getRandom().nextFloat() < 0.05000000074505806D + (double) i * 0.05D) {
+-                    int j = (Integer) this.block.get(BlockAnvil.DAMAGE);
++                    int j = this.block.get(BlockAnvil.DAMAGE);
+ 
+                     ++j;
+                     if (j > 2) {
+@@ -233,7 +232,11 @@ public class EntityFallingBlock extends Entity {
+         Block block = this.block.getBlock();
+ 
+         if (nbttagcompound.hasKeyOfType("HurtEntities", 99)) {
+-            this.hurtEntities = nbttagcompound.getBoolean("HurtEntities");
++            if (LockedSpigotConfig.isFallingBlockHurtEntitiesOverrideAPIUsage()) {
++                this.hurtEntities = LockedSpigotConfig.isFallingBlockHurtEntitiesEnabled();
++            } else {
++                this.hurtEntities = nbttagcompound.getBoolean("HurtEntities");
++            }
+             this.fallHurtAmount = nbttagcompound.getFloat("FallHurtAmount");
+             this.fallHurtMax = nbttagcompound.getInt("FallHurtMax");
+         } else if (block == Blocks.ANVIL) {
+@@ -241,7 +244,11 @@ public class EntityFallingBlock extends Entity {
+         }
+ 
+         if (nbttagcompound.hasKeyOfType("DropItem", 99)) {
+-            this.dropItem = nbttagcompound.getBoolean("DropItem");
++            if (LockedSpigotConfig.isFallingBlockDropItemOverrideAPIUsage()) {
++                this.dropItem = LockedSpigotConfig.isFallingBlockDropItemEnabled();
++            } else {
++                this.dropItem = nbttagcompound.getBoolean("DropItem");
++            }
+         }
+ 
+         if (nbttagcompound.hasKeyOfType("TileEntityData", 10)) {
+@@ -262,6 +269,7 @@ public class EntityFallingBlock extends Entity {
+     }
+ 
+     public void a(boolean flag) {
++        if (LockedSpigotConfig.isFallingBlockHurtEntitiesOverrideAPIUsage()) return;
+         this.hurtEntities = flag;
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 80ded33b8..7e633ddfa 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -5,6 +5,7 @@ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Sets;
+ import com.google.common.util.concurrent.ThreadFactoryBuilder;
++import dev.lockedthread.LockedSpigotConfig;
+ import it.unimi.dsi.util.XoRoShiRo128PlusRandom;
+ import net.jafama.FastMath;
+ import org.bukkit.Bukkit;
+@@ -1348,12 +1349,16 @@ public abstract class World implements IBlockAccess {
+ 
+             try {
+                 ++entity.ticksLived;
+-                if (entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock) {
+-                    if (MinecraftServer.offTick) {
++                if (LockedSpigotConfig.getFallingBlockLifeTime() >= entity.ticksLived) {
++                    entity.die();
++                } else {
++                    if (entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock) {
++                        if (MinecraftServer.offTick) {
++                            entity.t_();
++                        }
++                    } else {
+                         entity.t_();
+                     }
+-                } else {
+-                    entity.t_();
+                 }
+             } catch (Throwable throwable) {
+                 crashreport = CrashReport.a(throwable, "Ticking entity");
+diff --git a/src/main/java/org/bukkit/craftbukkit/entity/CraftFallingSand.java b/src/main/java/org/bukkit/craftbukkit/entity/CraftFallingSand.java
+index eedb66f50..0570d8ff2 100644
+--- a/src/main/java/org/bukkit/craftbukkit/entity/CraftFallingSand.java
++++ b/src/main/java/org/bukkit/craftbukkit/entity/CraftFallingSand.java
+@@ -1,7 +1,7 @@
+ package org.bukkit.craftbukkit.entity;
+ 
++import dev.lockedthread.LockedSpigotConfig;
+ import net.minecraft.server.EntityFallingBlock;
+-
+ import org.bukkit.Material;
+ import org.bukkit.craftbukkit.CraftServer;
+ import org.bukkit.craftbukkit.util.CraftMagicNumbers;
+@@ -45,6 +45,7 @@ public class CraftFallingSand extends CraftEntity implements FallingSand {
+     }
+ 
+     public void setDropItem(boolean drop) {
++        if (LockedSpigotConfig.isFallingBlockDropItemOverrideAPIUsage()) return;
+         getHandle().dropItem = drop;
+     }
+ 
+@@ -55,6 +56,7 @@ public class CraftFallingSand extends CraftEntity implements FallingSand {
+ 
+     @Override
+     public void setHurtEntities(boolean hurtEntities) {
++        if (LockedSpigotConfig.isFallingBlockDropItemOverrideAPIUsage()) return;
+         getHandle().hurtEntities = hurtEntities;
+     }
+ 
+-- 
+2.21.0.windows.1
+

@@ -1,0 +1,66 @@
+From 83b198764e3967bf592d4c56d4752217bcc44d4f Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 01:57:11 -0400
+Subject: [PATCH] Added configurability for disabling placing blocks in
+ unloaded chunks
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 29e579502..1d5be4159 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -86,6 +86,7 @@ public class LockedSpigotConfig {
+     private static boolean server40TpsProcessQueue;
+     private static boolean server40TpsTimeUpdate;
+     private static boolean serverVerbose;
++    private static boolean serverPreventBreakingBlocksInUnloadedChunks;
+ 
+     private static boolean explosionSounds;
+     private static boolean explosionParticles;
+@@ -155,6 +156,7 @@ public class LockedSpigotConfig {
+         server40TpsProcessQueue = getBoolean("server.40-tps.process-queue", true);
+         server40TpsTimeUpdate = getBoolean("server.40-tps.time-update", false);
+         serverVerbose = getBoolean("server.verbose", false);
++        serverPreventBreakingBlocksInUnloadedChunks = getBoolean("server.prevent-breaking-blocks-in-unloaded-chunks", true);
+ 
+         explosionSounds = getBoolean("explosions.sound", false);
+         explosionParticles = getBoolean("explosions.particles", false);
+@@ -413,6 +415,10 @@ public class LockedSpigotConfig {
+         return serverVerbose;
+     }
+ 
++    public static boolean isServerPreventBreakingBlocksInUnloadedChunks() {
++        return serverPreventBreakingBlocksInUnloadedChunks;
++    }
++
+     public static void init(File configFile) {
+         System.out.println("Initializing static fields for LockedSpigot");
+         CONFIG_FILE = configFile;
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index 23e405852..32d5302ae 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -586,14 +586,17 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
+             case 4: // START_DESTROY_BLOCK
+             case 5: // ABORT_DESTROY_BLOCK
+             case 6: // STOP_DESTROY_BLOCK
++                // Paper start - Don't allow digging in unloaded chunks
++                if (LockedSpigotConfig.isServerPreventBreakingBlocksInUnloadedChunks() && !worldserver.isChunkLoaded(blockposition.getX() >> 4, blockposition.getZ() >> 4, true)) {
++                    return;
++                }
++                // Paper end - Don't allow digging in unloaded chunks
+                 double d0 = this.player.locX - ((double) blockposition.getX() + 0.5D);
+                 double d1 = this.player.locY - ((double) blockposition.getY() + 0.5D) + 1.5D;
+                 double d2 = this.player.locZ - ((double) blockposition.getZ() + 0.5D);
+                 double d3 = d0 * d0 + d1 * d1 + d2 * d2;
+ 
+-                if (d3 > 36.0D) {
+-                    return;
+-                } else if (blockposition.getY() >= this.minecraftServer.getMaxBuildHeight()) {
++                if (d3 > 36.0D || blockposition.getY() >= this.minecraftServer.getMaxBuildHeight()) {
+                     return;
+                 } else {
+                     if (packetplayinblockdig.c() == PacketPlayInBlockDig.EnumPlayerDigType.START_DESTROY_BLOCK) {
+-- 
+2.21.0.windows.1
+

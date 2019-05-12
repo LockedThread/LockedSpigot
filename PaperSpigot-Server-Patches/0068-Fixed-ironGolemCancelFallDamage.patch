@@ -1,0 +1,320 @@
+From a2ae9073b2364f861a985bd519cd473add704e98 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 6 May 2019 13:32:44 -0400
+Subject: [PATCH] Fixed ironGolemCancelFallDamage
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityEnderman.java b/src/main/java/net/minecraft/server/EntityEnderman.java
+index e65a9dd92..c111e3238 100644
+--- a/src/main/java/net/minecraft/server/EntityEnderman.java
++++ b/src/main/java/net/minecraft/server/EntityEnderman.java
+@@ -1,16 +1,15 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.base.Predicate;
+ import com.google.common.collect.Sets;
+-import java.util.Collections;
++import org.bukkit.Location;
++import org.bukkit.event.entity.EntityTeleportEvent;
++
+ import java.util.List;
+ import java.util.Random;
+ import java.util.Set;
+ import java.util.UUID;
+ 
+ // CraftBukkit start
+-import org.bukkit.Location;
+-import org.bukkit.event.entity.EntityTeleportEvent;
+ // CraftBukkit end
+ 
+ public class EntityEnderman extends EntityMonster {
+@@ -33,15 +32,7 @@ public class EntityEnderman extends EntityMonster {
+         this.goalSelector.a(11, new EntityEnderman.PathfinderGoalEndermanPickupBlock(this));
+         this.targetSelector.a(1, new PathfinderGoalHurtByTarget(this, false));
+         this.targetSelector.a(2, new EntityEnderman.PathfinderGoalPlayerWhoLookedAtTarget(this));
+-        this.targetSelector.a(3, new PathfinderGoalNearestAttackableTarget(this, EntityEndermite.class, 10, true, false, new Predicate() {
+-            public boolean a(EntityEndermite entityendermite) {
+-                return entityendermite.n();
+-            }
+-
+-            public boolean apply(Object object) {
+-                return this.a((EntityEndermite) object);
+-            }
+-        }));
++        this.targetSelector.a(3, new PathfinderGoalNearestAttackableTarget<>(this, EntityEndermite.class, 10, true, false, entityendermite -> entityendermite.n()));
+     }
+ 
+     protected void initAttributes() {
+@@ -85,16 +76,15 @@ public class EntityEnderman extends EntityMonster {
+ 
+         if (itemstack != null && itemstack.getItem() == Item.getItemOf(Blocks.PUMPKIN)) {
+             return false;
+-        } else {
+-            Vec3D vec3d = entityhuman.d(1.0F).a();
+-            Vec3D vec3d1 = new Vec3D(this.locX - entityhuman.locX, this.getBoundingBox().b + (double) (this.length / 2.0F) - (entityhuman.locY + (double) entityhuman.getHeadHeight()), this.locZ - entityhuman.locZ);
+-            double d0 = vec3d1.b();
++        }
++        Vec3D vec3d = entityhuman.d(1.0F).a();
++        Vec3D vec3d1 = new Vec3D(this.locX - entityhuman.locX, this.getBoundingBox().b + (double) (this.length / 2.0F) - (entityhuman.locY + (double) entityhuman.getHeadHeight()), this.locZ - entityhuman.locZ);
++        double d0 = vec3d1.b();
+ 
+-            vec3d1 = vec3d1.a();
+-            double d1 = vec3d.b(vec3d1);
++        vec3d1 = vec3d1.a();
++        double d1 = vec3d.b(vec3d1);
+ 
+-            return d1 > 1.0D - 0.025D / d0 ? entityhuman.hasLineOfSight(this) : false;
+-        }
++        return d1 > 1.0D - 0.025D / d0 && entityhuman.hasLineOfSight(this);
+     }
+ 
+     public float getHeadHeight() {
+@@ -202,25 +192,24 @@ public class EntityEnderman extends EntityMonster {
+         if (!flag) {
+             this.setPosition(d3, d4, d5);
+             return false;
+-        } else {
+-            short short0 = 128;
+-
+-            for (int i = 0; i < short0; ++i) {
+-                double d6 = (double) i / ((double) short0 - 1.0D);
+-                float f = (this.getRandom().nextFloat() - 0.5F) * 0.2F;
+-                float f1 = (this.getRandom().nextFloat() - 0.5F) * 0.2F;
+-                float f2 = (this.getRandom().nextFloat() - 0.5F) * 0.2F;
+-                double d7 = d3 + (this.locX - d3) * d6 + (this.getRandom().nextDouble() - 0.5D) * (double) this.width * 2.0D;
+-                double d8 = d4 + (this.locY - d4) * d6 + this.getRandom().nextDouble() * (double) this.length;
+-                double d9 = d5 + (this.locZ - d5) * d6 + (this.getRandom().nextDouble() - 0.5D) * (double) this.width * 2.0D;
+-
+-                this.world.addParticle(EnumParticle.PORTAL, d7, d8, d9, (double) f, (double) f1, (double) f2);
+-            }
+-
+-            this.world.makeSound(d3, d4, d5, "mob.endermen.portal", 1.0F, 1.0F);
+-            this.makeSound("mob.endermen.portal", 1.0F, 1.0F);
+-            return true;
+         }
++        short short0 = 128;
++
++        for (int i = 0; i < short0; ++i) {
++            double d6 = (double) i / ((double) short0 - 1.0D);
++            float f = (this.getRandom().nextFloat() - 0.5F) * 0.2F;
++            float f1 = (this.getRandom().nextFloat() - 0.5F) * 0.2F;
++            float f2 = (this.getRandom().nextFloat() - 0.5F) * 0.2F;
++            double d7 = d3 + (this.locX - d3) * d6 + (this.getRandom().nextDouble() - 0.5D) * (double) this.width * 2.0D;
++            double d8 = d4 + (this.locY - d4) * d6 + this.getRandom().nextDouble() * (double) this.length;
++            double d9 = d5 + (this.locZ - d5) * d6 + (this.getRandom().nextDouble() - 0.5D) * (double) this.width * 2.0D;
++
++            this.world.addParticle(EnumParticle.PORTAL, d7, d8, d9, (double) f, (double) f1, (double) f2);
++        }
++
++        this.world.makeSound(d3, d4, d5, "mob.endermen.portal", 1.0F, 1.0F);
++        this.makeSound("mob.endermen.portal", 1.0F, 1.0F);
++        return true;
+     }
+ 
+     protected String z() {
+@@ -270,41 +259,40 @@ public class EntityEnderman extends EntityMonster {
+     public boolean damageEntity(DamageSource damagesource, float f) {
+         if (this.isInvulnerable(damagesource)) {
+             return false;
+-        } else {
+-            if (damagesource.getEntity() == null || !(damagesource.getEntity() instanceof EntityEndermite)) {
+-                if (!this.world.isClientSide) {
+-                    this.a(true);
+-                }
++        }
++        if (damagesource.getEntity() == null || !(damagesource.getEntity() instanceof EntityEndermite)) {
++            if (!this.world.isClientSide) {
++                this.a(true);
++            }
+ 
+-                if (damagesource instanceof EntityDamageSource && damagesource.getEntity() instanceof EntityHuman) {
+-                    if (damagesource.getEntity() instanceof EntityPlayer && ((EntityPlayer) damagesource.getEntity()).playerInteractManager.isCreative()) {
+-                        this.a(false);
+-                    } else {
+-                        this.bm = true;
+-                    }
++            if (damagesource instanceof EntityDamageSource && damagesource.getEntity() instanceof EntityHuman) {
++                if (damagesource.getEntity() instanceof EntityPlayer && ((EntityPlayer) damagesource.getEntity()).playerInteractManager.isCreative()) {
++                    this.a(false);
++                } else {
++                    this.bm = true;
+                 }
++            }
+ 
+-                if (damagesource instanceof EntityDamageSourceIndirect) {
+-                    this.bm = false;
++            if (damagesource instanceof EntityDamageSourceIndirect) {
++                this.bm = false;
+ 
+-                    for (int i = 0; i < 64; ++i) {
+-                        if (this.n()) {
+-                            return true;
+-                        }
++                for (int i = 0; i < 64; ++i) {
++                    if (this.n()) {
++                        return true;
+                     }
+-
+-                    return false;
+                 }
+-            }
+ 
+-            boolean flag = super.damageEntity(damagesource, f);
+-
+-            if (damagesource.ignoresArmor() && this.getRandom().nextInt(10) != 0) {
+-                this.n();
++                return false;
+             }
++        }
++
++        boolean flag = super.damageEntity(damagesource, f);
+ 
+-            return flag;
++        if (damagesource.ignoresArmor() && this.getRandom().nextInt(10) != 0) {
++            this.n();
+         }
++
++        return flag;
+     }
+ 
+     public boolean co() {
+@@ -341,7 +329,7 @@ public class EntityEnderman extends EntityMonster {
+         }
+ 
+         public boolean a() {
+-            return !this.enderman.world.getGameRules().getBoolean("mobGriefing") ? false : (this.enderman.getCarried().getBlock().getMaterial() != Material.AIR ? false : this.enderman.bc().nextInt(20) == 0);
++            return this.enderman.world.getGameRules().getBoolean("mobGriefing") && (this.enderman.getCarried().getBlock().getMaterial() == Material.AIR && this.enderman.bc().nextInt(20) == 0);
+         }
+ 
+         public void e() {
+@@ -375,7 +363,7 @@ public class EntityEnderman extends EntityMonster {
+         }
+ 
+         public boolean a() {
+-            return !this.a.world.getGameRules().getBoolean("mobGriefing") ? false : (this.a.getCarried().getBlock().getMaterial() == Material.AIR ? false : this.a.bc().nextInt(2000) == 0);
++            return this.a.world.getGameRules().getBoolean("mobGriefing") && (this.a.getCarried().getBlock().getMaterial() != Material.AIR && this.a.bc().nextInt(2000) == 0);
+         }
+ 
+         public void e() {
+@@ -391,8 +379,8 @@ public class EntityEnderman extends EntityMonster {
+             if (this.a(world, blockposition, this.a.getCarried().getBlock(), block, block1)) {
+                 // CraftBukkit start - Place event
+                 if (!org.bukkit.craftbukkit.event.CraftEventFactory.callEntityChangeBlockEvent(this.a, blockposition.getX(), blockposition.getY(), blockposition.getZ(), this.a.getCarried().getBlock(), this.a.getCarried().getBlock().toLegacyData(this.a.getCarried())).isCancelled()) {
+-                world.setTypeAndData(blockposition, this.a.getCarried(), 3);
+-                this.a.setCarried(Blocks.AIR.getBlockData());
++                    world.setTypeAndData(blockposition, this.a.getCarried(), 3);
++                    this.a.setCarried(Blocks.AIR.getBlockData());
+                 }
+                 // CraftBukkit end
+             }
+@@ -400,7 +388,7 @@ public class EntityEnderman extends EntityMonster {
+         }
+ 
+         private boolean a(World world, BlockPosition blockposition, Block block, Block block1, Block block2) {
+-            return !block.canPlace(world, blockposition) ? false : (block1.getMaterial() != Material.AIR ? false : (block2.getMaterial() == Material.AIR ? false : block2.d()));
++            return block.canPlace(world, blockposition) && (block1.getMaterial() == Material.AIR && (block2.getMaterial() != Material.AIR && block2.d()));
+         }
+     }
+ 
+@@ -418,15 +406,14 @@ public class EntityEnderman extends EntityMonster {
+ 
+         public boolean a() {
+             double d0 = this.f();
+-            List list = this.e.world.a(EntityHuman.class, this.e.getBoundingBox().grow(d0, 4.0D, d0), this.c);
++            List<EntityHuman> list = this.e.world.a(EntityHuman.class, this.e.getBoundingBox().grow(d0, 4.0D, d0), this.c);
+ 
+             list.sort(this.b);
+             if (list.isEmpty()) {
+                 return false;
+-            } else {
+-                this.g = (EntityHuman) list.get(0);
+-                return true;
+             }
++            this.g = list.get(0);
++            return true;
+         }
+ 
+         public void c() {
+@@ -447,14 +434,12 @@ public class EntityEnderman extends EntityMonster {
+             if (this.g != null) {
+                 if (!this.j.c(this.g)) {
+                     return false;
+-                } else {
+-                    this.j.bm = true;
+-                    this.j.a(this.g, 10.0F, 10.0F);
+-                    return true;
+                 }
+-            } else {
+-                return super.b();
++                this.j.bm = true;
++                this.j.a(this.g, 10.0F, 10.0F);
++                return true;
+             }
++            return super.b();
+         }
+ 
+         public void e() {
+diff --git a/src/main/java/net/minecraft/server/EntityIronGolem.java b/src/main/java/net/minecraft/server/EntityIronGolem.java
+index a247f23fd..6b6d8e7c2 100644
+--- a/src/main/java/net/minecraft/server/EntityIronGolem.java
++++ b/src/main/java/net/minecraft/server/EntityIronGolem.java
+@@ -180,9 +180,6 @@ public class EntityIronGolem extends EntityGolem {
+     }
+ 
+     public void die(DamageSource damagesource) {
+-        if (damagesource == DamageSource.FALL && LockedSpigotConfig.isIronGolemCancelFallDamage()) {
+-            return;
+-        }
+         if (!this.isPlayerCreated() && this.killer != null && this.a != null) {
+             this.a.a(this.killer.getName(), -5);
+         }
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index 87a94591c..2403ff2e3 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -5,6 +5,7 @@ import com.google.common.base.Predicate;
+ import com.google.common.base.Predicates;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
++import dev.lockedthread.LockedSpigotConfig;
+ import org.bukkit.Bukkit;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.entity.LivingEntity;
+@@ -700,15 +701,14 @@ public abstract class EntityLiving extends Entity {
+     }
+ 
+     public boolean damageEntity(DamageSource damagesource, float f) {
+-        if (this.isInvulnerable(damagesource)) {
+-            return false;
+-        } else if (this.world.isClientSide) {
++        if (this instanceof EntityIronGolem && !LockedSpigotConfig.isIronGolemCancelFallDamage()) {
++            this.die(damagesource);
++            return true;
++        } else if (this.isInvulnerable(damagesource) || this.world.isClientSide) {
+             return false;
+         } else {
+             this.ticksFarFromPlayer = 0;
+-            if (this.getHealth() <= 0.0F) {
+-                return false;
+-            } else if (damagesource.o() && this.hasEffect(MobEffectList.FIRE_RESISTANCE)) {
++            if (this.getHealth() <= 0.0F || damagesource.o() && this.hasEffect(MobEffectList.FIRE_RESISTANCE)) {
+                 return false;
+             } else {
+                 // CraftBukkit - Moved into d(DamageSource, float)
+@@ -1035,12 +1035,7 @@ public abstract class EntityLiving extends Entity {
+         if (!this.isInvulnerable(damagesource)) {
+             final boolean human = this instanceof EntityHuman;
+             float originalDamage = f;
+-            Function<Double, Double> hardHat = f17 -> {
+-                if ((damagesource == DamageSource.ANVIL || damagesource == DamageSource.FALLING_BLOCK) && EntityLiving.this.getEquipment(4) != null) {
+-                    return -(f17 - (f17 * 0.75F));
+-                }
+-                return -0.0;
+-            };
++            Function<Double, Double> hardHat = f17 -> (damagesource == DamageSource.ANVIL || damagesource == DamageSource.FALLING_BLOCK) && EntityLiving.this.getEquipment(4) != null ? -(f17 - (f17 * 0.75F)) : -0.0;
+             float hardHatModifier = hardHat.apply((double) f).floatValue();
+             f += hardHatModifier;
+ 
+-- 
+2.21.0.windows.1
+

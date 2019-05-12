@@ -1,0 +1,63 @@
+From 73a08760ba4031f4150bdcb19a23faec9eba47a6 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 05:30:56 -0400
+Subject: [PATCH] Code cleanup and direct packet manipulation for tnt and sand
+ toggling
+
+
+diff --git a/src/main/java/net/minecraft/server/EntityPlayer.java b/src/main/java/net/minecraft/server/EntityPlayer.java
+index e0eaacd4b..010f5a559 100644
+--- a/src/main/java/net/minecraft/server/EntityPlayer.java
++++ b/src/main/java/net/minecraft/server/EntityPlayer.java
+@@ -230,14 +230,14 @@ public class EntityPlayer extends EntityHuman implements ICrafting {
+         }
+ 
+         if (!this.chunkCoordIntPairQueue.isEmpty()) {
+-            ArrayList arraylist = Lists.newArrayList();
+-            Iterator iterator1 = this.chunkCoordIntPairQueue.iterator();
+-            ArrayList arraylist1 = Lists.newArrayList();
++            ArrayList<Chunk> arraylist = Lists.newArrayList();
++            Iterator<ChunkCoordIntPair> iterator1 = this.chunkCoordIntPairQueue.iterator();
++            ArrayList<TileEntity> arraylist1 = Lists.newArrayList();
+ 
+             Chunk chunk;
+ 
+             while (iterator1.hasNext() && arraylist.size() < this.world.spigotConfig.maxBulkChunk) { // Spigot
+-                ChunkCoordIntPair chunkcoordintpair = (ChunkCoordIntPair) iterator1.next();
++                ChunkCoordIntPair chunkcoordintpair = iterator1.next();
+ 
+                 if (chunkcoordintpair != null) {
+                     if (this.world.isLoaded(new BlockPosition(chunkcoordintpair.x << 4, 0, chunkcoordintpair.z << 4))) {
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index 32d5302ae..10f07d1c8 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -19,6 +19,7 @@ import org.bukkit.craftbukkit.inventory.CraftItemStack;
+ import org.bukkit.craftbukkit.util.CraftChatMessage;
+ import org.bukkit.craftbukkit.util.LazyPlayerSet;
+ import org.bukkit.craftbukkit.util.Waitable;
++import org.bukkit.entity.EntityType;
+ import org.bukkit.entity.Player;
+ import org.bukkit.event.Event;
+ import org.bukkit.event.block.Action;
+@@ -867,6 +868,17 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
+     }
+ 
+     public void sendPacket(final Packet packet) {
++        if (packet instanceof PacketPlayOutEntity) {
++            if (player.isTntToggle()) {
++                if (EntityType.fromId(((PacketPlayOutEntity) packet).a) == EntityType.PRIMED_TNT) {
++                    return;
++                }
++            } else if (player.isSandToggle()) {
++                if (EntityType.fromId(((PacketPlayOutEntity) packet).a) == EntityType.FALLING_BLOCK) {
++                    return;
++                }
++            }
++        }
+         if (packet instanceof PacketPlayOutChat) {
+             PacketPlayOutChat packetplayoutchat = (PacketPlayOutChat) packet;
+             EntityHuman.EnumChatVisibility entityhuman_enumchatvisibility = this.player.getChatFlags();
+-- 
+2.21.0.windows.1
+

@@ -1,0 +1,65 @@
+From 97f3b8cba6388f2a709787e0d4da9270e046478f Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 02:57:42 -0400
+Subject: [PATCH] Removed configurability for disabling explosion damage, will
+ rewrite
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 56c1eaf07..25b7434f0 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -90,7 +90,6 @@ public class LockedSpigotConfig {
+ 
+     private static boolean explosionSounds;
+     private static boolean explosionParticles;
+-    private static boolean explosionDamageEntities;
+     private static boolean explosionCreatesFire;
+     private static boolean explosionDropsBlocks;
+     private static int explosionRegionRadius;
+@@ -160,7 +159,6 @@ public class LockedSpigotConfig {
+ 
+         explosionSounds = getBoolean("explosions.sound", false);
+         explosionParticles = getBoolean("explosions.particles", false);
+-        explosionDamageEntities = getBoolean("explosions.damage-entities", false);
+         explosionDropsBlocks = getBoolean("explosions.drops-blocks", false);
+         explosionCreatesFire = getBoolean("explosions.creates-fire", false);
+         explosionRegionRadius = getInt("explosions.region-radius", 3);
+@@ -395,10 +393,6 @@ public class LockedSpigotConfig {
+         return explosionSounds;
+     }
+ 
+-    public static boolean isExplosionDamageEntities() {
+-        return explosionDamageEntities;
+-    }
+-
+     public static int getExplosionRegionRadius() {
+         return explosionRegionRadius;
+     }
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index 9f9d4daaf..270ec703c 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -31,9 +31,7 @@ public class Explosion {
+ 
+     public Explosion(Entity entity, double d0, double d1, double d2, float f, boolean flag, boolean flag1) {
+         this.blocks = new HashSet<>();
+-        if (LockedSpigotConfig.isExplosionDamageEntities()) {
+-            this.k = new HashMap<>();
+-        }
++        this.k = new HashMap<>();
+         this.wasCanceled = false;
+         this.source = entity;
+         this.size = (float) Math.max(f, 0.0);
+@@ -123,7 +121,7 @@ public class Explosion {
+                         double d13 = (1.0 - d7) * blockDensity;
+                         CraftEventFactory.entityDamage = this.source;
+                         entity.forceExplosionKnockback = false;
+-                        boolean wasDamaged = LockedSpigotConfig.isExplosionDamageEntities() && entity.damageEntity(DamageSource.explosion(this), (float) (int) ((d13 * d13 + d13) / 2.0 * 8.0 * f3 + 1.0));
++                        boolean wasDamaged = entity.damageEntity(DamageSource.explosion(this), (float) (int) ((d13 * d13 + d13) / 2.0 * 8.0 * f3 + 1.0));
+                         CraftEventFactory.entityDamage = null;
+                         if (wasDamaged || entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock || entity.forceExplosionKnockback) {
+                             double multiplier = (entity instanceof EntityHuman && this.source.world.paperSpigotConfig.disableExplosionKnockback) ? 0.0 : EnchantmentProtection.a(entity, d13);
+-- 
+2.21.0.windows.1
+

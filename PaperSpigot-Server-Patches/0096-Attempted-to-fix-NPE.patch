@@ -1,0 +1,49 @@
+From 0591638c2caea25dca1c6df9ab31c2f9cb161057 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 02:19:30 -0400
+Subject: [PATCH] Attempted to fix NPE
+
+
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index 40e2a6722..fe72c661d 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -86,14 +86,10 @@ public class Explosion {
+         this.blocks.addAll(hashset);
+         float f3 = this.size * 2.0f;
+         double maximumDistance = this.size * 2.0;
+-        Map<Entity, Float> entityPositionMap = EXPLOSION_ENTITY_CACHE.get(smallRegion.getCenterBlockPosition());
+-        Collection<Entity> entities;
+-        if (entityPositionMap != null) {
+-            entities = entityPositionMap.keySet();
+-        } else {
+-            entities = this.source.world.a(this.source, new AxisAlignedBB(MathHelper.floor(this.posX - maximumDistance), MathHelper.floor(this.posY - maximumDistance), MathHelper.floor(this.posZ - maximumDistance), MathHelper.floor(this.posX + maximumDistance + 1.0), MathHelper.floor(this.posY + maximumDistance + 1.0), MathHelper.floor(this.posZ + maximumDistance + 1.0)), entity -> IEntitySelector.d.apply(entity) && !entity.dead);
+-            entityPositionMap = new HashMap<>();
+-        }
++        Map<Entity, Float> entityPositionMap = EXPLOSION_ENTITY_CACHE.getOrDefault(smallRegion.getCenterBlockPosition(), new HashMap<>());
++        Collection<Entity> entities = entityPositionMap.isEmpty()
++                ? this.source.world.a(this.source, new AxisAlignedBB(MathHelper.floor(this.posX - maximumDistance), MathHelper.floor(this.posY - maximumDistance), MathHelper.floor(this.posZ - maximumDistance), MathHelper.floor(this.posX + maximumDistance + 1.0), MathHelper.floor(this.posY + maximumDistance + 1.0), MathHelper.floor(this.posZ + maximumDistance + 1.0)), entity -> IEntitySelector.d.apply(entity) && !entity.dead)
++                : entityPositionMap.keySet();
+         Vec3D vec3d = new Vec3D(this.posX, this.posY, this.posZ);
+         for (Entity entity : entities) {
+             if (!entity.aW()) {
+@@ -107,13 +103,9 @@ public class Explosion {
+                         x /= d11;
+                         y /= d11;
+                         z /= d11;
+-                        float positionData = entityPositionMap.get(entity);
+-                        float blockDensity;
+-                        if (positionData != 0) {
+-                            blockDensity = positionData;
+-                        } else {
+-                            blockDensity = this.getBlockDensity(entity, vec3d);
+-                            entityPositionMap.put(entity, blockDensity);
++                        Float blockDensity = entityPositionMap.get(entity);
++                        if (blockDensity == null) {
++                            entityPositionMap.put(entity, blockDensity = this.getBlockDensity(entity, vec3d));
+                         }
+                         double d13 = (1.0 - d7) * blockDensity;
+                         CraftEventFactory.entityDamage = this.source;
+-- 
+2.21.0.windows.1
+

@@ -1,0 +1,214 @@
+From 1d29a811e67b911f2bc3d13a8ac6de8c15febfdb Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 05:54:21 -0400
+Subject: [PATCH] Implemented more configurable explosion options
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 6cf6946f6..0458ef2a3 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -92,6 +92,9 @@ public class LockedSpigotConfig {
+     private static boolean explosionParticles;
+     private static boolean explosionCreatesFire;
+     private static boolean explosionDropsBlocks;
++    private static boolean explosionDamagesPlayers;
++    private static boolean explosionDestroyItems;
++    private static boolean explosionBlockUpdates;
+     private static int explosionRegionRadius;
+ 
+     private static void load() {
+@@ -162,7 +165,9 @@ public class LockedSpigotConfig {
+         explosionDropsBlocks = getBoolean("explosions.drops-blocks", false);
+         explosionCreatesFire = getBoolean("explosions.creates-fire", false);
+         explosionRegionRadius = getInt("explosions.region-radius", 4);
+-
++        explosionDamagesPlayers = getBoolean("explosions.damage-players", false);
++        explosionDestroyItems = getBoolean("explosions.destroy-items", false);
++        explosionBlockUpdates = getBoolean("explosions.block-updates", true);
+         int count = 0;
+ 
+         for (int k = 0; k < 16; ++k) {
+@@ -413,6 +418,18 @@ public class LockedSpigotConfig {
+         return serverPreventBreakingBlocksInUnloadedChunks;
+     }
+ 
++    public static boolean isExplosionDamagesPlayers() {
++        return explosionDamagesPlayers;
++    }
++
++    public static boolean isExplosionDestroyItems() {
++        return explosionDestroyItems;
++    }
++
++    public static boolean isExplosionBlockUpdates() {
++        return explosionBlockUpdates;
++    }
++
+     public static void init(File configFile) {
+         System.out.println("Initializing static fields for LockedSpigot");
+         CONFIG_FILE = configFile;
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index 270ec703c..3aec8ec05 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -6,15 +6,18 @@ import dev.lockedthread.regions.Region;
+ import dev.lockedthread.regions.SmallRegion;
+ import org.bukkit.Location;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
++import org.bukkit.entity.Player;
+ import org.bukkit.event.block.BlockExplodeEvent;
+ import org.bukkit.event.entity.EntityExplodeEvent;
+ 
+ import java.util.*;
++import java.util.function.Predicate;
+ 
+ public class Explosion {
+ 
+     public static final Map<BlockPosition, Map<Entity, Float>> EXPLOSION_ENTITY_CACHE = new HashMap<>();
+     public static final Map<BlockPosition, Region> REGION_CACHE = new HashMap<>();
++    private static final Predicate<Entity> ENTITY_SEARCH_PREDICATE = entity -> (!(entity instanceof EntityItem) || LockedSpigotConfig.isExplosionDestroyItems()) && (!(entity instanceof EntityHuman) || !entity.world.paperSpigotConfig.disableExplosionKnockback) && !entity.dead && IEntitySelector.d.apply(entity);
+     private final boolean a;
+     private final boolean b;
+     private final double posX;
+@@ -27,14 +30,12 @@ public class Explosion {
+     public boolean inWater;
+     private final Set<BlockPosition> blocks;
+     public boolean wasCanceled;
+-    private Map<EntityHuman, Vec3D> k;
+ 
+     public Explosion(Entity entity, double d0, double d1, double d2, float f, boolean flag, boolean flag1) {
+         this.blocks = new HashSet<>();
+-        this.k = new HashMap<>();
+         this.wasCanceled = false;
+         this.source = entity;
+-        this.size = (float) Math.max(f, 0.0);
++        this.size = Math.max(f, 0.0f);
+         this.posX = d0;
+         this.posY = d1;
+         this.posZ = d2;
+@@ -99,7 +100,7 @@ public class Explosion {
+         double maximumDistance = this.size * 2.0;
+         Map<Entity, Float> entityPositionMap = EXPLOSION_ENTITY_CACHE.getOrDefault(origin, new HashMap<>());
+         Collection<Entity> entities = entityPositionMap.isEmpty()
+-                ? this.source.world.a(this.source, new AxisAlignedBB(MathHelper.floor(this.posX - maximumDistance), MathHelper.floor(this.posY - maximumDistance), MathHelper.floor(this.posZ - maximumDistance), MathHelper.floor(this.posX + maximumDistance + 1.0), MathHelper.floor(this.posY + maximumDistance + 1.0), MathHelper.floor(this.posZ + maximumDistance + 1.0)), entity -> IEntitySelector.d.apply(entity) && !entity.dead)
++                ? this.source.world.a(this.source, new AxisAlignedBB(MathHelper.floor(this.posX - maximumDistance), MathHelper.floor(this.posY - maximumDistance), MathHelper.floor(this.posZ - maximumDistance), MathHelper.floor(this.posX + maximumDistance + 1.0), MathHelper.floor(this.posY + maximumDistance + 1.0), MathHelper.floor(this.posZ + maximumDistance + 1.0)), ENTITY_SEARCH_PREDICATE::test)
+                 : entityPositionMap.keySet();
+         Vec3D vec3d = new Vec3D(this.posX, this.posY, this.posZ);
+         for (Entity entity : entities) {
+@@ -121,15 +122,12 @@ public class Explosion {
+                         double d13 = (1.0 - d7) * blockDensity;
+                         CraftEventFactory.entityDamage = this.source;
+                         entity.forceExplosionKnockback = false;
+-                        boolean wasDamaged = entity.damageEntity(DamageSource.explosion(this), (float) (int) ((d13 * d13 + d13) / 2.0 * 8.0 * f3 + 1.0));
++                        boolean wasDamaged = (!LockedSpigotConfig.isExplosionDamagesPlayers() || !(entity instanceof Player)) && entity.damageEntity(DamageSource.explosion(this), (float) (int) ((d13 * d13 + d13) / 2.0 * 8.0 * f3 + 1.0));
+                         CraftEventFactory.entityDamage = null;
+                         if (wasDamaged || entity instanceof EntityTNTPrimed || entity instanceof EntityFallingBlock || entity.forceExplosionKnockback) {
+                             double multiplier = (entity instanceof EntityHuman && this.source.world.paperSpigotConfig.disableExplosionKnockback) ? 0.0 : EnchantmentProtection.a(entity, d13);
+ 
+                             entity.g(x * multiplier, y * multiplier, z * multiplier);
+-                            if (entity instanceof EntityHuman && !((EntityHuman) entity).abilities.isInvulnerable && !this.source.world.paperSpigotConfig.disableExplosionKnockback) {
+-                                this.k.put((EntityHuman) entity, new Vec3D(x * d13, y * d13, z * d13));
+-                            }
+                         }
+                     }
+                 }
+@@ -154,7 +152,7 @@ public class Explosion {
+             org.bukkit.World bukkitWorld = this.source.world.getWorld();
+             List<org.bukkit.block.Block> blockList = new ArrayList<>();
+             for (BlockPosition blockPosition : blocks) {
+-                org.bukkit.block.Block bblock = bukkitWorld.getBlockAt(blockPosition.getX(), blockPosition.getY(), blockPosition.getZ());
++                org.bukkit.block.Block bblock = smallRegion.getBukkitBlock(blockPosition);
+                 if (bblock.getType() != org.bukkit.Material.AIR) {
+                     blockList.add(bblock);
+                 }
+@@ -223,7 +221,7 @@ public class Explosion {
+                             block.dropNaturally(this.source.world, blockPosition, this.source.world.getType(blockPosition), yield, 0);
+                         }
+                     }
+-                    this.smallRegion.setTypeAndData(blockPosition, Blocks.AIR.getBlockData());
++                    this.smallRegion.setType(blockPosition, Blocks.AIR.getBlockData(), LockedSpigotConfig.isExplosionBlockUpdates() ? 3 : 0);
+                     //this.source.world.setTypeAndData(blockPosition, Blocks.AIR.getBlockData(), 3);
+                     block.wasExploded(this.source.world, blockPosition, this);
+                 }
+@@ -240,10 +238,6 @@ public class Explosion {
+         }
+     }
+ 
+-    public Map<EntityHuman, Vec3D> b() {
+-        return this.k;
+-    }
+-
+     public EntityLiving getSource() {
+         if (this.source == null) {
+             return null;
+@@ -289,66 +283,4 @@ public class Explosion {
+         }
+         return blockDensity;*/
+     }
+-
+-    static class CacheKey {
+-        private final World world;
+-        private final double posX;
+-        private final double posY;
+-        private final double posZ;
+-        private final double minX;
+-        private final double minY;
+-        private final double minZ;
+-        private final double maxX;
+-        private final double maxY;
+-        private final double maxZ;
+-
+-        public CacheKey(Explosion explosion, AxisAlignedBB axisAlignedBB) {
+-            this.world = explosion.source.world;
+-            this.posX = explosion.posX;
+-            this.posY = explosion.posY;
+-            this.posZ = explosion.posZ;
+-            this.minX = axisAlignedBB.a;
+-            this.minY = axisAlignedBB.b;
+-            this.minZ = axisAlignedBB.c;
+-            this.maxX = axisAlignedBB.d;
+-            this.maxY = axisAlignedBB.e;
+-            this.maxZ = axisAlignedBB.f;
+-        }
+-
+-        @Override
+-        public boolean equals(final Object o) {
+-            if (this == o) {
+-                return true;
+-            }
+-            if (o == null || this.getClass() != o.getClass()) {
+-                return false;
+-            }
+-            final CacheKey cacheKey = (CacheKey) o;
+-            return Double.compare(cacheKey.posX, this.posX) == 0 && Double.compare(cacheKey.posY, this.posY) == 0 && Double.compare(cacheKey.posZ, this.posZ) == 0 && Double.compare(cacheKey.minX, this.minX) == 0 && Double.compare(cacheKey.minY, this.minY) == 0 && Double.compare(cacheKey.minZ, this.minZ) == 0 && Double.compare(cacheKey.maxX, this.maxX) == 0 && Double.compare(cacheKey.maxY, this.maxY) == 0 && Double.compare(cacheKey.maxZ, this.maxZ) == 0 && this.world.worldData.getName().equals(cacheKey.world.worldData.getName());
+-        }
+-
+-        @Override
+-        public int hashCode() {
+-            int result = this.world.hashCode();
+-            long temp = Double.doubleToLongBits(this.posX);
+-            result = 31 * result + (int) (temp ^ temp >>> 32);
+-            temp = Double.doubleToLongBits(this.posY);
+-            result = 31 * result + (int) (temp ^ temp >>> 32);
+-            temp = Double.doubleToLongBits(this.posZ);
+-            result = 31 * result + (int) (temp ^ temp >>> 32);
+-            temp = Double.doubleToLongBits(this.minX);
+-            result = 31 * result + (int) (temp ^ temp >>> 32);
+-            temp = Double.doubleToLongBits(this.minY);
+-            result = 31 * result + (int) (temp ^ temp >>> 32);
+-            temp = Double.doubleToLongBits(this.minZ);
+-            result = 31 * result + (int) (temp ^ temp >>> 32);
+-            temp = Double.doubleToLongBits(this.maxX);
+-            result = 31 * result + (int) (temp ^ temp >>> 32);
+-            temp = Double.doubleToLongBits(this.maxY);
+-            result = 31 * result + (int) (temp ^ temp >>> 32);
+-            temp = Double.doubleToLongBits(this.maxZ);
+-            result = 31 * result + (int) (temp ^ temp >>> 32);
+-            return result;
+-        }
+-    }
+ }
+-- 
+2.21.0.windows.1
+
