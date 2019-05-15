@@ -1,0 +1,22 @@
+From 3e500397c82a7e4d026d29fe247091bc8e7e2f82 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 13 May 2019 20:40:49 -0400
+Subject: [PATCH] Fixed ExplosionLocation initialization
+
+
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index 365126c5b..b2fde6d9f 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -51,7 +51,7 @@ public class Explosion {
+         if (explosionInfo != null) {
+             this.explosionInfo = explosionInfo;
+         } else {
+-            EXPLOSION_INFO_MAP.put(explosionLocation, new ExplosionInfo(origin, new LargeRegion(entity.world, origin.getX(), origin.getZ(), LockedSpigotConfig.getExplosionRegionRadius()), null));
++            EXPLOSION_INFO_MAP.put(explosionLocation, this.explosionInfo = new ExplosionInfo(origin, new LargeRegion(entity.world, origin.getX(), origin.getZ(), LockedSpigotConfig.getExplosionRegionRadius()), null));
+             explosionLocation.init();
+         }
+     }
+-- 
+2.21.0.windows.1
+

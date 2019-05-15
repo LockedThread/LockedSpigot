@@ -1,0 +1,311 @@
+From 654d05231712f2c54987b1c24ab9fd58603818a7 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Tue, 14 May 2019 21:01:07 -0400
+Subject: [PATCH] Switched to java predicates
+
+
+diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
+index 77329ed29..5a1a93d59 100644
+--- a/src/main/java/net/minecraft/server/Chunk.java
++++ b/src/main/java/net/minecraft/server/Chunk.java
+@@ -1,6 +1,5 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.base.Predicate;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Queues;
+@@ -18,6 +17,7 @@ import java.util.*;
+ import java.util.concurrent.Callable;
+ import java.util.concurrent.ConcurrentLinkedQueue;
+ import java.util.concurrent.atomic.AtomicInteger;
++import java.util.function.Predicate;
+ 
+ public class Chunk {
+ 
+@@ -1005,7 +1005,7 @@ public class Chunk {
+                 continue; // PaperSpigot - Don't check a chunk if it doesn't have the type we are looking for
+ 
+             for (Entity entity : this.entitySlices[k]) {
+-                if (oclass.isInstance(entity) && entity.getBoundingBox().b(axisalignedbb) && (predicate == null || predicate.apply((T) entity))) { // CraftBukkit - fix decompile error // Spigot
++                if (oclass.isInstance(entity) && entity.getBoundingBox().b(axisalignedbb) && (predicate == null || predicate.test((T) entity))) { // CraftBukkit - fix decompile error // Spigot
+                     list.add((T) entity); // Fix decompile error
+                 }
+             }
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index 168a1290e..74ee8a9ef 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -1,7 +1,6 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.base.Function;
+-import com.google.common.base.Predicates;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import dev.lockedthread.LockedSpigotConfig;
+@@ -1646,7 +1645,7 @@ public abstract class EntityLiving extends Entity {
+     }
+ 
+     protected void bL() {
+-        List list = this.world.a(this, this.getBoundingBox().grow(0.20000000298023224, 0.0, 0.20000000298023224), Predicates.and(IEntitySelector.d, Entity::ae));
++        List list = this.world.a(this, this.getBoundingBox().grow(0.20000000298023224, 0.0, 0.20000000298023224), IEntitySelector.d.and(Entity::ae));
+         if (this.ad() && !list.isEmpty()) { // Spigot: Add this.ad() condition
+             numCollisions -= world.spigotConfig.maxCollisionsPerEntity; // Spigot
+             for (Object o : list) {
+diff --git a/src/main/java/net/minecraft/server/IEntitySelector.java b/src/main/java/net/minecraft/server/IEntitySelector.java
+new file mode 100644
+index 000000000..4753918c9
+--- /dev/null
++++ b/src/main/java/net/minecraft/server/IEntitySelector.java
+@@ -0,0 +1,33 @@
++//
++// Source code recreated from a .class file by IntelliJ IDEA
++// (powered by Fernflower decompiler)
++//
++
++package net.minecraft.server;
++
++
++import java.util.function.Predicate;
++
++public final class IEntitySelector {
++    public static final Predicate<Entity> a = Entity::isAlive;
++    public static final Predicate<Entity> b = entity -> entity.isAlive() && entity.passenger == null && entity.vehicle == null;
++    public static final Predicate<Entity> c = entity -> entity instanceof IInventory && entity.isAlive();
++    public static final Predicate<Entity> d = entity -> !(entity instanceof EntityHuman) || !((EntityHuman) entity).isSpectator();
++
++    public static class EntitySelectorEquipable implements Predicate<Entity> {
++        private final ItemStack a;
++
++        public EntitySelectorEquipable(ItemStack var1) {
++            this.a = var1;
++        }
++
++        @Override
++        public boolean test(Entity entity) {
++            if (!entity.isAlive() || !(entity instanceof EntityLiving)) {
++                return false;
++            }
++            EntityLiving var2 = (EntityLiving) entity;
++            return var2.getEquipment(EntityInsentient.c(this.a)) == null && (var2 instanceof EntityInsentient ? ((EntityInsentient) var2).bY() : var2 instanceof EntityArmorStand || var2 instanceof EntityHuman);
++        }
++    }
++}
+diff --git a/src/main/java/net/minecraft/server/TileEntityHopper.java b/src/main/java/net/minecraft/server/TileEntityHopper.java
+index 4eb935fb0..6c1b8eed0 100644
+--- a/src/main/java/net/minecraft/server/TileEntityHopper.java
++++ b/src/main/java/net/minecraft/server/TileEntityHopper.java
+@@ -48,7 +48,8 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+     }
+     // CraftBukkit end
+ 
+-    public TileEntityHopper() {}
++    public TileEntityHopper() {
++    }
+ 
+     public void a(NBTTagCompound nbttagcompound) {
+         super.a(nbttagcompound);
+@@ -166,9 +167,39 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+         return this.world.getTileEntity(this.position) == this && entityhuman.e((double) this.position.getX() + 0.5D, (double) this.position.getY() + 0.5D, (double) this.position.getZ() + 0.5D) <= 64.0D;
+     }
+ 
+-    public void startOpen(EntityHuman entityhuman) {}
++    public static IInventory b(World world, double d0, double d1, double d2) {
++        Object object = null;
++        int i = MathHelper.floor(d0);
++        int j = MathHelper.floor(d1);
++        int k = MathHelper.floor(d2);
++        BlockPosition blockposition = new BlockPosition(i, j, k);
++        if (!world.isLoaded(blockposition)) return null; // Spigot
++        Block block = world.getType(blockposition).getBlock();
++
++        if (block.isTileEntity()) {
++            TileEntity tileentity = world.getTileEntity(blockposition);
++
++            if (tileentity instanceof IInventory) {
++                object = tileentity;
++                if (object instanceof TileEntityChest && block instanceof BlockChest) {
++                    object = ((BlockChest) block).f(world, blockposition);
++                }
++            }
++        }
++
++        if (object == null) {
++            List list = world.a((Entity) null, new AxisAlignedBB(d0 - 0.5D, d1 - 0.5D, d2 - 0.5D, d0 + 0.5D, d1 + 0.5D, d2 + 0.5D), IEntitySelector.c);
++
++            if (list.size() > 0) {
++                object = list.get(world.random.nextInt(list.size()));
++            }
++        }
++
++        return (IInventory) object;
++    }
+ 
+-    public void closeContainer(EntityHuman entityhuman) {}
++    public void startOpen(EntityHuman entityhuman) {
++    }
+ 
+     public boolean b(int i, ItemStack itemstack) {
+         return true;
+@@ -437,35 +468,7 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+         }
+     }
+ 
+-    public static IInventory b(World world, double d0, double d1, double d2) {
+-        Object object = null;
+-        int i = MathHelper.floor(d0);
+-        int j = MathHelper.floor(d1);
+-        int k = MathHelper.floor(d2);
+-        BlockPosition blockposition = new BlockPosition(i, j, k);
+-        if (!world.isLoaded(blockposition)) return null; // Spigot
+-        Block block = world.getType(blockposition).getBlock();
+-
+-        if (block.isTileEntity()) {
+-            TileEntity tileentity = world.getTileEntity(blockposition);
+-
+-            if (tileentity instanceof IInventory) {
+-                object = tileentity;
+-                if (object instanceof TileEntityChest && block instanceof BlockChest) {
+-                    object = ((BlockChest) block).f(world, blockposition);
+-                }
+-            }
+-        }
+-
+-        if (object == null) {
+-            List list = world.a((Entity) null, new AxisAlignedBB(d0 - 0.5D, d1 - 0.5D, d2 - 0.5D, d0 + 0.5D, d1 + 0.5D, d2 + 0.5D), IEntitySelector.c::test);
+-
+-            if (list.size() > 0) {
+-                object = list.get(world.random.nextInt(list.size()));
+-            }
+-        }
+-
+-        return (IInventory) object;
++    public void closeContainer(EntityHuman entityhuman) {
+     }
+ 
+     public static ItemStack addItem(IInventory iinventory, ItemStack itemstack, EnumDirection enumdirection) {
+@@ -671,7 +674,8 @@ public class TileEntityHopper extends TileEntityContainer implements IHopper, IU
+         return 0;
+     }
+ 
+-    public void b(int i, int j) {}
++    public void b(int i, int j) {
++    }
+ 
+     public int g() {
+         return 0;
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 93603393e..482c6f80e 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -2,7 +2,6 @@ package net.minecraft.server;
+ 
+ import co.aikar.timings.TimingHistory;
+ import co.aikar.timings.WorldTimingsHandler;
+-import com.google.common.base.Predicate;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Sets;
+@@ -161,6 +160,7 @@ public abstract class World implements IBlockAccess {
+     public static int keyToZ(long k) {
+         return (int) (((k >> 32) & 0xFFFF0000L) | ((k >> 16) & 0x0000FFFF));
+     }
++
+     // Spigot end
+     public final TacoSpigotWorldConfig tacoSpigotConfig;
+     protected final TLongShortHashMap chunkTickList;
+@@ -2573,7 +2573,7 @@ public abstract class World implements IBlockAccess {
+     }
+ 
+     public List<Entity> getEntities(Entity entity, AxisAlignedBB axisalignedbb) {
+-        return this.a(entity, axisalignedbb, (java.util.function.Predicate<Entity>) IEntitySelector.d);
++        return this.a(entity, axisalignedbb, IEntitySelector.d);
+     }
+ 
+     public List<Entity> a(Entity entity, AxisAlignedBB axisalignedbb, java.util.function.Predicate<Entity> predicate) {
+@@ -2594,11 +2594,11 @@ public abstract class World implements IBlockAccess {
+         return arraylist;
+     }
+ 
+-    public <T extends Entity> List<T> a(Class<? extends T> oclass, Predicate<? super T> predicate) {
++    public <T extends Entity> List<T> a(Class<? extends T> oclass, java.util.function.Predicate<? super T> predicate) {
+         ArrayList arraylist = Lists.newArrayList();
+ 
+         for (Entity entity : this.entityList) {
+-            if (oclass.isAssignableFrom(entity.getClass()) && predicate.apply((T) entity)) { // CraftBukkit - fix decompile error
++            if (oclass.isAssignableFrom(entity.getClass()) && predicate.test((T) entity)) { // CraftBukkit - fix decompile error
+                 arraylist.add(entity);
+             }
+         }
+@@ -2606,11 +2606,11 @@ public abstract class World implements IBlockAccess {
+         return arraylist;
+     }
+ 
+-    public <T extends Entity> List<T> b(Class<? extends T> oclass, Predicate<? super T> predicate) {
++    public <T extends Entity> List<T> b(Class<? extends T> oclass, java.util.function.Predicate<? super T> predicate) {
+         ArrayList arraylist = Lists.newArrayList();
+ 
+         for (EntityHuman player : this.players) {
+-            if (oclass.isAssignableFrom(((Entity) player).getClass()) && predicate.apply((T) player)) { // CraftBukkit - fix decompile error
++            if (oclass.isAssignableFrom(((Entity) player).getClass()) && predicate.test((T) player)) { // CraftBukkit - fix decompile error
+                 arraylist.add(player);
+             }
+         }
+@@ -2622,7 +2622,7 @@ public abstract class World implements IBlockAccess {
+         return this.a(oclass, axisalignedbb, IEntitySelector.d);
+     }
+ 
+-    public <T extends Entity> List<T> a(Class<? extends T> oclass, AxisAlignedBB axisalignedbb, Predicate<? super T> predicate) {
++    public <T extends Entity> List<T> a(Class<? extends T> oclass, AxisAlignedBB axisalignedbb, java.util.function.Predicate<? super T> predicate) {
+         int i = MathHelper.floor((axisalignedbb.a - 2.0D) / 16.0D);
+         int j = MathHelper.floor((axisalignedbb.d + 2.0D) / 16.0D);
+         int k = MathHelper.floor((axisalignedbb.c - 2.0D) / 16.0D);
+@@ -2648,7 +2648,7 @@ public abstract class World implements IBlockAccess {
+         for (Object value : list) {
+             Entity entity1 = (Entity) value;
+ 
+-            if (entity1 != t0 && IEntitySelector.d.apply(entity1)) {
++            if (entity1 != t0 && IEntitySelector.d.test(entity1)) {
+                 double d1 = t0.h(entity1);
+ 
+                 if (d1 <= d0) {
+@@ -2827,7 +2827,7 @@ public abstract class World implements IBlockAccess {
+             }
+             // CraftBukkit end
+ 
+-            if (IEntitySelector.d.apply(entityhuman1)) {
++            if (IEntitySelector.d.test(entityhuman1)) {
+                 double d5 = entityhuman1.e(d0, d1, d2);
+ 
+                 if ((d3 < 0.0D || d5 < d3 * d3) && (d4 == -1.0D || d5 < d4)) {
+@@ -2842,7 +2842,7 @@ public abstract class World implements IBlockAccess {
+ 
+     public boolean isPlayerNearby(double d0, double d1, double d2, double d3) {
+         for (EntityHuman entityhuman : this.players) {
+-            if (IEntitySelector.d.apply(entityhuman)) {
++            if (IEntitySelector.d.test(entityhuman)) {
+                 double d4 = entityhuman.e(d0, d1, d2);
+ 
+                 if (d3 < 0.0D || d4 < d3 * d3) {
+@@ -2870,7 +2870,7 @@ public abstract class World implements IBlockAccess {
+             }
+             // CraftBukkit end
+ 
+-            if (IEntitySelector.d.apply(entityhuman1)) {
++            if (IEntitySelector.d.test(entityhuman1)) {
+                 double d5 = entityhuman1.e(d0, d1, d2);
+ 
+                 if ((d3 < 0.0D || d5 < d3 * d3) && (d4 == -1.0D || d5 < d4)) {
+@@ -2885,7 +2885,7 @@ public abstract class World implements IBlockAccess {
+ 
+     public boolean isPlayerNearbyWhoAffectsSpawning(double d0, double d1, double d2, double d3) {
+         for (EntityHuman entityhuman : this.players) {
+-            if (IEntitySelector.d.apply(entityhuman)) {
++            if (IEntitySelector.d.test(entityhuman)) {
+                 double d4 = entityhuman.e(d0, d1, d2);
+ 
+                 if (d3 < 0.0D || d4 < d3 * d3 && entityhuman.affectsSpawning) {
+-- 
+2.21.0.windows.1
+

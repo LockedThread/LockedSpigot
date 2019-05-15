@@ -1,0 +1,230 @@
+From 524f4d95905a2ccf142f1f0cdf29127544e22fa7 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 19:47:28 -0400
+Subject: [PATCH] Implemented LargeRegions
+
+
+diff --git a/src/main/java/dev/lockedthread/regions/LargeRegion.java b/src/main/java/dev/lockedthread/regions/LargeRegion.java
+new file mode 100644
+index 000000000..4f3c9062a
+--- /dev/null
++++ b/src/main/java/dev/lockedthread/regions/LargeRegion.java
+@@ -0,0 +1,65 @@
++package dev.lockedthread.regions;
++
++import net.minecraft.server.*;
++
++public class LargeRegion implements Region {
++
++    private World world;
++    private int x;
++    private int z;
++    private int sizeX;
++    private int sizeZ;
++    private Chunk[][] chunks;
++
++    public LargeRegion(World world, int x, int cgx, int z, int cgz) {
++        this.world = world;
++        this.x = x;
++        this.z = z;
++        this.sizeX = cgx - x + 1;
++        this.sizeZ = cgz - z + 1;
++        this.chunks = new Chunk[this.sizeX][this.sizeZ];
++        for (int chunkX = 0; chunkX < this.sizeX; ++chunkX) {
++            for (int chunkZ = 0; chunkZ < this.sizeZ; ++chunkZ) {
++                this.chunks[chunkX][chunkZ] = world.getChunkAt(chunkX + x, chunkZ + z);
++            }
++        }
++    }
++
++    public LargeRegion(World world, int x, int z, int radius) {
++        this(world, x - radius >> 4, x + radius >> 4, z - radius >> 4, z + radius >> 4);
++    }
++
++    @Override
++    public IBlockData getIBlockDataAt(BlockPosition blockPosition) {
++        return this.getIBlockDataAt(blockPosition.getX(), blockPosition.getY(), blockPosition.getZ());
++    }
++
++    @Override
++    public Block getBlockAt(int x, int y, int z) {
++        return this.getIBlockDataAt(x, y, z).getBlock();
++    }
++
++    @Override
++    public IBlockData getIBlockDataAt(int x, int y, int z) {
++        int cx = (x >> 4) - this.x;
++        int cz = (z >> 4) - this.z;
++        ChunkSection[] sections = cx < 0 || cx >= this.sizeX || cz < 0 || cz >= this.sizeZ ? this.world.getChunkAt(x >> 4, z >> 4).getSections() : this.chunks[(x >> 4) - this.x][(z >> 4) - this.z].getSections();
++        if (y >= 0 && y >> 4 < sections.length) {
++            ChunkSection chunksection = sections[y >> 4];
++            if (chunksection != null) {
++                return chunksection.getType(x & 0xF, y & 0xF, z & 0xF);
++            }
++        }
++        return Blocks.AIR.getBlockData();
++    }
++
++    @Override
++    public boolean setType(BlockPosition blockPosition, IBlockData iBlockData, int c) {
++        return world.setTypeAndData(blockPosition, iBlockData, c);
++    }
++
++    @Override
++    public World getWorld() {
++        return world;
++    }
++}
+diff --git a/src/main/java/dev/lockedthread/regions/Region.java b/src/main/java/dev/lockedthread/regions/Region.java
+index dc1c77c82..be4ca93bd 100644
+--- a/src/main/java/dev/lockedthread/regions/Region.java
++++ b/src/main/java/dev/lockedthread/regions/Region.java
+@@ -7,8 +7,6 @@ import net.minecraft.server.World;
+ import org.bukkit.craftbukkit.CraftChunk;
+ import org.bukkit.craftbukkit.block.CraftBlock;
+ 
+-import java.util.Map;
+-
+ public interface Region {
+ 
+     default Block getBlockAt(BlockPosition blockPosition) {
+@@ -21,8 +19,6 @@ public interface Region {
+ 
+     IBlockData getIBlockDataAt(int x, int y, int z);
+ 
+-    Map<BlockPosition, IBlockData> getIBlockDataMap();
+-
+     boolean setType(BlockPosition blockPosition, IBlockData iBlockData, int c);
+ 
+     default boolean setTypeAndData(BlockPosition blockPosition, IBlockData iBlockData) {
+@@ -45,9 +41,6 @@ public interface Region {
+         return getBukkitBlock(blockPosition.getX(), blockPosition.getY(), blockPosition.getZ());
+     }
+ 
+-    IBlockData getCenter();
+-
+     World getWorld();
+ 
+-    BlockPosition getCenterBlockPosition();
+ }
+diff --git a/src/main/java/dev/lockedthread/regions/SmallRegion.java b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+index cd0a48a69..1d0b4cc8e 100644
+--- a/src/main/java/dev/lockedthread/regions/SmallRegion.java
++++ b/src/main/java/dev/lockedthread/regions/SmallRegion.java
+@@ -54,7 +54,6 @@ public class SmallRegion implements Region {
+         return getIBlockDataAt(new BlockPosition(x, y, z));
+     }
+ 
+-    @Override
+     public Map<BlockPosition, IBlockData> getIBlockDataMap() {
+         return iBlockDataMap;
+     }
+@@ -64,7 +63,6 @@ public class SmallRegion implements Region {
+         return world.setTypeAndData(blockPosition, Blocks.AIR.getBlockData(), c);
+     }
+ 
+-    @Override
+     public IBlockData getCenter() {
+         return center;
+     }
+@@ -74,7 +72,6 @@ public class SmallRegion implements Region {
+         return world;
+     }
+ 
+-    @Override
+     public BlockPosition getCenterBlockPosition() {
+         return centerBlockPosition;
+     }
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index a5b48eac3..1ff08949f 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -3,8 +3,8 @@ package net.minecraft.server;
+ import dev.lockedthread.LockedSpigotConfig;
+ import dev.lockedthread.locations.ExplosionLocation;
+ import dev.lockedthread.locations.RenderedLocation;
++import dev.lockedthread.regions.LargeRegion;
+ import dev.lockedthread.regions.Region;
+-import dev.lockedthread.regions.SmallRegion;
+ import org.bukkit.Location;
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.entity.Player;
+@@ -28,7 +28,7 @@ public class Explosion {
+     private final float size;
+     private final BlockPosition origin;
+     private ExplosionLocation explosionLocation;
+-    private Region smallRegion;
++    private Region region;
+     public boolean inWater;
+     private final Set<BlockPosition> blocks;
+     public boolean wasCanceled;
+@@ -50,17 +50,17 @@ public class Explosion {
+         this.explosionLocation = ExplosionLocation.of(origin);
+         final Region smallRegion = REGION_CACHE.get(explosionLocation);
+         if (smallRegion != null) {
+-            this.smallRegion = smallRegion;
++            this.region = smallRegion;
+         } else {
+-            REGION_CACHE.put(explosionLocation, this.smallRegion = new SmallRegion(entity.world, origin, LockedSpigotConfig.getExplosionRegionRadius()));
++            REGION_CACHE.put(explosionLocation, this.region = new LargeRegion(entity.world, origin.getX(), origin.getZ(), LockedSpigotConfig.getExplosionRegionRadius()));
+         }
+     }
+ 
+     private boolean isInWater() {
+-        if (smallRegion == null) {
++        if (region == null) {
+             return source.world.getType(origin).getBlock().getMaterial().isLiquid();
+         }
+-        return smallRegion.getCenter().getBlock().getMaterial().isLiquid();
++        return region.getBlockAt(origin).getMaterial().isLiquid();
+     }
+ 
+     public void a() {
+@@ -80,7 +80,7 @@ public class Explosion {
+                     double d7 = renderedLocation.d1m;
+                     double d8 = renderedLocation.d2m;
+                     BlockPosition blockposition = new BlockPosition(x, y, z);
+-                    IBlockData iblockdata = smallRegion.getIBlockDataAt(blockposition);
++                    IBlockData iblockdata = region.getIBlockDataAt(blockposition);
+                     if (iblockdata.getBlock().getMaterial() != Material.AIR) {
+                         float f2 = this.source.a(this, this.source.world, blockposition, iblockdata);
+                         randSize -= (f2 + 0.3f) * 0.3f;
+@@ -150,7 +150,7 @@ public class Explosion {
+             org.bukkit.World bukkitWorld = this.source.world.getWorld();
+             List<org.bukkit.block.Block> blockList = new ArrayList<>();
+             for (BlockPosition blockPosition : blocks) {
+-                org.bukkit.block.Block bblock = smallRegion.getBukkitBlock(blockPosition);
++                org.bukkit.block.Block bblock = region.getBukkitBlock(blockPosition);
+                 if (bblock.getType() != org.bukkit.Material.AIR) {
+                     blockList.add(bblock);
+                 }
+@@ -190,7 +190,7 @@ public class Explosion {
+                 return;
+             }
+             for (BlockPosition blockPosition : this.blocks) {
+-                Block block = this.smallRegion.getBlockAt(blockPosition);
++                Block block = this.region.getBlockAt(blockPosition);
+                 this.source.world.spigotConfig.antiXrayInstance.updateNearbyBlocks(this.source.world, blockPosition);
+                 if (LockedSpigotConfig.isExplosionParticles()) {
+                     if (flag) {
+@@ -219,7 +219,7 @@ public class Explosion {
+                             block.dropNaturally(this.source.world, blockPosition, this.source.world.getType(blockPosition), yield, 0);
+                         }
+                     }
+-                    this.smallRegion.setType(blockPosition, Blocks.AIR.getBlockData(), LockedSpigotConfig.isExplosionBlockUpdates() ? 3 : 0);
++                    this.region.setType(blockPosition, Blocks.AIR.getBlockData(), LockedSpigotConfig.isExplosionBlockUpdates() ? 3 : 0);
+                     //this.source.world.setTypeAndData(blockPosition, Blocks.AIR.getBlockData(), 3);
+                     block.wasExploded(this.source.world, blockPosition, this);
+                 }
+@@ -228,7 +228,7 @@ public class Explosion {
+         if (LockedSpigotConfig.isExplosionCreatesFire()) {
+             if (this.a) {
+                 for (BlockPosition blockposition : this.blocks) {
+-                    if (smallRegion.getBlockAt(blockposition).getMaterial() == Material.AIR && smallRegion.getBlockAt(blockposition.down()).o() && this.source.getRandom().nextInt(3) == 0 && !CraftEventFactory.callBlockIgniteEvent(this.source.world, blockposition.getX(), blockposition.getY(), blockposition.getZ(), this).isCancelled()) {
++                    if (region.getBlockAt(blockposition).getMaterial() == Material.AIR && region.getBlockAt(blockposition.down()).o() && this.source.getRandom().nextInt(3) == 0 && !CraftEventFactory.callBlockIgniteEvent(this.source.world, blockposition.getX(), blockposition.getY(), blockposition.getZ(), this).isCancelled()) {
+                         this.source.world.setTypeUpdate(blockposition, Blocks.FIRE.getBlockData());
+                     }
+                 }
+-- 
+2.21.0.windows.1
+

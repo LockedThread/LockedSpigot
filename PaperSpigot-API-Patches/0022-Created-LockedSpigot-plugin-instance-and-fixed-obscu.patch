@@ -1,0 +1,45 @@
+From 9184e946ae1dff76e1f43f9da6af7b995d801a8f Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 13 May 2019 14:57:08 -0400
+Subject: [PATCH] Created LockedSpigot plugin instance and fixed obscurities
+
+
+diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+index e6b066ea..ae947885 100644
+--- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
++++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+@@ -7,10 +7,10 @@ import org.bukkit.Server;
+ import org.bukkit.command.Command;
+ import org.bukkit.command.PluginCommandYamlParser;
+ import org.bukkit.command.SimpleCommandMap;
+-import org.bukkit.event.*;
+-import org.bukkit.event.inventory.InventoryClickEvent;
+-import org.bukkit.event.inventory.InventoryCloseEvent;
+-import org.bukkit.event.inventory.InventoryOpenEvent;
++import org.bukkit.event.Event;
++import org.bukkit.event.EventPriority;
++import org.bukkit.event.HandlerList;
++import org.bukkit.event.Listener;
+ import org.bukkit.permissions.Permissible;
+ import org.bukkit.permissions.Permission;
+ import org.bukkit.permissions.PermissionDefault;
+@@ -481,6 +481,7 @@ public final class SimplePluginManager implements PluginManager {
+     }
+ 
+     private void fireEvent(Event event) {
++        /*
+         if (event instanceof InventoryClickEvent) {
+             menuListener.onInventoryClick((InventoryClickEvent) event);
+             if (((Cancellable) event).isCancelled()) {
+@@ -493,7 +494,7 @@ public final class SimplePluginManager implements PluginManager {
+             }
+         } else if (event instanceof InventoryCloseEvent) {
+             menuListener.onInventoryClose((InventoryCloseEvent) event);
+-        }
++        }*/
+         HandlerList handlers = event.getHandlers();
+         RegisteredListener[] listeners = handlers.getRegisteredListeners();
+ 
+-- 
+2.21.0.windows.1
+

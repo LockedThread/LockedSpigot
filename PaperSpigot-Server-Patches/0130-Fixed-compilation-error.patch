@@ -1,0 +1,88 @@
+From 6097fc006a40c64bab5b5d1b40efbecb7e3b61e1 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Tue, 14 May 2019 17:15:48 -0400
+Subject: [PATCH] Fixed compilation error
+
+
+diff --git a/src/main/java/net/minecraft/server/BlockChest.java b/src/main/java/net/minecraft/server/BlockChest.java
+index 169ea92f9..103cc4041 100644
+--- a/src/main/java/net/minecraft/server/BlockChest.java
++++ b/src/main/java/net/minecraft/server/BlockChest.java
+@@ -1,6 +1,5 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.base.Predicate;
+ import java.util.Iterator;
+ 
+ public class BlockChest extends BlockContainer {
+diff --git a/src/main/java/net/minecraft/server/EnumDirection.java b/src/main/java/net/minecraft/server/EnumDirection.java
+index 1c4443311..50f361db7 100644
+--- a/src/main/java/net/minecraft/server/EnumDirection.java
++++ b/src/main/java/net/minecraft/server/EnumDirection.java
+@@ -5,9 +5,11 @@
+ 
+ package net.minecraft.server;
+ 
++import com.google.common.base.Predicate;
+ import com.google.common.collect.Iterators;
+ import com.google.common.collect.Maps;
+ 
++import javax.annotation.Nullable;
+ import java.util.Iterator;
+ import java.util.Map;
+ import java.util.Random;
+@@ -156,7 +158,7 @@ public enum EnumDirection implements INamable {
+         return this.j;
+     }
+ 
+-    public enum EnumDirectionLimit implements Iterable<EnumDirection> {
++    public enum EnumDirectionLimit implements Iterable<EnumDirection>, Predicate<EnumDirection> {
+         HORIZONTAL,
+         VERTICAL;
+ 
+@@ -183,6 +185,11 @@ public enum EnumDirection implements INamable {
+         public Iterator<EnumDirection> iterator() {
+             return Iterators.forArray(this.a());
+         }
++
++        @Override
++        public boolean apply(@Nullable EnumDirection enumDirection) {
++            return enumDirection != null && enumDirection.k().d() == this;
++        }
+     }
+ 
+     public enum EnumAxisDirection {
+@@ -206,7 +213,7 @@ public enum EnumDirection implements INamable {
+         }
+     }
+ 
+-    public enum EnumAxis implements INamable {
++    public enum EnumAxis implements Predicate<EnumDirection>, INamable {
+         X("x", EnumDirection.EnumDirectionLimit.HORIZONTAL),
+         Y("y", EnumDirection.EnumDirectionLimit.VERTICAL),
+         Z("z", EnumDirection.EnumDirectionLimit.HORIZONTAL);
+@@ -243,10 +250,6 @@ public enum EnumDirection implements INamable {
+             return this.e;
+         }
+ 
+-        public boolean a(EnumDirection var1) {
+-            return var1 != null && var1.k() == this;
+-        }
+-
+         public EnumDirection.EnumDirectionLimit d() {
+             return this.f;
+         }
+@@ -254,5 +257,10 @@ public enum EnumDirection implements INamable {
+         public String getName() {
+             return this.e;
+         }
++
++        @Override
++        public boolean apply(@Nullable EnumDirection enumDirection) {
++            return enumDirection != null && enumDirection.k() == this;
++        }
+     }
+ }
+-- 
+2.21.0.windows.1
+

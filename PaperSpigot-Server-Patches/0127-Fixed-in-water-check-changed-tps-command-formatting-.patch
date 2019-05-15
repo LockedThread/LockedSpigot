@@ -1,0 +1,295 @@
+From d0a24cef5d585cdefc36e443ad4b07c8fb655566 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 13 May 2019 22:30:47 -0400
+Subject: [PATCH] Fixed in water check, changed tps command formatting, added
+ tnt ignites, and removed the dispenser not random shit
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index e85d42594..45f1acfb0 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -96,6 +96,7 @@ public class LockedSpigotConfig {
+     private static boolean explosionDamagesPlayers;
+     private static boolean explosionDestroyItems;
+     private static boolean explosionBlockUpdates;
++    private static boolean explosionIgnitesTNTBlocks;
+     private static int explosionRegionRadius;
+ 
+     private static int fallingBlockLifeTime;
+@@ -105,11 +106,9 @@ public class LockedSpigotConfig {
+     private static boolean fallingBlockHurtEntitiesOverrideAPIUsage;
+ 
+     private static boolean dispenserParticlesEnabled;
+-    private static boolean dispenserNotRandom;
+ 
+     private static boolean signPatchDupe;
+     private static int signMaxLength;
+-    private static boolean signKeepInvalidUnicode;
+ 
+     private static void load() {
+         ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
+@@ -183,6 +182,7 @@ public class LockedSpigotConfig {
+         explosionDestroyItems = getBoolean("explosions.destroy.items", false);
+         explosionDestroyLava = getBoolean("explosions.destroy.lava", true);
+         explosionBlockUpdates = getBoolean("explosions.block-updates", false);
++        explosionIgnitesTNTBlocks = getBoolean("explosions.ignites-tnt-blocks", false);
+ 
+         fallingBlockLifeTime = getInt("falling-blocks.life-time", Integer.MAX_VALUE);
+         fallingBlockDropItemEnabled = getBoolean("falling-blocks.drop-items.enabled", false);
+@@ -192,11 +192,8 @@ public class LockedSpigotConfig {
+ 
+         signPatchDupe = getBoolean("signs.patch-dupe", true);
+         signMaxLength = getInt("signs.max-length", 80);
+-        signKeepInvalidUnicode = getBoolean("signs.keep-invalid-unicode", false);
+ 
+         dispenserParticlesEnabled = getBoolean("dispensers.particles.enabled", false);
+-        dispenserNotRandom = getBoolean("dispensers.not-random", true);
+-
+         int count = 0;
+ 
+         for (int k = 0; k < 16; ++k) {
+@@ -487,22 +484,18 @@ public class LockedSpigotConfig {
+         return signMaxLength;
+     }
+ 
+-    public static boolean isSignKeepInvalidUnicode() {
+-        return signKeepInvalidUnicode;
+-    }
+-
+     public static boolean isExplosionDestroyLava() {
+         return explosionDestroyLava;
+     }
+ 
+-    public static boolean isDispenserNotRandom() {
+-        return dispenserNotRandom;
+-    }
+-
+     public static boolean isDispenserParticlesEnabled() {
+         return dispenserParticlesEnabled;
+     }
+ 
++    public static boolean isExplosionIgnitesTNTBlocks() {
++        return explosionIgnitesTNTBlocks;
++    }
++
+     public static void init(File configFile) {
+         System.out.println("Initializing static fields for LockedSpigot");
+         LockedSpigotConfig.configFile = configFile;
+diff --git a/src/main/java/net/minecraft/server/BlockTNT.java b/src/main/java/net/minecraft/server/BlockTNT.java
+index 231348d84..468920cee 100644
+--- a/src/main/java/net/minecraft/server/BlockTNT.java
++++ b/src/main/java/net/minecraft/server/BlockTNT.java
+@@ -1,5 +1,7 @@
+ package net.minecraft.server;
+ 
++import dev.lockedthread.LockedSpigotConfig;
++
+ public class BlockTNT extends Block {
+ 
+     public static final BlockStateBoolean EXPLODE = BlockStateBoolean.of("explode");
+@@ -28,16 +30,18 @@ public class BlockTNT extends Block {
+     }
+ 
+     public void wasExploded(World world, BlockPosition blockposition, Explosion explosion) {
+-        if (!world.isClientSide) {
+-            org.bukkit.Location loc = explosion.source instanceof EntityTNTPrimed ? ((EntityTNTPrimed) explosion.source).sourceLoc : new org.bukkit.Location(world.getWorld(), blockposition.getX(), blockposition.getY(), blockposition.getZ()); // PaperSpigot
+-            // PaperSpigot start - Fix cannons
+-            double y = blockposition.getY();
+-            if (!world.paperSpigotConfig.fixCannons) y += 0.5;
+-            EntityTNTPrimed entitytntprimed = new EntityTNTPrimed(loc, world, (double) ((float) blockposition.getX() + 0.5F), y, (double) ((float) blockposition.getZ() + 0.5F), explosion.getSource()); // PaperSpigot - add loc
+-            // PaperSpigot end
+-
+-            entitytntprimed.fuseTicks = world.random.nextInt(entitytntprimed.fuseTicks / 4) + entitytntprimed.fuseTicks / 8;
+-            world.addEntity(entitytntprimed);
++        if (LockedSpigotConfig.isExplosionIgnitesTNTBlocks()) {
++            if (!world.isClientSide) {
++                org.bukkit.Location loc = explosion.source instanceof EntityTNTPrimed ? ((EntityTNTPrimed) explosion.source).sourceLoc : new org.bukkit.Location(world.getWorld(), blockposition.getX(), blockposition.getY(), blockposition.getZ()); // PaperSpigot
++                // PaperSpigot start - Fix cannons
++                double y = blockposition.getY();
++                if (!world.paperSpigotConfig.fixCannons) y += 0.5;
++                EntityTNTPrimed entitytntprimed = new EntityTNTPrimed(loc, world, (double) ((float) blockposition.getX() + 0.5F), y, (double) ((float) blockposition.getZ() + 0.5F), explosion.getSource()); // PaperSpigot - add loc
++                // PaperSpigot end
++
++                entitytntprimed.fuseTicks = world.random.nextInt(entitytntprimed.fuseTicks / 4) + entitytntprimed.fuseTicks / 8;
++                world.addEntity(entitytntprimed);
++            }
+         }
+     }
+ 
+diff --git a/src/main/java/net/minecraft/server/Chunk.java b/src/main/java/net/minecraft/server/Chunk.java
+index 1e8b4f13a..b87bb023c 100644
+--- a/src/main/java/net/minecraft/server/Chunk.java
++++ b/src/main/java/net/minecraft/server/Chunk.java
+@@ -1,26 +1,20 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.base.Predicate;
++import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.google.common.collect.Queues;
+-import java.util.Arrays;
+-import java.util.Collection;
+-import java.util.Iterator;
+-import java.util.List;
+-import java.util.Map;
+-import java.util.Random;
+-import java.util.concurrent.Callable;
+-import java.util.concurrent.ConcurrentLinkedQueue;
+-import java.util.concurrent.atomic.AtomicInteger; // PaperSpigot
+-
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+-
+-import com.google.common.collect.Lists; // CraftBukkit
+-import org.bukkit.Bukkit; // CraftBukkit
++import org.bukkit.Bukkit;
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.entity.HumanEntity;
+ 
++import java.util.*;
++import java.util.concurrent.Callable;
++import java.util.concurrent.ConcurrentLinkedQueue;
++import java.util.concurrent.atomic.AtomicInteger;
++
+ public class Chunk {
+ 
+     private static final Logger c = LogManager.getLogger();
+@@ -964,19 +958,8 @@ public class Chunk {
+ 
+         for (int k = i; k <= j; ++k) {
+             if (!this.entitySlices[k].isEmpty()) {
+-                Iterator iterator = this.entitySlices[k].iterator();
+-                // PaperSpigot start - Don't search for inventories if we have none, and that is all we want
+-                /*
+-                 * We check if they want inventories by seeing if it is the static `IEntitySelector.c`
+-                 *
+-                 * Make sure the inventory selector stays in sync.
+-                 * It should be the one that checks `var1 instanceof IInventory && var1.isAlive()`
+-                 */
+                 if (predicate == IEntitySelector.c && inventoryEntityCounts[k] <= 0) continue;
+-                // PaperSpigot end
+-                while (iterator.hasNext()) {
+-                    Entity entity1 = (Entity) iterator.next();
+-
++                for (Entity entity1 : this.entitySlices[k]) {
+                     if (entity1.getBoundingBox().b(axisalignedbb) && entity1 != entity) {
+                         if (predicate == null || predicate.apply(entity1)) {
+                             list.add(entity1);
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index b2fde6d9f..b0c3da44d 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -27,9 +27,6 @@ public class Explosion {
+     private final double posZ;
+     public final Entity source;
+     private final float size;
+-    private final BlockPosition origin;
+-    private ExplosionLocation explosionLocation;
+-    public boolean inWater;
+     private final Set<BlockPosition> blocks;
+     public boolean wasCanceled;
+     private ExplosionInfo explosionInfo;
+@@ -44,9 +41,10 @@ public class Explosion {
+         this.posZ = z;
+         this.fire = flag;
+         this.b = flag1;
+-        this.origin = new BlockPosition(entity.locX, entity.locY, entity.locY);
+-        this.explosionLocation = ExplosionLocation.of(origin);
+ 
++        final BlockPosition origin = new BlockPosition(entity.locX, entity.locY, entity.locY);
++        final ExplosionLocation explosionLocation = ExplosionLocation.of(origin);
++        
+         ExplosionInfo explosionInfo = EXPLOSION_INFO_MAP.get(explosionLocation);
+         if (explosionInfo != null) {
+             this.explosionInfo = explosionInfo;
+@@ -60,9 +58,7 @@ public class Explosion {
+         if (this.size < 0.1f) {
+             return;
+         }
+-        if (this.source.world.tacoSpigotConfig.optimizeLiquidExplosions && explosionInfo.isInWater()) {
+-            inWater = true;
+-        } else {
++        if (!this.source.world.tacoSpigotConfig.optimizeLiquidExplosions || !explosionInfo.isInWater()) {
+             for (RenderedLocation renderedLocation : RenderedLocation.locations) {
+                 float randomSize = this.size * (0.7f + this.source.getRandom().nextFloat() * 0.6f);
+                 double x = this.posX;
+@@ -257,6 +253,10 @@ public class Explosion {
+         return null;
+     }
+ 
++    public ExplosionInfo getExplosionInfo() {
++        return explosionInfo;
++    }
++
+     public void clearBlocks() {
+         this.blocks.clear();
+     }
+diff --git a/src/main/java/net/minecraft/server/TileEntityDispenser.java b/src/main/java/net/minecraft/server/TileEntityDispenser.java
+index 87e6f1b12..e0e816701 100644
+--- a/src/main/java/net/minecraft/server/TileEntityDispenser.java
++++ b/src/main/java/net/minecraft/server/TileEntityDispenser.java
+@@ -1,6 +1,5 @@
+ package net.minecraft.server;
+ 
+-import dev.lockedthread.LockedSpigotConfig;
+ import org.bukkit.craftbukkit.entity.CraftHumanEntity;
+ import org.bukkit.entity.HumanEntity;
+ 
+@@ -90,14 +89,9 @@ public class TileEntityDispenser extends TileEntityContainer implements IInvento
+ 
+         for (int k = 0; k < this.items.length; ++k) {
+             if (this.items[k] != null) {
+-                if (LockedSpigotConfig.isDispenserNotRandom()) {
++                if (world.random.nextInt(j++) == 0) {
+                     if (this.items[k].count == 0) continue; // CraftBukkit
+                     i = k;
+-                } else {
+-                    if (world.random.nextInt(j++) == 0) {
+-                        if (this.items[k].count == 0) continue; // CraftBukkit
+-                        i = k;
+-                    }
+                 }
+             }
+         }
+diff --git a/src/main/java/net/minecraft/server/World.java b/src/main/java/net/minecraft/server/World.java
+index 3a76cb7f5..6fcae957e 100644
+--- a/src/main/java/net/minecraft/server/World.java
++++ b/src/main/java/net/minecraft/server/World.java
+@@ -1885,7 +1885,7 @@ public abstract class World implements IBlockAccess {
+         Explosion explosion = new Explosion(entity, d0, d1, d2, f, flag, flag1);
+ 
+         explosion.a();
+-        if (!explosion.inWater) {
++        if (!explosion.getExplosionInfo().isInWater()) {
+             explosion.a(true);
+         }
+         return explosion;
+diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
+index edf7b6e6e..a45dfc8e4 100644
+--- a/src/main/java/net/minecraft/server/WorldServer.java
++++ b/src/main/java/net/minecraft/server/WorldServer.java
+@@ -822,7 +822,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+     @Override
+     public Explosion createExplosion(final Entity entity, final double d0, final double d1, final double d2, final float f, final boolean flag, final boolean flag1) {
+         Explosion explosion = super.createExplosion(entity, d0, d1, d2, f, flag, flag1);
+-        if (explosion.wasCanceled || explosion.inWater) {
++        if (explosion.wasCanceled || explosion.getExplosionInfo().isInWater()) {
+             return explosion;
+         }
+         if (!flag1) {
+diff --git a/src/main/java/org/spigotmc/TicksPerSecondCommand.java b/src/main/java/org/spigotmc/TicksPerSecondCommand.java
+index 3e1b49e3e..60c4bf367 100644
+--- a/src/main/java/org/spigotmc/TicksPerSecondCommand.java
++++ b/src/main/java/org/spigotmc/TicksPerSecondCommand.java
+@@ -39,6 +39,6 @@ public class TicksPerSecondCommand extends Command {
+         DecimalFormat decimalFormat = new DecimalFormat("##.##");
+         decimalFormat.setRoundingMode(RoundingMode.UP);
+         String formattedTps = decimalFormat.format(tps);
+-        return tps >= 40.0 ? ChatColor.GREEN + "*" + formattedTps : tps >= 37.0 ? ChatColor.GREEN.toString() + formattedTps : tps >= 35.0 ? ChatColor.YELLOW.toString() + formattedTps : tps >= 20 ? ChatColor.RED.toString() + formattedTps : ChatColor.RED + ChatColor.STRIKETHROUGH.toString() + formattedTps;
++        return tps >= 40.0 ? ChatColor.GREEN + "*40.0" : tps >= 37.0 ? ChatColor.GREEN.toString() + formattedTps : tps >= 17.0 ? ChatColor.YELLOW.toString() + formattedTps : tps >= 15 ? ChatColor.RED.toString() + formattedTps : ChatColor.RED + ChatColor.STRIKETHROUGH.toString() + formattedTps;
+     }
+ }
+-- 
+2.21.0.windows.1
+

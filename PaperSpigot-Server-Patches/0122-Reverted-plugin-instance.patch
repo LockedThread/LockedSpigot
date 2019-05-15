@@ -1,0 +1,37 @@
+From 742ce02bc2122f0de95bfbaac9ef365397d5c39c Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 13 May 2019 15:42:52 -0400
+Subject: [PATCH] Reverted plugin instance
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index ccaceb4dd..129be9d29 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
+ import dev.lockedthread.commands.CommandFPS;
+ import dev.lockedthread.commands.CommandTest;
+ import dev.lockedthread.locations.RenderedLocation;
+-import dev.lockedthread.plugin.LockedSpigot;
+ import net.minecraft.server.MinecraftServer;
+ import org.apache.commons.lang3.tuple.Pair;
+ import org.bukkit.Bukkit;
+@@ -107,7 +106,6 @@ public class LockedSpigotConfig {
+     private static boolean signPatchDupe;
+     private static int signMaxLength;
+     private static boolean signKeepInvalidUnicode;
+-    private static LockedSpigot lockedSpigot;
+ 
+     private static void load() {
+         ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
+@@ -212,7 +210,6 @@ public class LockedSpigotConfig {
+         }
+     }
+ 
+-
+     public static void registerCommands() {
+         MinecraftServer.getServer().server.getCommandMap().register("test", "lockedspigot", new CommandTest());
+         MinecraftServer.getServer().server.getCommandMap().register("fps", "lockedspigot", new CommandFPS(getCommandFpsAliases()));
+-- 
+2.21.0.windows.1
+

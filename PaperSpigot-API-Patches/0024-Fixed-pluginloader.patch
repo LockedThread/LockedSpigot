@@ -1,0 +1,39 @@
+From a2532519822af9c48e38884ef49e7132123192bf Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 13 May 2019 15:23:01 -0400
+Subject: [PATCH] Fixed pluginloader
+
+
+diff --git a/src/main/java/dev/lockedthread/plugin/LockedSpigot.java b/src/main/java/dev/lockedthread/plugin/LockedSpigot.java
+index b65ebfbe..e5e0cab1 100644
+--- a/src/main/java/dev/lockedthread/plugin/LockedSpigot.java
++++ b/src/main/java/dev/lockedthread/plugin/LockedSpigot.java
+@@ -26,9 +26,7 @@ public class LockedSpigot implements Plugin {
+     private FileConfiguration fileConfiguration;
+     private Server server;
+ 
+-    public LockedSpigot(File file, FileConfiguration fileConfiguration, Server server) {
+-        this.file = file;
+-        this.fileConfiguration = fileConfiguration;
++    public LockedSpigot(Server server, PluginLoader pluginLoader) {
+         this.server = server;
+         lockedSpigot = this;
+         server.getPluginManager().registerEvents(new MenuListener(), lockedSpigot);
+diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+index 0d159d5f..12472521 100644
+--- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
++++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+@@ -281,8 +281,8 @@ public final class SimplePluginManager implements PluginManager {
+             }
+         }
+ 
+-        result.add(new LockedSpigot(null, null, server));
+-
++        result.add(new LockedSpigot(server, fileAssociations.get(Pattern.compile("\\.jar$"))));
++        
+         return result.toArray(new Plugin[0]);
+     }
+ 
+-- 
+2.21.0.windows.1
+

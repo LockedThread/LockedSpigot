@@ -1,0 +1,182 @@
+From 22c183c2b155e1cae9ceca33daf5456093af3a2f Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 13 May 2019 15:14:43 -0400
+Subject: [PATCH] Fixed and moved LockedSpigot plugin instance
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index f9eb0622c..ccaceb4dd 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -4,7 +4,6 @@ import com.google.common.base.Throwables;
+ import dev.lockedthread.commands.CommandFPS;
+ import dev.lockedthread.commands.CommandTest;
+ import dev.lockedthread.locations.RenderedLocation;
+-import dev.lockedthread.menu.MenuListener;
+ import dev.lockedthread.plugin.LockedSpigot;
+ import net.minecraft.server.MinecraftServer;
+ import org.apache.commons.lang3.tuple.Pair;
+@@ -211,17 +210,8 @@ public class LockedSpigotConfig {
+         } catch (IOException e) {
+             e.printStackTrace();
+         }
+-        loadLockedSpigot();
+-        registerListeners();
+     }
+ 
+-    private static void loadLockedSpigot() {
+-        lockedSpigot = new LockedSpigot();
+-    }
+-
+-    private static void registerListeners() {
+-        MinecraftServer.getServer().server.getPluginManager().registerEvents(new MenuListener(), lockedSpigot);
+-    }
+ 
+     public static void registerCommands() {
+         MinecraftServer.getServer().server.getCommandMap().register("test", "lockedspigot", new CommandTest());
+diff --git a/src/main/java/dev/lockedthread/plugin/LockedSpigot.java b/src/main/java/dev/lockedthread/plugin/LockedSpigot.java
+deleted file mode 100644
+index 9a4c2d48e..000000000
+--- a/src/main/java/dev/lockedthread/plugin/LockedSpigot.java
++++ /dev/null
+@@ -1,137 +0,0 @@
+-package dev.lockedthread.plugin;
+-
+-import com.avaje.ebean.EbeanServer;
+-import dev.lockedthread.LockedSpigotConfig;
+-import net.minecraft.server.MinecraftServer;
+-import org.bukkit.Bukkit;
+-import org.bukkit.Server;
+-import org.bukkit.command.Command;
+-import org.bukkit.command.CommandSender;
+-import org.bukkit.configuration.file.FileConfiguration;
+-import org.bukkit.generator.ChunkGenerator;
+-import org.bukkit.plugin.Plugin;
+-import org.bukkit.plugin.PluginDescriptionFile;
+-import org.bukkit.plugin.PluginLoader;
+-
+-import java.io.File;
+-import java.io.IOException;
+-import java.io.InputStream;
+-import java.util.List;
+-import java.util.logging.Logger;
+-
+-public class LockedSpigot implements Plugin {
+-
+-    @Override
+-    public File getDataFolder() {
+-        return new File(Bukkit.getWorldContainer(), "plugins");
+-    }
+-
+-    @Override
+-    public PluginDescriptionFile getDescription() {
+-        return new PluginDescriptionFile("LockedSpigot", "1.0", "dev.lockedthread.plugin.LockedSpigot");
+-    }
+-
+-    @Override
+-    public FileConfiguration getConfig() {
+-        return LockedSpigotConfig.config;
+-    }
+-
+-    @Override
+-    public InputStream getResource(String filename) {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public void saveConfig() {
+-        try {
+-            LockedSpigotConfig.config.save(LockedSpigotConfig.configFile);
+-        } catch (IOException e) {
+-            e.printStackTrace();
+-        }
+-    }
+-
+-    @Override
+-    public void saveDefaultConfig() {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public void saveResource(String resourcePath, boolean replace) {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public void reloadConfig() {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public PluginLoader getPluginLoader() {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public Server getServer() {
+-        return MinecraftServer.getServer().server;
+-    }
+-
+-    @Override
+-    public boolean isEnabled() {
+-        return true;
+-    }
+-
+-    @Override
+-    public void onDisable() {
+-        System.out.println("Disabling LockedSpigot plugin instance");
+-    }
+-
+-    @Override
+-    public void onLoad() {
+-        System.out.println("Loading LockedSpigot plugin instance");
+-    }
+-
+-    @Override
+-    public void onEnable() {
+-        System.out.println("Enabling LockedSpigot plugin instance");
+-    }
+-
+-    @Override
+-    public boolean isNaggable() {
+-        return false;
+-    }
+-
+-    @Override
+-    public void setNaggable(boolean canNag) {
+-
+-    }
+-
+-    @Override
+-    public EbeanServer getDatabase() {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public ChunkGenerator getDefaultWorldGenerator(String worldName, String id) {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public Logger getLogger() {
+-        return Bukkit.getLogger();
+-    }
+-
+-    @Override
+-    public String getName() {
+-        return "LockedSpigotPluginInstance";
+-    }
+-
+-    @Override
+-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-}
+-- 
+2.21.0.windows.1
+

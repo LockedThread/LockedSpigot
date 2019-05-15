@@ -1,0 +1,53 @@
+From c0d3378e2d61f0ed2993b4b710e0efb31d7bcc9a Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 13 May 2019 18:54:56 -0400
+Subject: [PATCH] Fixed ExplosionInfo hash npe
+
+
+diff --git a/src/main/java/dev/lockedthread/data/ExplosionInfo.java b/src/main/java/dev/lockedthread/data/ExplosionInfo.java
+index 9799a3f38..7d4975d3f 100644
+--- a/src/main/java/dev/lockedthread/data/ExplosionInfo.java
++++ b/src/main/java/dev/lockedthread/data/ExplosionInfo.java
+@@ -11,9 +11,10 @@ import java.util.Map;
+ 
+ public class ExplosionInfo {
+ 
+-    private final boolean inWater;
+-    private final int hash;
+     private final Region region;
++    private final boolean inWater;
++
++    private int hash;
+     private Map<Entity, Float> forces;
+ 
+     public ExplosionInfo(BlockPosition origin, Region region, Map<Entity, Float> forces) {
+@@ -23,7 +24,9 @@ public class ExplosionInfo {
+ 
+         int temp = (inWater ? 1 : 0);
+         temp = (31 * temp) + region.hashCode();
+-        temp = (31 * temp) + forces.hashCode();
++        if (forces != null) {
++            temp = (31 * temp) + forces.hashCode();
++        }
+         this.hash = temp;
+     }
+ 
+@@ -36,9 +39,14 @@ public class ExplosionInfo {
+     }
+ 
+     public Map<Entity, Float> getForces() {
+-        return forces != null ? forces : (forces = new HashMap<>());
++        if (forces == null) {
++            this.forces = new HashMap<>();
++            hash = (31 * hash) + forces.hashCode();
++        }
++        return forces;
+     }
+ 
++
+     @Override
+     public boolean equals(Object o) {
+         if (this == o) return true;
+-- 
+2.21.0.windows.1
+

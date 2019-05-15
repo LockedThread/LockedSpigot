@@ -1,0 +1,213 @@
+From e0571ba0c91f0f3ca1254360af47d82567bff728 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Mon, 13 May 2019 15:42:53 -0400
+Subject: [PATCH] Reverted plugin instance
+
+
+diff --git a/src/main/java/dev/lockedthread/plugin/LockedSpigot.java b/src/main/java/dev/lockedthread/plugin/LockedSpigot.java
+deleted file mode 100644
+index fe892a38..00000000
+--- a/src/main/java/dev/lockedthread/plugin/LockedSpigot.java
++++ /dev/null
+@@ -1,147 +0,0 @@
+-package dev.lockedthread.plugin;
+-
+-import com.avaje.ebean.EbeanServer;
+-import dev.lockedthread.menu.MenuListener;
+-import org.bukkit.Bukkit;
+-import org.bukkit.Server;
+-import org.bukkit.command.Command;
+-import org.bukkit.command.CommandSender;
+-import org.bukkit.configuration.file.FileConfiguration;
+-import org.bukkit.generator.ChunkGenerator;
+-import org.bukkit.plugin.Plugin;
+-import org.bukkit.plugin.PluginDescriptionFile;
+-import org.bukkit.plugin.PluginLoader;
+-
+-import java.io.File;
+-import java.io.InputStream;
+-import java.util.List;
+-import java.util.logging.Logger;
+-
+-public class LockedSpigot implements Plugin {
+-
+-    private static LockedSpigot lockedSpigot = null;
+-
+-    private Server server;
+-    private PluginLoader pluginLoader;
+-
+-    public LockedSpigot(Server server, PluginLoader pluginLoader) {
+-        this.server = server;
+-        this.pluginLoader = pluginLoader;
+-        lockedSpigot = this;
+-        server.getPluginManager().registerEvents(new MenuListener(), lockedSpigot);
+-    }
+-
+-    public static LockedSpigot getLockedSpigot() {
+-        return lockedSpigot;
+-    }
+-
+-    @Override
+-    public File getDataFolder() {
+-        return new File(Bukkit.getWorldContainer(), "plugins");
+-    }
+-
+-    @Override
+-    public PluginDescriptionFile getDescription() {
+-        return new PluginDescriptionFile("LockedSpigot", "1.0", "dev.lockedthread.plugin.LockedSpigot");
+-    }
+-
+-    @Override
+-    public FileConfiguration getConfig() {
+-        return null;
+-    }
+-
+-    @Override
+-    public InputStream getResource(String filename) {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public void saveConfig() {
+-
+-    }
+-
+-    @Override
+-    public void saveDefaultConfig() {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public void saveResource(String resourcePath, boolean replace) {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public void reloadConfig() {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public PluginLoader getPluginLoader() {
+-        return pluginLoader;
+-    }
+-
+-    @Override
+-    public Server getServer() {
+-        return server;
+-    }
+-
+-    @Override
+-    public boolean isEnabled() {
+-        return true;
+-    }
+-
+-    @Override
+-    public void onDisable() {
+-        System.out.println("Disabling LockedSpigot plugin instance");
+-    }
+-
+-    @Override
+-    public void onLoad() {
+-        System.out.println("Loading LockedSpigot plugin instance");
+-    }
+-
+-    @Override
+-    public void onEnable() {
+-        System.out.println("Enabling LockedSpigot plugin instance");
+-    }
+-
+-    @Override
+-    public boolean isNaggable() {
+-        return false;
+-    }
+-
+-    @Override
+-    public void setNaggable(boolean canNag) {
+-
+-    }
+-
+-    @Override
+-    public EbeanServer getDatabase() {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public ChunkGenerator getDefaultWorldGenerator(String worldName, String id) {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public Logger getLogger() {
+-        return Bukkit.getLogger();
+-    }
+-
+-    @Override
+-    public String getName() {
+-        return "LockedSpigotPluginInstance";
+-    }
+-
+-    @Override
+-    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-
+-    @Override
+-    public List<String> onTabComplete(CommandSender sender, Command command, String alias, String[] args) {
+-        throw new UnsupportedOperationException("Contact LockedThread immediately if you're running into this error!");
+-    }
+-}
+diff --git a/src/main/java/org/bukkit/plugin/SimplePluginManager.java b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+index b20e633b..6f9891b2 100644
+--- a/src/main/java/org/bukkit/plugin/SimplePluginManager.java
++++ b/src/main/java/org/bukkit/plugin/SimplePluginManager.java
+@@ -2,16 +2,15 @@ package org.bukkit.plugin;
+ 
+ import com.google.common.collect.ImmutableSet;
+ import dev.lockedthread.menu.MenuListener;
+-import dev.lockedthread.plugin.LockedSpigot;
+ import org.apache.commons.lang.Validate;
+ import org.bukkit.Server;
+ import org.bukkit.command.Command;
+ import org.bukkit.command.PluginCommandYamlParser;
+ import org.bukkit.command.SimpleCommandMap;
+-import org.bukkit.event.Event;
+-import org.bukkit.event.EventPriority;
+-import org.bukkit.event.HandlerList;
+-import org.bukkit.event.Listener;
++import org.bukkit.event.*;
++import org.bukkit.event.inventory.InventoryClickEvent;
++import org.bukkit.event.inventory.InventoryCloseEvent;
++import org.bukkit.event.inventory.InventoryOpenEvent;
+ import org.bukkit.permissions.Permissible;
+ import org.bukkit.permissions.Permission;
+ import org.bukkit.permissions.PermissionDefault;
+@@ -281,8 +280,6 @@ public final class SimplePluginManager implements PluginManager {
+             }
+         }
+ 
+-        result.add(new LockedSpigot(server, fileAssociations.get(Pattern.compile("\\.jar$"))));
+-
+         return result.toArray(new Plugin[0]);
+     }
+ 
+@@ -477,7 +474,6 @@ public final class SimplePluginManager implements PluginManager {
+     }
+ 
+     private void fireEvent(Event event) {
+-        /*
+         if (event instanceof InventoryClickEvent) {
+             menuListener.onInventoryClick((InventoryClickEvent) event);
+             if (((Cancellable) event).isCancelled()) {
+@@ -490,7 +486,7 @@ public final class SimplePluginManager implements PluginManager {
+             }
+         } else if (event instanceof InventoryCloseEvent) {
+             menuListener.onInventoryClose((InventoryCloseEvent) event);
+-        }*/
++        }
+         HandlerList handlers = event.getHandlers();
+         RegisteredListener[] listeners = handlers.getRegisteredListeners();
+ 
+-- 
+2.21.0.windows.1
+

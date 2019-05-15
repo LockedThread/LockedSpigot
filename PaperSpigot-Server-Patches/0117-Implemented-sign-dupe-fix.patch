@@ -1,0 +1,205 @@
+From 5a4bf6697e9fba352e7be1ad1496e60904ec163d Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Sun, 12 May 2019 18:56:46 -0400
+Subject: [PATCH] Implemented sign dupe fix
+
+
+diff --git a/src/main/java/dev/lockedthread/LockedSpigotConfig.java b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+index 02b8d842d..1074648f6 100644
+--- a/src/main/java/dev/lockedthread/LockedSpigotConfig.java
++++ b/src/main/java/dev/lockedthread/LockedSpigotConfig.java
+@@ -103,6 +103,10 @@ public class LockedSpigotConfig {
+     private static boolean fallingBlockHurtEntitiesEnabled;
+     private static boolean fallingBlockHurtEntitiesOverrideAPIUsage;
+ 
++    private static boolean signPatchDupe;
++    private static int signMaxLength;
++    private static boolean signKeepInvalidUnicode;
++
+     private static void load() {
+         ironGolemCancelFallDamage = getBoolean("irongolem.cancel-falldamage", true);
+         ironGolemDropPoppies = getBoolean("irongolem.drop-poppies", false);
+@@ -181,6 +185,10 @@ public class LockedSpigotConfig {
+         fallingBlockHurtEntitiesEnabled = getBoolean("falling-blocks.hurt-entities.enabled", false);
+         fallingBlockHurtEntitiesOverrideAPIUsage = getBoolean("falling-blocks.hurt-entities.override-api-usage", true);
+ 
++        signPatchDupe = getBoolean("sign.patch-dupe", true);
++        signMaxLength = getInt("sign.max-length", 80);
++        signKeepInvalidUnicode = getBoolean("sign-keep-invalid-unicode", false);
++
+         int count = 0;
+ 
+         for (int k = 0; k < 16; ++k) {
+@@ -463,6 +471,18 @@ public class LockedSpigotConfig {
+         return fallingBlockHurtEntitiesOverrideAPIUsage;
+     }
+ 
++    public static boolean isSignPatchDupe() {
++        return signPatchDupe;
++    }
++
++    public static int getSignMaxLength() {
++        return signMaxLength;
++    }
++
++    public static boolean isSignKeepInvalidUnicode() {
++        return signKeepInvalidUnicode;
++    }
++
+     public static void init(File configFile) {
+         System.out.println("Initializing static fields for LockedSpigot");
+         CONFIG_FILE = configFile;
+diff --git a/src/main/java/net/minecraft/server/PlayerConnection.java b/src/main/java/net/minecraft/server/PlayerConnection.java
+index 6873e6b3d..3827793b8 100644
+--- a/src/main/java/net/minecraft/server/PlayerConnection.java
++++ b/src/main/java/net/minecraft/server/PlayerConnection.java
+@@ -1873,9 +1873,9 @@ public class PlayerConnection implements PacketListenerPlayIn, IUpdatePlayerList
+ 
+             TileEntitySign tileentitysign = (TileEntitySign) tileentity;
+ 
+-            if (!tileentitysign.b() || tileentitysign.c() != this.player) {
++            if (!tileentitysign.b() || tileentitysign.signEditor == null || !tileentitysign.signEditor.equals(this.player.getUniqueID())) { // Paper
+                 this.minecraftServer.warning("Player " + this.player.getName() + " just tried to change non-editable sign");
+-                this.sendPacket(new PacketPlayOutUpdateSign(tileentity.world, packetplayinupdatesign.a(), tileentitysign.lines)); // CraftBukkit
++                this.sendPacket(tileentity.getUpdatePacket()); // CraftBukkit
+                 return;
+             }
+ 
+diff --git a/src/main/java/net/minecraft/server/TileEntitySign.java b/src/main/java/net/minecraft/server/TileEntitySign.java
+index a6a649dc8..50fe41153 100644
+--- a/src/main/java/net/minecraft/server/TileEntitySign.java
++++ b/src/main/java/net/minecraft/server/TileEntitySign.java
+@@ -1,31 +1,47 @@
+ package net.minecraft.server;
+ 
+ import com.google.gson.JsonParseException;
+-import org.bukkit.entity.Player;
++import dev.lockedthread.LockedSpigotConfig;
++import org.bukkit.craftbukkit.util.CraftChatMessage;
+ 
+ public class TileEntitySign extends TileEntity {
+ 
+-    public final IChatBaseComponent[] lines = new IChatBaseComponent[] { new ChatComponentText(""), new ChatComponentText(""), new ChatComponentText(""), new ChatComponentText("")};
++    public final IChatBaseComponent[] lines = new IChatBaseComponent[]{new ChatComponentText(""), new ChatComponentText(""), new ChatComponentText(""), new ChatComponentText("")};
+     public int f = -1;
+     public boolean isEditable = true;
+-    private EntityHuman h;
+     private final CommandObjectiveExecutor i = new CommandObjectiveExecutor();
++    public java.util.UUID signEditor;
++    private boolean privateUnicodeRemoved = false;
+ 
+-    public TileEntitySign() {}
++    public TileEntitySign() {
++    }
+ 
+     public void b(NBTTagCompound nbttagcompound) {
+         super.b(nbttagcompound);
+ 
+         for (int i = 0; i < 4; ++i) {
+-            String s = IChatBaseComponent.ChatSerializer.a(this.lines[i]);
++            String component = org.bukkit.craftbukkit.util.CraftChatMessage.fromComponent(lines[i]);
++
++            if (LockedSpigotConfig.getSignMaxLength() > 0 && component.length() > LockedSpigotConfig.getSignMaxLength()) {
++                component = component.substring(0, LockedSpigotConfig.getSignMaxLength());
++            }
+ 
+-            nbttagcompound.setString("Text" + (i + 1), s);
++            String s = CraftChatMessage.fromComponent(org.bukkit.craftbukkit.util.CraftChatMessage.fromString(component)[0]);
++
++            nbttagcompound.setString("Text" + (i + 1), LockedSpigotConfig.getSignMaxLength() > 0 && s.length() > LockedSpigotConfig.getSignMaxLength() ? s.substring(0, LockedSpigotConfig.getSignMaxLength()) : s); // Paper
+         }
+ 
+         // CraftBukkit start
+         if (Boolean.getBoolean("convertLegacySigns")) {
+             nbttagcompound.setBoolean("Bukkit.isConverted", true);
+         }
++
++        // Paper start - Only remove private area unicode once
++        if (this.privateUnicodeRemoved) {
++            nbttagcompound.setBoolean("Paper.RemovedPrivateUnicode", true);
++        }
++        // Paper end
++
+         // CraftBukkit end
+ 
+         this.i.b(nbttagcompound);
+@@ -43,7 +59,8 @@ public class TileEntitySign extends TileEntity {
+                 return new ChatComponentText(this.getName());
+             }
+ 
+-            public void sendMessage(IChatBaseComponent ichatbasecomponent) {}
++            public void sendMessage(IChatBaseComponent ichatbasecomponent) {
++            }
+ 
+             public boolean a(int i, String s) {
+                 return true;
+@@ -69,9 +86,15 @@ public class TileEntitySign extends TileEntity {
+                 return false;
+             }
+ 
+-            public void a(CommandObjectiveExecutor.EnumCommandResult commandobjectiveexecutor_enumcommandresult, int i) {}
++            public void a(CommandObjectiveExecutor.EnumCommandResult commandobjectiveexecutor_enumcommandresult, int i) {
++            }
+         };
+ 
++        // Paper start - Keep track, only do it once per sign
++        this.privateUnicodeRemoved = nbttagcompound.getBoolean("Paper.RemovedPrivateUnicode");
++        boolean ranUnicodeRemoval = false;
++        // Paper end
++
+         // CraftBukkit start - Add an option to convert signs correctly
+         // This is done with a flag instead of all the time because
+         // we have no way to tell whether a sign is from 1.7.10 or 1.8
+@@ -83,6 +106,16 @@ public class TileEntitySign extends TileEntity {
+             if (s != null && s.length() > 2048) {
+                 s = "\"\"";
+             }
++            if (LockedSpigotConfig.isSignPatchDupe() && s != null && !this.privateUnicodeRemoved) {
++                StringBuilder builder = new StringBuilder();
++                for (char character : s.toCharArray()) {
++                    if (Character.UnicodeBlock.of(character) != Character.UnicodeBlock.PRIVATE_USE_AREA) {
++                        builder.append(character);
++                    }
++                }
++                s = builder.toString();
++                ranUnicodeRemoval = true;
++            }
+ 
+             try {
+                 IChatBaseComponent ichatbasecomponent = IChatBaseComponent.ChatSerializer.a(s);
+@@ -102,7 +135,7 @@ public class TileEntitySign extends TileEntity {
+                 this.lines[i] = new ChatComponentText(s);
+             }
+         }
+-
++        if (ranUnicodeRemoval) this.privateUnicodeRemoved = true; // Paper - Flag to write NBT
+         this.i.a(nbttagcompound);
+     }
+ 
+@@ -122,11 +155,8 @@ public class TileEntitySign extends TileEntity {
+     }
+ 
+     public void a(EntityHuman entityhuman) {
+-        this.h = entityhuman;
+-    }
+-
+-    public EntityHuman c() {
+-        return this.h;
++        //this.h = entityhuman;
++        this.signEditor = entityhuman != null ? entityhuman.getUniqueID() : null;
+     }
+ 
+     public boolean b(final EntityHuman entityhuman) {
+@@ -139,7 +169,8 @@ public class TileEntitySign extends TileEntity {
+                 return entityhuman.getScoreboardDisplayName();
+             }
+ 
+-            public void sendMessage(IChatBaseComponent ichatbasecomponent) {}
++            public void sendMessage(IChatBaseComponent ichatbasecomponent) {
++            }
+ 
+             public boolean a(int i, String s) {
+                 return i <= 2;
+-- 
+2.21.0.windows.1
+

@@ -1,0 +1,518 @@
+From 28f63d69566db7064c9448afbe0e99105b2829d2 Mon Sep 17 00:00:00 2001
+From: Admin <lockedthreaddev@gmail.com>
+Date: Tue, 14 May 2019 21:13:58 -0400
+Subject: [PATCH] Changed more to java predicates
+
+
+diff --git a/src/main/java/net/minecraft/server/BlockMinecartDetector.java b/src/main/java/net/minecraft/server/BlockMinecartDetector.java
+index 96b77c384..2c922fd17 100644
+--- a/src/main/java/net/minecraft/server/BlockMinecartDetector.java
++++ b/src/main/java/net/minecraft/server/BlockMinecartDetector.java
+@@ -1,11 +1,11 @@
+ package net.minecraft.server;
+ 
+ import com.google.common.base.Predicate;
++import org.bukkit.event.block.BlockRedstoneEvent;
++
+ import java.util.List;
+ import java.util.Random;
+ 
+-import org.bukkit.event.block.BlockRedstoneEvent; // CraftBukkit
+-
+ public class BlockMinecartDetector extends BlockMinecartTrackAbstract {
+ 
+     public static final BlockStateEnum<BlockMinecartTrackAbstract.EnumTrackPosition> SHAPE = BlockStateEnum.a("shape", BlockMinecartTrackAbstract.EnumTrackPosition.class, new Predicate() {
+@@ -129,7 +129,7 @@ public class BlockMinecartDetector extends BlockMinecartTrackAbstract {
+         return 0;
+     }
+ 
+-    protected <T extends EntityMinecartAbstract> List<T> a(World world, BlockPosition blockposition, Class<T> oclass, Predicate<Entity>... apredicate) {
++    protected <T extends EntityMinecartAbstract> List<T> a(World world, BlockPosition blockposition, Class<T> oclass, java.util.function.Predicate<Entity>... apredicate) {
+         AxisAlignedBB axisalignedbb = this.a(blockposition);
+ 
+         return apredicate.length != 1 ? world.a(oclass, axisalignedbb) : world.a(oclass, axisalignedbb, apredicate[0]);
+diff --git a/src/main/java/net/minecraft/server/EntityLiving.java b/src/main/java/net/minecraft/server/EntityLiving.java
+index 74ee8a9ef..8d0c7f8ee 100644
+--- a/src/main/java/net/minecraft/server/EntityLiving.java
++++ b/src/main/java/net/minecraft/server/EntityLiving.java
+@@ -1645,14 +1645,13 @@ public abstract class EntityLiving extends Entity {
+     }
+ 
+     protected void bL() {
+-        List list = this.world.a(this, this.getBoundingBox().grow(0.20000000298023224, 0.0, 0.20000000298023224), IEntitySelector.d.and(Entity::ae));
++        List<Entity> list = this.world.a(this, this.getBoundingBox().grow(0.20000000298023224, 0.0, 0.20000000298023224), IEntitySelector.d.and(Entity::ae));
+         if (this.ad() && !list.isEmpty()) { // Spigot: Add this.ad() condition
+             numCollisions -= world.spigotConfig.maxCollisionsPerEntity; // Spigot
+-            for (Object o : list) {
++            for (Entity entity : list) {
+                 if (numCollisions > world.spigotConfig.maxCollisionsPerEntity) {
+                     break;
+                 } // Spigot
+-                Entity entity = (Entity) o;
+ 
+                 // TODO better check now?
+                 // CraftBukkit start - Only handle mob (non-player) collisions every other tick
+diff --git a/src/main/java/net/minecraft/server/EntityWither.java b/src/main/java/net/minecraft/server/EntityWither.java
+index dfd0daab6..83060d3c4 100644
+--- a/src/main/java/net/minecraft/server/EntityWither.java
++++ b/src/main/java/net/minecraft/server/EntityWither.java
+@@ -1,14 +1,15 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.base.Predicate;
+-import com.google.common.base.Predicates;
+-import java.util.Iterator;
+-import java.util.List;
+-
+-// CraftBukkit start
+ import org.bukkit.craftbukkit.event.CraftEventFactory;
+ import org.bukkit.event.entity.EntityRegainHealthEvent;
+ import org.bukkit.event.entity.ExplosionPrimeEvent;
++
++import java.util.List;
++import java.util.function.Predicate;
++
++// CraftBukkit start
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public class EntityWither extends EntityMonster implements IRangedEntity {
+@@ -20,15 +21,7 @@ public class EntityWither extends EntityMonster implements IRangedEntity {
+     private int[] bn = new int[2];
+     private int[] bo = new int[2];
+     private int bp;
+-    private static final Predicate<Entity> bq = new Predicate() {
+-        public boolean a(Entity entity) {
+-            return entity instanceof EntityLiving && ((EntityLiving) entity).getMonsterType() != EnumMonsterType.UNDEAD;
+-        }
+-
+-        public boolean apply(Object object) {
+-            return this.a((Entity) object);
+-        }
+-    };
++    private static final Predicate<Entity> bq = entity -> entity instanceof EntityLiving && ((EntityLiving) entity).getMonsterType() != EnumMonsterType.UNDEAD;
+ 
+     public EntityWither(World world) {
+         super(world);
+@@ -191,7 +184,8 @@ public class EntityWither extends EntityMonster implements IRangedEntity {
+                     double deltaX = this.locX - player.locX;
+                     double deltaZ = this.locZ - player.locZ;
+                     double distanceSquared = deltaX * deltaX + deltaZ * deltaZ;
+-                    if ( world.spigotConfig.witherSpawnSoundRadius > 0 && distanceSquared > world.spigotConfig.witherSpawnSoundRadius * world.spigotConfig.witherSpawnSoundRadius ) continue; // Spigot
++                    if (world.spigotConfig.witherSpawnSoundRadius > 0 && distanceSquared > world.spigotConfig.witherSpawnSoundRadius * world.spigotConfig.witherSpawnSoundRadius)
++                        continue; // Spigot
+                     if (distanceSquared > viewDistance * viewDistance) {
+                         double deltaLength = Math.sqrt(distanceSquared);
+                         double relativeX = player.locX + (deltaX / deltaLength) * viewDistance;
+@@ -250,7 +244,7 @@ public class EntityWither extends EntityMonster implements IRangedEntity {
+                             this.b(i, 0);
+                         }
+                     } else {
+-                        List list = this.world.a(EntityLiving.class, this.getBoundingBox().grow(20.0D, 8.0D, 20.0D), Predicates.and(EntityWither.bq, IEntitySelector.d));
++                        List<Entity> list = this.world.a(EntityLiving.class, this.getBoundingBox().grow(20.0D, 8.0D, 20.0D), EntityWither.bq.and(IEntitySelector.d));
+ 
+                         for (int i1 = 0; i1 < 10 && !list.isEmpty(); ++i1) {
+                             EntityLiving entityliving = (EntityLiving) list.get(this.getRandom().nextInt(list.size()));
+@@ -329,7 +323,8 @@ public class EntityWither extends EntityMonster implements IRangedEntity {
+         this.setHealth(this.getMaxHealth() / 3.0F);
+     }
+ 
+-    public void aA() {}
++    public void aA() {
++    }
+ 
+     public int br() {
+         return 4;
+@@ -459,9 +454,11 @@ public class EntityWither extends EntityMonster implements IRangedEntity {
+         this.ticksFarFromPlayer = 0;
+     }
+ 
+-    public void e(float f, float f1) {}
++    public void e(float f, float f1) {
++    }
+ 
+-    public void addEffect(MobEffect mobeffect) {}
++    public void addEffect(MobEffect mobeffect) {
++    }
+ 
+     protected void initAttributes() {
+         super.initAttributes();
+diff --git a/src/main/java/net/minecraft/server/Explosion.java b/src/main/java/net/minecraft/server/Explosion.java
+index 26e3bebed..96b7a421c 100644
+--- a/src/main/java/net/minecraft/server/Explosion.java
++++ b/src/main/java/net/minecraft/server/Explosion.java
+@@ -20,7 +20,7 @@ public class Explosion {
+     public static Map<ExplosionLocation, ExplosionInfo> EXPLOSION_INFO_MAP;
+     //public static final Map<BlockPosition, Map<Entity, Float>> EXPLOSION_ENTITY_CACHE = new HashMap<>();
+     //public static final Map<ExplosionLocation, Region> REGION_CACHE = new HashMap<>();
+-    private static final Predicate<Entity> ENTITY_SEARCH_PREDICATE = entity -> (!(entity instanceof EntityItem) || LockedSpigotConfig.isExplosionDestroyItems()) && (!(entity instanceof EntityHuman) || !entity.world.paperSpigotConfig.disableExplosionKnockback) && !entity.dead && IEntitySelector.d.apply(entity);
++    private static final Predicate<Entity> ENTITY_SEARCH_PREDICATE = entity -> (!(entity instanceof EntityItem) || LockedSpigotConfig.isExplosionDestroyItems()) && (!(entity instanceof EntityHuman) || !entity.world.paperSpigotConfig.disableExplosionKnockback) && !entity.dead && IEntitySelector.d.test(entity);
+     private final boolean fire;
+     private final boolean b;
+     private final double posX;
+diff --git a/src/main/java/net/minecraft/server/ItemArmor.java b/src/main/java/net/minecraft/server/ItemArmor.java
+index 1683970ea..986a07702 100644
+--- a/src/main/java/net/minecraft/server/ItemArmor.java
++++ b/src/main/java/net/minecraft/server/ItemArmor.java
+@@ -1,17 +1,19 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.base.Predicates;
++import org.bukkit.craftbukkit.inventory.CraftItemStack;
++import org.bukkit.event.block.BlockDispenseEvent;
++
+ import java.util.List;
+ 
+ // CraftBukkit start
+-import org.bukkit.craftbukkit.inventory.CraftItemStack;
+-import org.bukkit.event.block.BlockDispenseEvent;
++
++// CraftBukkit start
+ // CraftBukkit end
+ 
+ public class ItemArmor extends Item {
+ 
+-    private static final int[] k = new int[] { 11, 16, 15, 13};
+-    public static final String[] a = new String[] { "minecraft:items/empty_armor_slot_helmet", "minecraft:items/empty_armor_slot_chestplate", "minecraft:items/empty_armor_slot_leggings", "minecraft:items/empty_armor_slot_boots"};
++    public static final String[] a = new String[]{"minecraft:items/empty_armor_slot_helmet", "minecraft:items/empty_armor_slot_chestplate", "minecraft:items/empty_armor_slot_leggings", "minecraft:items/empty_armor_slot_boots"};
++    private static final int[] k = new int[]{11, 16, 15, 13};
+     private static final IDispenseBehavior l = new DispenseBehaviorItem() {
+         protected ItemStack b(ISourceBlock isourceblock, ItemStack itemstack) {
+             BlockPosition blockposition = isourceblock.getBlockPosition().shift(BlockDispenser.b(isourceblock.f()));
+@@ -19,7 +21,7 @@ public class ItemArmor extends Item {
+             int j = blockposition.getY();
+             int k = blockposition.getZ();
+             AxisAlignedBB axisalignedbb = new AxisAlignedBB((double) i, (double) j, (double) k, (double) (i + 1), (double) (j + 1), (double) (k + 1));
+-            List list = isourceblock.getWorld().a(EntityLiving.class, axisalignedbb, Predicates.and(IEntitySelector.d, new IEntitySelector.EntitySelectorEquipable(itemstack)));
++            List list = isourceblock.getWorld().a(EntityLiving.class, axisalignedbb, IEntitySelector.d.and(new IEntitySelector.EntitySelectorEquipable(itemstack)));
+ 
+             if (list.size() > 0) {
+                 EntityLiving entityliving = (EntityLiving) list.get(0);
+@@ -167,7 +169,7 @@ public class ItemArmor extends Item {
+ 
+     public enum EnumArmorMaterial {
+ 
+-        LEATHER("leather", 5, new int[] { 1, 3, 2, 1}, 15), CHAIN("chainmail", 15, new int[] { 2, 5, 4, 1}, 12), IRON("iron", 15, new int[] { 2, 6, 5, 2}, 9), GOLD("gold", 7, new int[] { 2, 5, 3, 1}, 25), DIAMOND("diamond", 33, new int[] { 3, 8, 6, 3}, 10);
++        LEATHER("leather", 5, new int[]{1, 3, 2, 1}, 15), CHAIN("chainmail", 15, new int[]{2, 5, 4, 1}, 12), IRON("iron", 15, new int[]{2, 6, 5, 2}, 9), GOLD("gold", 7, new int[]{2, 5, 3, 1}, 25), DIAMOND("diamond", 33, new int[]{3, 8, 6, 3}, 10);
+ 
+         private final String f;
+         private final int g;
+diff --git a/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java b/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java
+index 982f20ff3..b5064ae2e 100644
+--- a/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java
++++ b/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTarget.java
+@@ -1,8 +1,5 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.base.Predicate;
+-import com.google.common.base.Predicates;
+-import java.util.Collections;
+ import java.util.Comparator;
+ import java.util.List;
+ 
+@@ -11,7 +8,7 @@ public class PathfinderGoalNearestAttackableTarget<T extends EntityLiving> exten
+     protected final Class<T> a;
+     private final int g;
+     protected final PathfinderGoalNearestAttackableTarget.DistanceComparator b;
+-    protected Predicate c;
++    protected java.util.function.Predicate<T> c;
+     protected EntityLiving d;
+ 
+     public PathfinderGoalNearestAttackableTarget(EntityCreature entitycreature, Class<T> oclass, boolean flag) {
+@@ -22,46 +19,39 @@ public class PathfinderGoalNearestAttackableTarget<T extends EntityLiving> exten
+         this(entitycreature, oclass, 10, flag, flag1, null);
+     }
+ 
+-    public PathfinderGoalNearestAttackableTarget(EntityCreature entitycreature, Class<T> oclass, int i, boolean flag, boolean flag1, final Predicate<? super T> predicate) {
++    public PathfinderGoalNearestAttackableTarget(EntityCreature entitycreature, Class<T> oclass, int i, boolean flag, boolean flag1, final java.util.function.Predicate<? super T> predicate) {
+         super(entitycreature, flag, flag1);
+         this.a = oclass;
+         this.g = i;
+         this.b = new PathfinderGoalNearestAttackableTarget.DistanceComparator(entitycreature);
+         this.a(1);
+-        this.c = new Predicate() {
+-            public boolean a(T t0) {
+-                if (predicate != null && !predicate.apply(t0)) {
+-                    return false;
+-                } else {
+-                    if (t0 instanceof EntityHuman) {
+-                        double d0 = PathfinderGoalNearestAttackableTarget.this.f();
+-
+-                        if (t0.isSneaking()) {
+-                            d0 *= 0.800000011920929D;
+-                        }
+-
+-                        if (t0.isInvisible()) {
+-                            float f = ((EntityHuman) t0).bY();
++        this.c = t -> {
++            if (predicate != null && !predicate.test(t)) {
++                return false;
++            }
++            if (t instanceof EntityHuman) {
++                double d0 = PathfinderGoalNearestAttackableTarget.this.f();
+ 
+-                            if (f < 0.1F) {
+-                                f = 0.1F;
+-                            }
++                if (t.isSneaking()) {
++                    d0 *= 0.800000011920929D;
++                }
+ 
+-                            d0 *= (double) (0.7F * f);
+-                        }
++                if (t.isInvisible()) {
++                    float f = ((EntityHuman) t).bY();
+ 
+-                        if ((double) t0.g(PathfinderGoalNearestAttackableTarget.this.e) > d0) {
+-                            return false;
+-                        }
++                    if (f < 0.1F) {
++                        f = 0.1F;
+                     }
+ 
+-                    return PathfinderGoalNearestAttackableTarget.this.a(t0, false);
++                    d0 *= (double) (0.7F * f);
+                 }
+-            }
+ 
+-            public boolean apply(Object object) {
+-                return this.a((T) object); // CraftBukkit - fix decompile error
++                if ((double) t.g(PathfinderGoalNearestAttackableTarget.this.e) > d0) {
++                    return false;
++                }
+             }
++
++            return PathfinderGoalNearestAttackableTarget.this.a(t, false);
+         };
+     }
+ 
+@@ -70,7 +60,7 @@ public class PathfinderGoalNearestAttackableTarget<T extends EntityLiving> exten
+             return false;
+         } else {
+             double d0 = this.f();
+-            List list = this.e.world.a(this.a, this.e.getBoundingBox().grow(d0, 4.0D, d0), Predicates.and(this.c, IEntitySelector.d)); // TacoSpigot - the eclipse compiler can't understand this, so make it generic
++            List list = this.e.world.a(this.a, this.e.getBoundingBox().grow(d0, 4.0D, d0), this.c.and(IEntitySelector.d)); // TacoSpigot - the eclipse compiler can't understand this, so make it generic
+ 
+             list.sort(this.b);
+             if (list.isEmpty()) {
+diff --git a/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTargetInsentient.java b/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTargetInsentient.java
+index 41cce089e..11a09c604 100644
+--- a/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTargetInsentient.java
++++ b/src/main/java/net/minecraft/server/PathfinderGoalNearestAttackableTargetInsentient.java
+@@ -1,16 +1,15 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.base.Predicate;
+-import java.util.Collections;
+-import java.util.List;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
++import java.util.List;
++
+ public class PathfinderGoalNearestAttackableTargetInsentient extends PathfinderGoal {
+ 
+     private static final Logger a = LogManager.getLogger();
+     private EntityInsentient b;
+-    private final Predicate<EntityLiving> c;
++    private final java.util.function.Predicate<EntityLiving> c;
+     private final PathfinderGoalNearestAttackableTarget.DistanceComparator d;
+     private EntityLiving e;
+     private Class<? extends EntityLiving> f;
+@@ -22,20 +21,14 @@ public class PathfinderGoalNearestAttackableTargetInsentient extends PathfinderG
+             PathfinderGoalNearestAttackableTargetInsentient.a.warn("Use NearestAttackableTargetGoal.class for PathfinerMob mobs!");
+         }
+ 
+-        this.c = new Predicate() {
+-            public boolean a(EntityLiving entityliving) {
+-                double d0 = PathfinderGoalNearestAttackableTargetInsentient.this.f();
++        this.c = entityLiving -> {
++            double d0 = PathfinderGoalNearestAttackableTargetInsentient.this.f();
+ 
+-                if (entityliving.isSneaking()) {
+-                    d0 *= 0.800000011920929D;
+-                }
+-
+-                return entityliving.isInvisible() ? false : ((double) entityliving.g(PathfinderGoalNearestAttackableTargetInsentient.this.b) > d0 ? false : PathfinderGoalTarget.a(PathfinderGoalNearestAttackableTargetInsentient.this.b, entityliving, false, true));
++            if (entityLiving.isSneaking()) {
++                d0 *= 0.800000011920929D;
+             }
+ 
+-            public boolean apply(Object object) {
+-                return this.a((EntityLiving) object);
+-            }
++            return !entityLiving.isInvisible() && (!((double) entityLiving.g(PathfinderGoalNearestAttackableTargetInsentient.this.b) > d0) && PathfinderGoalTarget.a(PathfinderGoalNearestAttackableTargetInsentient.this.b, entityLiving, false, true));
+         };
+         this.d = new PathfinderGoalNearestAttackableTarget.DistanceComparator(entityinsentient);
+     }
+diff --git a/src/main/java/net/minecraft/server/PathfinderGoalTargetNearestPlayer.java b/src/main/java/net/minecraft/server/PathfinderGoalTargetNearestPlayer.java
+index 42b26894a..ab6f078a3 100644
+--- a/src/main/java/net/minecraft/server/PathfinderGoalTargetNearestPlayer.java
++++ b/src/main/java/net/minecraft/server/PathfinderGoalTargetNearestPlayer.java
+@@ -1,16 +1,15 @@
+ package net.minecraft.server;
+ 
+-import com.google.common.base.Predicate;
+-import java.util.Collections;
+-import java.util.List;
+ import org.apache.logging.log4j.LogManager;
+ import org.apache.logging.log4j.Logger;
+ 
++import java.util.List;
++
+ public class PathfinderGoalTargetNearestPlayer extends PathfinderGoal {
+ 
+     private static final Logger a = LogManager.getLogger();
+     private EntityInsentient b;
+-    private final Predicate<Entity> c;
++    private final java.util.function.Predicate<Entity> c;
+     private final PathfinderGoalNearestAttackableTarget.DistanceComparator d;
+     private EntityLiving e;
+ 
+@@ -20,35 +19,29 @@ public class PathfinderGoalTargetNearestPlayer extends PathfinderGoal {
+             PathfinderGoalTargetNearestPlayer.a.warn("Use NearestAttackableTargetGoal.class for PathfinerMob mobs!");
+         }
+ 
+-        this.c = new Predicate() {
+-            public boolean a(Entity entity) {
+-                if (!(entity instanceof EntityHuman)) {
+-                    return false;
+-                } else if (((EntityHuman) entity).abilities.isInvulnerable) {
+-                    return false;
+-                } else {
+-                    double d0 = PathfinderGoalTargetNearestPlayer.this.f();
+-
+-                    if (entity.isSneaking()) {
+-                        d0 *= 0.800000011920929D;
+-                    }
++        this.c = entity -> {
++            if (!(entity instanceof EntityHuman)) {
++                return false;
++            } else if (((EntityHuman) entity).abilities.isInvulnerable) {
++                return false;
++            } else {
++                double d0 = PathfinderGoalTargetNearestPlayer.this.f();
+ 
+-                    if (entity.isInvisible()) {
+-                        float f = ((EntityHuman) entity).bY();
++                if (entity.isSneaking()) {
++                    d0 *= 0.800000011920929D;
++                }
+ 
+-                        if (f < 0.1F) {
+-                            f = 0.1F;
+-                        }
++                if (entity.isInvisible()) {
++                    float f = ((EntityHuman) entity).bY();
+ 
+-                        d0 *= (double) (0.7F * f);
++                    if (f < 0.1F) {
++                        f = 0.1F;
+                     }
+ 
+-                    return (double) entity.g(PathfinderGoalTargetNearestPlayer.this.b) > d0 ? false : PathfinderGoalTarget.a(PathfinderGoalTargetNearestPlayer.this.b, (EntityLiving) entity, false, true);
++                    d0 *= (double) (0.7F * f);
+                 }
+-            }
+ 
+-            public boolean apply(Object object) {
+-                return this.a((Entity) object);
++                return !((double) entity.g(PathfinderGoalTargetNearestPlayer.this.b) > d0) && PathfinderGoalTarget.a(PathfinderGoalTargetNearestPlayer.this.b, (EntityLiving) entity, false, true);
+             }
+         };
+         this.d = new PathfinderGoalNearestAttackableTarget.DistanceComparator(entityinsentient);
+@@ -56,7 +49,7 @@ public class PathfinderGoalTargetNearestPlayer extends PathfinderGoal {
+ 
+     public boolean a() {
+         double d0 = this.f();
+-        List list = this.b.world.a(EntityHuman.class, this.b.getBoundingBox().grow(d0, 4.0D, d0), this.c);
++        List<Entity> list = this.b.world.a(EntityHuman.class, this.b.getBoundingBox().grow(d0, 4.0D, d0), this.c);
+ 
+         list.sort(this.d);
+         if (list.isEmpty()) {
+diff --git a/src/main/java/net/minecraft/server/WorldServer.java b/src/main/java/net/minecraft/server/WorldServer.java
+index a45dfc8e4..bdb884237 100644
+--- a/src/main/java/net/minecraft/server/WorldServer.java
++++ b/src/main/java/net/minecraft/server/WorldServer.java
+@@ -1,7 +1,6 @@
+ package net.minecraft.server;
+ 
+ import co.aikar.timings.Timing;
+-import com.google.common.base.Predicate;
+ import com.google.common.collect.Lists;
+ import com.google.common.collect.Maps;
+ import com.google.common.util.concurrent.ListenableFuture;
+@@ -22,6 +21,7 @@ import org.bukkit.event.world.WorldSaveEvent;
+ import org.bukkit.generator.ChunkGenerator;
+ 
+ import java.util.*;
++import java.util.function.Predicate;
+ import java.util.logging.Level;
+ 
+ public class WorldServer extends World implements IAsyncTaskHandler {
+@@ -406,16 +406,7 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+     protected BlockPosition a(final BlockPosition blockposition) {
+         final BlockPosition blockposition2 = this.q(blockposition);
+         final AxisAlignedBB axisalignedbb = new AxisAlignedBB(blockposition2, new BlockPosition(blockposition2.getX(), this.getHeight(), blockposition2.getZ())).grow(3.0, 3.0, 3.0);
+-        final List<Entity> list = this.a(EntityLiving.class, axisalignedbb, (Predicate<? super Entity>) new Predicate() {
+-            public boolean a(final EntityLiving entityliving) {
+-                return entityliving != null && entityliving.isAlive() && WorldServer.this.i(entityliving.getChunkCoordinates());
+-            }
+-
+-            @Override
+-            public boolean apply(final Object object) {
+-                return this.a((EntityLiving) object);
+-            }
+-        });
++        final List<Entity> list = this.a(EntityLiving.class, axisalignedbb, (Predicate<Entity>) entity -> entity != null && entity.isAlive() && WorldServer.this.i(entity.getChunkCoordinates()));
+         return list.isEmpty() ? blockposition2 : list.get(this.random.nextInt(list.size())).getChunkCoordinates();
+     }
+ 
+@@ -609,7 +600,8 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+         return this.chunkProviderServer = new ChunkProviderServer(this, ichunkloader, gen);
+     }
+ 
+-    public List<TileEntity> getTileEntities(final int i, final int j, final int k, final int l, final int i1, final int j1) {
++    public List<TileEntity> getTileEntities(final int i, final int j, final int k, final int l, final int i1,
++                                            final int j1) {
+         final ArrayList arraylist = Lists.newArrayList();
+         for (int chunkX = i >> 4; chunkX <= l - 1 >> 4; ++chunkX) {
+             for (int chunkZ = k >> 4; chunkZ <= j1 - 1 >> 4; ++chunkZ) {
+@@ -820,7 +812,8 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+     }
+ 
+     @Override
+-    public Explosion createExplosion(final Entity entity, final double d0, final double d1, final double d2, final float f, final boolean flag, final boolean flag1) {
++    public Explosion createExplosion(final Entity entity, final double d0, final double d1, final double d2,
++                                     final float f, final boolean flag, final boolean flag1) {
+         Explosion explosion = super.createExplosion(entity, d0, d1, d2, f, flag, flag1);
+         if (explosion.wasCanceled || explosion.getExplosionInfo().isInWater()) {
+             return explosion;
+@@ -909,15 +902,20 @@ public class WorldServer extends World implements IAsyncTaskHandler {
+         return this.Q;
+     }
+ 
+-    public void a(final EnumParticle enumparticle, final double d0, final double d1, final double d2, final int i, final double d3, final double d4, final double d5, final double d6, final int... aint) {
++    public void a(final EnumParticle enumparticle, final double d0, final double d1, final double d2, final int i,
++                  final double d3, final double d4, final double d5, final double d6, final int... aint) {
+         this.a(enumparticle, false, d0, d1, d2, i, d3, d4, d5, d6, aint);
+     }
+ 
+-    public void a(final EnumParticle enumparticle, final boolean flag, final double d0, final double d1, final double d2, final int i, final double d3, final double d4, final double d5, final double d6, final int... aint) {
++    public void a(final EnumParticle enumparticle, final boolean flag, final double d0, final double d1,
++                  final double d2, final int i, final double d3, final double d4, final double d5, final double d6, final int...
++                          aint) {
+         this.sendParticles(null, enumparticle, flag, d0, d1, d2, i, d3, d4, d5, d6, aint);
+     }
+ 
+-    public void sendParticles(final EntityPlayer sender, final EnumParticle enumparticle, final boolean flag, final double d0, final double d1, final double d2, final int i, final double d3, final double d4, final double d5, final double d6, final int... aint) {
++    public void sendParticles(final EntityPlayer sender, final EnumParticle enumparticle, final boolean flag,
++                              final double d0, final double d1, final double d2, final int i, final double d3, final double d4,
++                              final double d5, final double d6, final int... aint) {
+         final PacketPlayOutWorldParticles packetplayoutworldparticles = new PacketPlayOutWorldParticles(enumparticle, flag, (float) d0, (float) d1, (float) d2, (float) d3, (float) d4, (float) d5, (float) d6, i, aint);
+         for (EntityHuman player : this.players) {
+             final EntityPlayer entityplayer = (EntityPlayer) player;
+-- 
+2.21.0.windows.1
+
